@@ -103,13 +103,69 @@ class _PiePiece(object):
 			np.isin(labeled_pie_mask, allowed_labels)
 		return(cell_overlapping_pie_mask)
 
-
-
-
 class _ThresholdFinder(object):
 	'''
 	Finds adaptive threshold for image
 	'''
+	def __init__(self, input_im):
+		self.input_im = input_im
+		# set tophat structural element to circle with radius 10
+		# using the default ellipse struct el from cv2 gives a different
+		# result than in matlab
+		#self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(19,19))
+		# manually create matlab strel('disk', 10) here
+		self.kernel = np.uint8([
+			[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+			[0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+			[0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+			[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+			[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+			[0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+			[0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+			[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0]])
+			# !!! This is a place that we can consider changing in future
+			# versions: the radius here should really depend on expected
+			# cell size and background properties (although some prelim
+			# tests showed increasing element radius had only negative
+			# consequences)
+			# !!! Also a good idea to see if the corresponding cv2
+			# ellipse structuring element works here
+		# set a warning flag to 0 (no warning)
+		self.threshold_flag = 0
+			# !!! would be good to make an enum class for these
+
+	def _get_tophat(self):
+		'''
+		Gets tophat of an image
+		'''
+		self.tophat_im = \
+			cv2.morphologyEx(self.input_im, cv2.MORPH_TOPHAT, self.kernel)
+
+	def _get_unique_tophat_vals(self):
+		'''
+		Counts how many unique values there are in the tophat image
+		Throws a warning if the number is less than/equal to 200
+		Throws an error if the number is less than/equal to 3
+		'''
+		# !!! It's important to make sure this code is run with try-except in the pipeline to avoid an error for one image derailing the whole analysis
+		self.tophat_unique = np.unique(self.tophat_im)
+		if len(self.tophat_unique) <= 3:
+			raise(ValueError, '3 or fewer unique values in tophat image')
+		elif len(self.tophat_unique) <= 200:
+			self.threshold_flag = 1
+		
+
 
 	def threshold_image(self, img):
 		pass
