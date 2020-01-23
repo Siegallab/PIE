@@ -158,11 +158,12 @@ class _ThresholdFinder(object):
 		Throws an error if the number is less than/equal to 3
 		'''
 		# !!! It's important to make sure this code is run with try-except in the pipeline to avoid an error for one image derailing the whole analysis
-		self.tophat_unique = np.unique(self.tophat_im)
-		if len(self.tophat_unique) <= 3:
+		tophat_unique = np.unique(self.tophat_im)
+		if len(tophat_unique) <= 3:
 			raise(ValueError, '3 or fewer unique values in tophat image')
-		elif len(self.tophat_unique) <= 200:
+		elif len(tophat_unique) <= 200:
 			self.threshold_flag = 1
+		return(tophat_unique)
 
 	def _bin_centers_to_edges(self, bin_centers):
 		'''
@@ -225,16 +226,97 @@ class _ThresholdFinder(object):
 		ln_tophat_hist = np.ma.log(tophat_hist).filled(0)
 		return(ln_tophat_hist, bin_centers)
 
-#		# set max number of bins to be used for tophat histogram
-#		# the value below seems to work well for a default
-#		max_bin_num = int(round(float(self.input_im.size)/3000))
-#		if max_bin_num > len(self.tophat_unique) & 
+	def _autocorrelate(self, x):
+		'''
+		Performs autocorrelation on x
+		Returns autocorrelation and the lags at which it was calculated
+		'''
+		sample_num = len(x)
+		lags = np.arange(-(sample_num-1), sample_num)
+		autocorrelation = np.correlate(x, x, mode = 'full')
+		return(autocorrelation, lags)
 
-	def threshold_image(self, img):
-		pass
+	def _check_autocorrelation_peaks(self, autocorrelation,
+		prop_freq_space = 0.02):
+		'''
+		Counts number of peaks in autocorrelation within prop_freq_space
+		proportion of frequency space around 0
+		If any peaks found besides the major peak at lag=0, return True
+		Otherwise, return False
+		Previous experience has shown that setting prop_freq_space to
+		1/50 produces good results in terms of identifying when the
+		histogram is estimated over too many points
+		'''
+		# find how many elements in freq space in one directon (past the
+		# peak)
+		unidirectional_freq_elements = (len(autocorrelation)-1)/2
+		# identify index at which major (0th) peak can be found
+		zero_position = unidirectional_freq_elements
+		# identify how many autocorrelation elements past the major peak
+		# to look for peaks in
+		max_lag_elements_from_zero = \
+			int(round(unidirectional_freq_elements * prop_freq_space))
+		# identify section of autocorrelation to look for peaks in
+		autocorrelation_section = \
+			autocorrelation[
+				(zero_position + np.arange(0, max_lag_elements_from_zero))]
+		# look for peaks as deviations from monotonic decrease
+		peaks_present = np.any(np.diff(autocorrelation_section) > 0)
+		return(peaks_present)
+
+	def _identify_best_histogram(self):
+		'''
+		Identify the best (log) histogram of the tophat image to use for
+		downstream fitting steps and threshold identification
+		Involves trying a pre-determined number of bins (for large
+		images, best bins are the values of unique tophat values, but
+		smaller images need much fewer bins)
+		Then look for peaks in autocorrelation of ln_tophat_hist, which
+		are a sign that the number of histogram bins was poorly
+		selected; if peaks present, reduce number of bins and try again
+		'''
+		# get unique tophat vals
+		tophat_unique = self._get_unique_tophat_vals()
+		# set max number of bins to be used for tophat histogram
+		# the value below seems to work well for a default
+		max_bin_num = int(round(float(self.tophat_im.size)/3000))
+		unique_tophat_vals = len(tophat_unique)
+		# loop through identifying log histograms until one passes
+		# autocorrelation test
+		while True:
+			# if max_bin_num is higher than the number of unique tophat
+			# values, use tophat_unique as bins; otherwise, use
+			# max_bin_num equally spaced bins
+			if max_bin_num > unique_tophat_vals:
+				ln_tophat_hist, bin_centers = \
+					self._get_log_tophat_hist(tophat_unique)
+			else:
+				ln_tophat_hist, bin_centers = \
+					self._get_log_tophat_hist(max_bin_num)
+			# measure autocorrelation of histogram
+			hist_autocorrelation, _ = self._autocorrelate(ln_tophat_hist)
+			# check whether peaks exist in autocorrelation
+			autocorr_peaks_exist = \
+				self._check_autocorrelation_peaks(hist_autocorrelation)
+			if autocorr_peaks_exist:
+				# reduce max_bin_num by setting it to either the number
+				# of unique tophat values or 2/3 the current max_bin_num
+				# (whichever is smaller); allow the loop to run again
+				max_bin_num = \
+					min(unique_tophat_vals, int(round(float(max_bin_num)*2/3)))
+			else:
+				self.ln_tophat_hist = ln_tophat_hist
+				self.x_pos = bin_centers
+				break
+				
+	def threshold_image(self):
+		self._get_tophat()
+		self._identify_best_histogram()
 
 
 if __name__ == '__main__':
+	# !!! It's important to make sure this code is run with try-except in the pipeline to avoid an error for one image derailing the whole analysis (see _ThresholdFinder._get_unique_tophat_vals)
+
 	input_im = cv2.imread('/Users/plavskin/Documents/yeast stuff/pie_paper_v2/plotcode/Fig2-5_ims/input_ims/xy01_12ms_3702.tif',
 		cv2.IMREAD_ANYDEPTH)
 	input_im_2 = input_im*32

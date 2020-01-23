@@ -8,14 +8,17 @@ from numpy.testing import assert_array_equal, assert_allclose
 
 class TestGetTophat(unittest.TestCase):
 
-	def setUp(self):
-		input_im = \
+	@classmethod
+	def setUpClass(self):
+		self.input_im = \
 			cv2.imread('PIE_tests/test_ims/test_im_small.tif',
 				cv2.IMREAD_ANYDEPTH)
-		self.threshold_finder = _ThresholdFinder(input_im)
 		self.expected_tophat = \
 			cv2.imread('PIE_tests/test_ims/test_im_small_tophat.tif',
 				cv2.IMREAD_ANYDEPTH)
+
+	def setUp(self):
+		self.threshold_finder = _ThresholdFinder(self.input_im)
 
 	def test_get_tophat(self):
 		'''
@@ -39,10 +42,8 @@ class TestGetUniqueTophatVals(unittest.TestCase):
 		'''
 		self.threshold_finder_standin.tophat_im = \
 			np.array([range(1,301), range(201,501)])
-		self.threshold_finder_standin._get_unique_tophat_vals()
-		self.assertEqual(
-			set(self.threshold_finder_standin.tophat_unique.flatten()),
-			set(range(1,501)))
+		tophat_unique = self.threshold_finder_standin._get_unique_tophat_vals()
+		self.assertEqual(set(tophat_unique.flatten()), set(range(1,501)))
 		self.assertEqual(self.threshold_finder_standin.threshold_flag, 0)
 
 	def test_150_unique_vals(self):
@@ -52,10 +53,8 @@ class TestGetUniqueTophatVals(unittest.TestCase):
 		'''
 		self.threshold_finder_standin.tophat_im = \
 			np.array([range(1,101), range(51,151)])
-		self.threshold_finder_standin._get_unique_tophat_vals()
-		self.assertEqual(
-			set(self.threshold_finder_standin.tophat_unique.flatten()),
-			set(range(1,151)))
+		tophat_unique = self.threshold_finder_standin._get_unique_tophat_vals()
+		self.assertEqual(set(tophat_unique.flatten()), set(range(1,151)))
 		self.assertEqual(self.threshold_finder_standin.threshold_flag, 1)
 
 	def test_3_unique_vals(self):
@@ -69,7 +68,8 @@ class TestGetUniqueTophatVals(unittest.TestCase):
 
 class TestBinCentersToEdges(unittest.TestCase):
 
-	def setUp(self):
+	@classmethod
+	def setUpClass(self):
 		self.threshold_finder_standin = object.__new__(_ThresholdFinder)
 
 	def test_bin_center_to_edge_conversion(self):
@@ -96,7 +96,8 @@ class TestBinCentersToEdges(unittest.TestCase):
 
 class TestReproduceMatlabHist(unittest.TestCase):
 
-	def setUp(self):
+	@classmethod
+	def setUpClass(self):
 		self.threshold_finder_standin = object.__new__(_ThresholdFinder)
 		# Unable to reproduce matlab behavior for an array x with int
 		# values on the edges of the bins because matlab behaves
@@ -240,9 +241,179 @@ class TestGetLogTophatHist(unittest.TestCase):
 		assert_allclose(expected_bin_centers, test_bin_centers,
 			atol = 10**-10)
 		assert_allclose(expected_ln_hist, test_ln_tophat_hist, atol = 10**-15)
+
+class TestAutocorrelation(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.threshold_finder_standin = object.__new__(_ThresholdFinder)
+
+	def test_autocorrelate(self):
+		'''
+		Tests _autocorrelate method
+		'''
+		x = np.array([5, 6, 8, 5, 4, 8])
+		expected_autocorrelation = \
+			np.array([40, 68, 113, 142, 170, 230, 170, 142, 113, 68, 40])
+		expected_lags = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5])
+		test_autocorrelation, test_lags = \
+			self.threshold_finder_standin._autocorrelate(x)
+		assert_array_equal(expected_autocorrelation, test_autocorrelation)
+		assert_array_equal(expected_lags, test_lags)
+
+	def test_autocorrelate_float(self):
+		'''
+		Tests _autocorrelate method with floats in case this does
+		something funny
+		'''
+		x = np.array([5, 6.2, 8])
+		expected_autocorrelation = \
+			np.array([40, 80.6, 127.44, 80.6, 40])
+		expected_lags = np.array([-2, -1, 0, 1, 2])
+		test_autocorrelation, test_lags = \
+			self.threshold_finder_standin._autocorrelate(x)
+		assert_array_equal(expected_autocorrelation, test_autocorrelation)
+		assert_array_equal(expected_lags, test_lags)
 		
+class TestCheckForAutocorrelationPeaks(unittest.TestCase):
 
+	@classmethod
+	def setUpClass(self):
+		self.threshold_finder_standin = object.__new__(_ThresholdFinder)
+		self.synthetic_autocorr_vector = \
+			np.array(
+				[65, 70, 75, 80, 92, 90, 95, 100, 95, 90, 92, 80, 75, 70, 65])
+		self.threshold_finder_standin.tophat_im = \
+			cv2.imread('PIE_tests/test_ims/test_im_small_tophat.tif',
+				cv2.IMREAD_ANYDEPTH)
 
+	def test_yes_peaks(self):
+		'''
+		Checks synthetic 'autocorrelation' vector that includes a peak
+		within prop_freq_space of the major peak
+		'''
+		peaks_present = \
+			self.threshold_finder_standin._check_autocorrelation_peaks(
+				self.synthetic_autocorr_vector, prop_freq_space = 0.5)
+		self.assertTrue(peaks_present)
+
+	def test_no_peaks(self):
+		'''
+		Checks synthetic 'autocorrelation' vector that includes a peak
+		within prop_freq_space of the major peak
+		'''
+		peaks_present = \
+			self.threshold_finder_standin._check_autocorrelation_peaks(
+				self.synthetic_autocorr_vector, prop_freq_space = 0.4)
+		self.assertFalse(peaks_present)
+
+	def test_real_image_yes_peaks(self):
+		'''
+		Checks autocorrelation of real tophat im for peaks with default
+		values and bin number set in such a way to barely detect peaks
+		'''
+		bin_number = 640
+		ln_tophat_hist, _ = \
+			self.threshold_finder_standin._get_log_tophat_hist(bin_number)
+		autocorr, _ = \
+			self.threshold_finder_standin._autocorrelate(ln_tophat_hist)
+		peaks_present = \
+			self.threshold_finder_standin._check_autocorrelation_peaks(
+				autocorr)
+		self.assertTrue(peaks_present)
+
+	def test_real_image_no_peaks(self):
+		'''
+		Checks autocorrelation of real tophat im for peaks with default
+		values and bin number set in such a way to barely not detect
+		peaks
+		'''
+		bin_number = 638
+			# for unclear reasons, matlab and the python code create
+			# histograms when bin_number is 639 (e.g in the first 15
+			# positions)
+		ln_tophat_hist, _ = \
+			self.threshold_finder_standin._get_log_tophat_hist(bin_number)
+		autocorr, _ = \
+			self.threshold_finder_standin._autocorrelate(ln_tophat_hist)
+		peaks_present = \
+			self.threshold_finder_standin._check_autocorrelation_peaks(
+				autocorr)
+		self.assertFalse(peaks_present)
+
+class TestIdentifyBestHistogram(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.tophat_im_from_file = \
+			cv2.imread('PIE_tests/test_ims/test_im_small_tophat.tif',
+				cv2.IMREAD_ANYDEPTH)
+		self.tophat_im_with_autocorr_from_file = \
+			cv2.imread('PIE_tests/test_ims/test_im_small_tophat_autocorr.tif',
+				cv2.IMREAD_ANYDEPTH)
+
+	def setUp(self):
+		self.threshold_finder_standin = object.__new__(_ThresholdFinder)
+
+	def test_ID_best_hist_test_image(self):
+		'''
+		Checks that best histogram identified for test image is the same
+		as that identified by matlab (defaults to pixel#/3000 bins)
+		'''
+		self.threshold_finder_standin.tophat_im = self.tophat_im_from_file
+		self.threshold_finder_standin._identify_best_histogram()
+		expected_array_data = \
+			np.loadtxt('PIE_tests/test_ims/tophat_im_small_best_hist.csv',
+				delimiter=',')
+		expected_x_pos = expected_array_data[0]
+		expected_ln_hist = expected_array_data[1]
+		assert_allclose(expected_x_pos, self.threshold_finder_standin.x_pos,
+			atol = 10**-10)
+		assert_allclose(expected_ln_hist,
+			self.threshold_finder_standin.ln_tophat_hist, atol = 10**-10)
+
+	def test_ID_best_hist_unique_tophat(self):
+		'''
+		Checks that best histogram identified for test image is the same
+		as that identified by matlab
+		By duplicating image many times, we increase size but not # of
+		unique pixels, resulting in the code defaulting to using the
+		unique pixels as bins
+		'''
+		self.threshold_finder_standin.tophat_im = \
+			np.tile(self.tophat_im_from_file, (5,5))
+		self.threshold_finder_standin._identify_best_histogram()
+		expected_array_data = \
+			np.loadtxt('PIE_tests/test_ims/tophat_im_small_5x5_best_hist.csv',
+				delimiter=',')
+		expected_x_pos = expected_array_data[0]
+		expected_ln_hist = expected_array_data[1]
+		assert_allclose(expected_x_pos, self.threshold_finder_standin.x_pos,
+			atol = 10**-10)
+		assert_allclose(expected_ln_hist,
+			self.threshold_finder_standin.ln_tophat_hist, atol = 10**-10)
+
+	def test_ID_best_hist_remove_autocorr(self):
+		'''
+		Checks that best histogram identified for test image is the same
+		as that identified by matlab
+		By duplicating image many times and adding a unique small int
+		to every duplication, we increase size AND # of unique pixels,
+		resulting in the code failing to use the unique pixels as bins
+		and having to loop through one round of threshold size reduction
+		'''
+		self.threshold_finder_standin.tophat_im = \
+			self.tophat_im_with_autocorr_from_file
+		self.threshold_finder_standin._identify_best_histogram()
+		expected_array_data = \
+			np.loadtxt('PIE_tests/test_ims/tophat_im_small_autocorr_best_hist.csv',
+				delimiter=',')
+		expected_x_pos = expected_array_data[0]
+		expected_ln_hist = expected_array_data[1]
+		assert_allclose(expected_x_pos, self.threshold_finder_standin.x_pos,
+			atol = 10**-10)
+		assert_allclose(expected_ln_hist,
+			self.threshold_finder_standin.ln_tophat_hist, atol = 10**-10)
 
 if __name__ == '__main__':
 	unittest.main()
