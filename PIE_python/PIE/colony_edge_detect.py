@@ -6,6 +6,7 @@ Performs colony edge detection
 
 import cv2
 import numpy as np
+from scipy import signal
 
 class _EdgeDetector(object):
 	'''
@@ -308,10 +309,40 @@ class _ThresholdFinder(object):
 				self.ln_tophat_hist = ln_tophat_hist
 				self.x_pos = bin_centers
 				break
+
+	def _set_smoothing_window_size(self, default_window_size = 21):
+		'''
+		Sets the window size to be used for smoothing, which must be odd
+		Window size should not be more than 1/3 the # of elements in the
+		histogram (heuristic)
+		'''
+		hist_elements = len(self.ln_tophat_hist)
+		if default_window_size > hist_elements/3:
+			# round to the nearest odd number
+			smooth_window_size = \
+				2*int(round((float(hist_elements)/3+1)/2))-1
+		else:
+			smooth_window_size = default_window_size
+		return(smooth_window_size)
+
+	def _smooth_log_histogram(self):
+		'''
+		Performs Savitzky-Golay filtration on log of tophat histogram
+		with 3rd degree polynomial order
+		'''
+		# set smoothing window size
+		smooth_window_size = self._set_smoothing_window_size()
+		self.ln_tophat_smooth = \
+			signal.savgol_filter(self.ln_tophat_hist, smooth_window_size, 3)
 				
 	def threshold_image(self):
+		# tophat transform on input image
 		self._get_tophat()
+		# identify the best (least periodically bumpy) histogram of the
+		# image to use for identifying threshold
 		self._identify_best_histogram()
+		# smooth the log of the histogram values
+		self._smooth_log_histogram()
 
 
 if __name__ == '__main__':
