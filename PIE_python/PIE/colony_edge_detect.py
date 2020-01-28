@@ -6,7 +6,12 @@ Performs colony edge detection
 
 import cv2
 import numpy as np
+import warnings
+import sys
 from scipy import signal
+from scipy.optimize import least_squares
+from scipy.stats import norm
+from sklearn import mixture
 
 class _EdgeDetector(object):
 	'''
@@ -334,7 +339,7 @@ class _ThresholdFinder(object):
 		smooth_window_size = self._set_smoothing_window_size()
 		self.ln_tophat_smooth = \
 			signal.savgol_filter(self.ln_tophat_hist, smooth_window_size, 3)
-				
+
 	def threshold_image(self):
 		# tophat transform on input image
 		self._get_tophat()
@@ -343,6 +348,135 @@ class _ThresholdFinder(object):
 		self._identify_best_histogram()
 		# smooth the log of the histogram values
 		self._smooth_log_histogram()
+
+class _ThresholdMethod(object):
+	'''
+	Generic class for methods for finding threshold
+	(See _GaussianFitThresholdMethod and _RollingCircleThresholdMethod)
+	'''
+
+	def __init__(self, method_name, x_vals, y_vals):
+		self.method_name = method_name
+		self.x = x_vals.astype(float)
+		self.y = y_vals.astype(float)
+
+	def find_threshold(self):
+		'''
+		Identifies and returns threshold based on data
+		'''
+		pass
+
+class _GaussianFitThresholdMethod(_ThresholdMethod):
+
+	def __init__(self, method_name, x_vals, y_vals, lower_bounds, upper_bounds):
+		super(_GaussianFitThresholdMethod, self).__init__(
+			method_name, x_vals, y_vals)
+		self.param_idx_dict = \
+			{'lambda_1': 0, 'mu_1': 1, 'sigma_1': 2, 'lambda_2': 3, 'mu_2': 4,
+				'sigma_2': 5}
+		# the following parameters cannot have values below 0
+		self.non_neg_params = ['lambda_1', 'lambda_2']
+		# the following parameters must be above 0
+		self.above_zero_params = ['sigma_1', 'sigma_2']
+		self.lower_bounds = self._check_bounds(lower_bounds)
+		self.upper_bounds = self._check_bounds(upper_bounds)
+
+	def _check_bounds(self, bounds):
+		'''
+		Sets bounds on gaussian parameters
+		Checks that bounds is a numpy array of the correct size
+		For parameters that are required to be non-negative, sets any
+		negative parameters to 0
+		For parameters that are required to be above 0, sets any
+		parameters below the min system float to that value
+		'''
+		min_allowed_number = sys.float_info.min
+		if isinstance(bounds, np.ndarray) and \
+			len(bounds) == len(self.param_idx_dict):
+			for param in self.non_neg_params:
+				if bounds[self.param_idx_dict[param]] < 0:
+					warnings.warn(('Bound for {0} below 0; re-setting this ' +
+					'value to 0').format(param), UserWarning)
+					bounds[self.param_idx_dict[param]] = 0
+			for param in self.above_zero_params:
+				if bounds[self.param_idx_dict[param]] < min_allowed_number:
+					warnings.warn(('Bound for {0} below {1}; re-setting this ' +
+					'value to {1}').format(param, min_allowed_number),
+					UserWarning)
+					bounds[self.param_idx_dict[param]] = min_allowed_number
+		else:
+			raise TypeError('bounds must be a numpy array of length ' +
+				len(self.param_idx_dict))
+		return(bounds)
+
+	def _id_starting_vals(self):
+		'''
+		Identifies starting values for parameters
+		Totally heuristic; will not reproduce matlab's behavior
+		'''
+		self.starting_param_vals = np.zeros(len(self.param_idx_dict))
+		max_y = np.max(self.y)
+		min_x = np.min(self.x)
+		# identify highest x value corresponding to a y value of >5% of
+		# the max of y
+		# (effectively the distant tail of the distribution)
+		max_x_above_thresh = self.x[self.y > max_y*0.05][-1]
+		x_span = max_x_above_thresh-min_x
+		# first mean is ~1/20 of the way to this x value
+		self.starting_param_vals[self.param_idx_dict['mu_1']] = x_span/20
+		# second mean is ~1/2 of the way to this x value
+		self.starting_param_vals[self.param_idx_dict['mu_2']] = x_span/2
+		# highest peak is highest value of y
+		self.starting_param_vals[self.param_idx_dict['lambda_1']] = max_y
+		# second highest peak is the value of y closest to mu_2
+		mu_2_closest_idx = \
+			(np.abs(self.x - self.starting_param_vals[
+				self.param_idx_dict['mu_2']])).argmin()
+		self.starting_param_vals[self.param_idx_dict['lambda_2']] = self.y[mu_2_closest_idx]
+		self.starting_param_vals[self.param_idx_dict['sigma_1']] = x_span/12
+		self.starting_param_vals[self.param_idx_dict['sigma_2']] = x_span/6
+
+	def _digauss_calculator(self, x, lambda_1, mu_1, sigma_1, lambda_2, mu_2, sigma_2):
+		'''
+		Computes sum of two gaussians with weights lamdba_1 and
+		lambda_2, respectively
+		'''
+		y = float(lambda_1)*np.exp(-((x-float(mu_1))/float(sigma_1))**2) + \
+			float(lambda_2)*np.exp(-((x-float(mu_2))/float(sigma_2))**2)
+		return(y)
+
+	def _digaussian_residual_fun(self, params, x, y_data):
+		'''
+		Calculates residuals of difference between
+		_digauss_calculator(x) and y_data 
+		'''
+		with warnings.catch_warnings():
+			warnings.simplefilter("ignore")
+			y_params = \
+				self._digauss_calculator(x,
+					params[self.param_idx_dict['lambda_1']],
+					params[self.param_idx_dict['mu_1']],
+					params[self.param_idx_dict['sigma_1']],
+					params[self.param_idx_dict['lambda_2']],
+					params[self.param_idx_dict['mu_2']],
+					params[self.param_idx_dict['sigma_2']])
+		residuals = y_data - y_params
+		return(residuals)
+
+	def _fit_gaussians(self, starting_param_vals, x_vals, y_vals):
+		'''
+		Fits a mixture of two gaussians (whose combined probability
+		doesn't necessarily sum to 1, since coefficients can be anything)
+		'''
+		self.fit_results = \
+			least_squares(self._digaussian_residual_fun,
+				starting_param_vals, args=(x_vals, y_vals),
+				bounds = (self.lower_bounds, self.upper_bounds))
+		
+
+
+				
+	
 
 
 if __name__ == '__main__':
