@@ -4,6 +4,7 @@ import unittest
 import numpy as np
 import sys
 import warnings
+from scipy.optimize import least_squares
 from PIE.colony_edge_detect import _GaussianFitThresholdMethod
 from numpy.testing import assert_array_equal, assert_allclose
 
@@ -235,7 +236,35 @@ class TestFitGaussians(unittest.TestCase):
 		# the cost of the matlab fit
 		self.assertTrue(test_sse < expected_sse * 1.25)
 
+class TestCalcFitAdjRsq(unittest.TestCase):
 
+	def setUp(self):
+		self.gausian_threshold_standin = \
+			object.__new__(_GaussianFitThresholdMethod)
+
+	def _regression_model(self, params, x, y):
+		'''
+		Linear model to create least squares fit
+		'''
+		yhat = params[0]*x + params[1]
+		res = y - yhat
+		return(res)
+
+	def test_adjusted_rsq(self):
+		'''
+		Run linear model on some fake data, calculate adj r squared
+		'''
+		self.gausian_threshold_standin.x = np.arange(0,10)
+		self.gausian_threshold_standin.y = np.arange(0,10)*2+3
+		self.gausian_threshold_standin.y[[3,5]] = [10,12]
+		self.gausian_threshold_standin.fit_results = \
+			least_squares(self._regression_model, [2,3],
+				args=(self.gausian_threshold_standin.x,
+					self.gausian_threshold_standin.y))
+		expected_adj_rsq = 0.9922558922558923
+		self.gausian_threshold_standin._calc_fit_adj_rsq()
+		self.assertEqual(expected_adj_rsq,
+			self.gausian_threshold_standin.rsq_adj)
 
 
 

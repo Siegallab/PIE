@@ -472,6 +472,21 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 			least_squares(self._digaussian_residual_fun,
 				starting_param_vals, args=(x_vals, y_vals),
 				bounds = (self.lower_bounds, self.upper_bounds))
+
+	def _calc_fit_adj_rsq(self):
+		'''
+		Calculates adjusted r squared value for fit_results
+		'''
+		ss_tot = sum((self.y-np.mean(self.y))**2)
+		ss_res = sum(self.fit_results.fun**2)
+#		rsq = 1-ss_res/ss_tot
+		# n is the number of points
+		n = len(self.y)
+		# p is the number of parameters
+		p = len(self.fit_results.x)
+		# this method does not match matlab behavior, which instead
+		# (inexplicably) uses ss_res/(n-p) in the numerator
+		self.rsq_adj = 1-(ss_res/(n-p-1))/(ss_tot/(n-1))
 		
 
 
