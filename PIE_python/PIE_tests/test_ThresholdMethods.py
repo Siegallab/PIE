@@ -266,6 +266,33 @@ class TestCalcFitAdjRsq(unittest.TestCase):
 		self.assertEqual(expected_adj_rsq,
 			self.gausian_threshold_standin.rsq_adj)
 
+class TestFindPeakXPos(unittest.TestCase):
+
+	def setUp(self):
+		self.gausian_threshold_standin = \
+			object.__new__(_GaussianFitThresholdMethod)
+
+	def test_single_peak_finder(self):
+		'''
+		Tests finding x-position corresponding to single peak of y_hat
+		'''
+		x = np.array([0, 0.3, 1, 2, 3.5])
+		y = np.array([1]*len(x))
+		y_hat = np.array([0, 1.5, 1.3, .9, 1.4])
+		residuals = y - y_hat
+		self.gausian_threshold_standin._find_peak_x_pos(x, y, residuals)
+		self.assertEqual(0.3, self.gausian_threshold_standin.peak_x_pos)
+
+	def test_double_peak_finder(self):
+		'''
+		Tests finding x-position corresponding to first peak of y_hat
+		'''
+		x = np.array([0, 0.3, 1, 2, 3.5])
+		y = np.array([1]*len(x))
+		y_hat = np.array([0, 1.5, 1.3, .9, 1.5])
+		residuals = y - y_hat
+		self.gausian_threshold_standin._find_peak_x_pos(x, y, residuals)
+		self.assertEqual(0.3, self.gausian_threshold_standin.peak_x_pos)
 
 
 if __name__ == '__main__':

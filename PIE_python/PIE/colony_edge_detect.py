@@ -479,7 +479,6 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		'''
 		ss_tot = sum((self.y-np.mean(self.y))**2)
 		ss_res = sum(self.fit_results.fun**2)
-#		rsq = 1-ss_res/ss_tot
 		# n is the number of points
 		n = len(self.y)
 		# p is the number of parameters
@@ -487,10 +486,27 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		# this method does not match matlab behavior, which instead
 		# (inexplicably) uses ss_res/(n-p) in the numerator
 		self.rsq_adj = 1-(ss_res/(n-p-1))/(ss_tot/(n-1))
+
+	def _find_peak_x_pos(self, x, y, residuals):
+		'''
+		Finds x value corresponding to highest point in mixture
+		distribution
+		If two y values are equally high, returns x value corresponding
+		to the first
+		'''
+		y_hat = y - residuals
+		self.peak_x_pos = x[np.argmax(y_hat)]
+
+	def perform_fit(self):
+		'''
+		Performs fit with mixture of two gaussians and runs calculation
+		of adjusted r squared and peak of distribution mixture
+		'''
+		self._id_starting_vals()
+		self._fit_gaussians(self.starting_param_vals, self.x, self.y)
+		self._calc_fit_adj_rsq()
+		self._find_peak_x_pos(self.x, self.y, self.fit_results.fun)
 		
-
-
-				
 	
 
 
