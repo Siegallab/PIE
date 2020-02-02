@@ -69,7 +69,7 @@ class _ThresholdFinder(object):
 		# !!! It's important to make sure this code is run with try-except in the pipeline to avoid an error for one image derailing the whole analysis
 		tophat_unique = np.unique(self.tophat_im)
 		if len(tophat_unique) <= 3:
-			raise(ValueError, '3 or fewer unique values in tophat image')
+			raise ValueError('3 or fewer unique values in tophat image')
 		elif len(tophat_unique) <= 200:
 			self.threshold_flag = 1
 		return(tophat_unique)
@@ -168,7 +168,8 @@ class _ThresholdFinder(object):
 		# identify section of autocorrelation to look for peaks in
 		autocorrelation_section = \
 			autocorrelation[
-				(zero_position + np.arange(0, max_lag_elements_from_zero))]
+				(zero_position + 
+					np.arange(0, max_lag_elements_from_zero)).astype(int)]
 		# look for peaks as deviations from monotonic decrease
 		peaks_present = np.any(np.diff(autocorrelation_section) > 0)
 		return(peaks_present)
@@ -449,7 +450,7 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		Generates a dict of parameters that contains fit results
 		'''
 		self.fit_result_dict = {param_name: self.fit_results.x[param_idx]
-			for param_name, param_idx in self.param_idx_dict.iteritems()}
+			for param_name, param_idx in self.param_idx_dict.items()}
 
 	def _calc_typical_threshold(self, gaussian_number):
 		'''
@@ -549,3 +550,4 @@ class _mu1PosTresholdMethod(_GaussianFitThresholdMethod):
 			self.threshold = self._calc_typical_threshold(1)
 		else:
 			self.threshold = np.nan
+
