@@ -5,19 +5,30 @@ import numpy as np
 import sys
 import warnings
 from scipy.optimize import least_squares
-from PIE.colony_edge_detect import _GaussianFitThresholdMethod
+from PIE.colony_edge_detect import _GaussianFitThresholdMethod, \
+	_mu1PosTresholdMethod
 from numpy.testing import assert_array_equal, assert_allclose
+
+def _regression_model(params, x, y):
+	'''
+	Linear model to create least squares fit
+	'''
+	yhat = params[0]*x + params[1]
+	res = y - yhat
+	return(res)
+
+### unittests for _GaussianFitThresholdMethod ###
 
 class TestCheckThresholds(unittest.TestCase):
 
 	@classmethod
 	def setUpClass(self):
-		self.gausian_threshold_standin = \
+		self.gaussian_threshold_standin = \
 			object.__new__(_GaussianFitThresholdMethod)
-		self.gausian_threshold_standin.param_idx_dict = \
+		self.gaussian_threshold_standin.param_idx_dict = \
 			{'alpha': 0, 'beta': 1, 'gamma': 2, 'delta': 3, 'epsilon': 4}
-		self.gausian_threshold_standin.non_neg_params = ['gamma', 'epsilon']
-		self.gausian_threshold_standin.above_zero_params =  ['alpha']
+		self.gaussian_threshold_standin.non_neg_params = ['gamma', 'epsilon']
+		self.gaussian_threshold_standin.above_zero_params =  ['alpha']
 
 	def test_correct_bounds(self):
 		'''
@@ -25,7 +36,7 @@ class TestCheckThresholds(unittest.TestCase):
 		at self.non_negative_params, unmodified np array returned
 		'''
 		input_bounds = np.array([2, 0, 3.5, -1.3, 4])
-		test_bounds = self.gausian_threshold_standin._check_bounds(input_bounds)
+		test_bounds = self.gaussian_threshold_standin._check_bounds(input_bounds)
 		assert_array_equal(input_bounds, test_bounds)
 
 	def test_neg_bounds(self):
@@ -40,7 +51,7 @@ class TestCheckThresholds(unittest.TestCase):
 			# Cause all warnings to always be triggered.
 			warnings.simplefilter("always")
 			test_bounds = \
-				self.gausian_threshold_standin._check_bounds(input_bounds)
+				self.gaussian_threshold_standin._check_bounds(input_bounds)
 			# Check that 2 warnings issued
 			assert len(w) == 2
 			assert issubclass(w[-1].category, UserWarning)
@@ -53,7 +64,7 @@ class TestCheckThresholds(unittest.TestCase):
 		'''
 		input_bounds = [2, 0, 3.5, -1.3, 4]
 		with self.assertRaises(TypeError):
-			test_bounds = self.gausian_threshold_standin._check_bounds(input_bounds)
+			test_bounds = self.gaussian_threshold_standin._check_bounds(input_bounds)
 		
 	def test_float_bounds(self):
 		'''
@@ -61,7 +72,7 @@ class TestCheckThresholds(unittest.TestCase):
 		'''
 		input_bounds = 3.3
 		with self.assertRaises(TypeError):
-			test_bounds = self.gausian_threshold_standin._check_bounds(input_bounds)
+			test_bounds = self.gaussian_threshold_standin._check_bounds(input_bounds)
 
 	def test_wrong_length_bounds(self):
 		'''
@@ -70,7 +81,7 @@ class TestCheckThresholds(unittest.TestCase):
 		'''
 		input_bounds = np.array([0, 3.5, -1.3, 4])
 		with self.assertRaises(TypeError):
-			test_bounds = self.gausian_threshold_standin._check_bounds(input_bounds)
+			test_bounds = self.gaussian_threshold_standin._check_bounds(input_bounds)
 
 class TestIDStartingVals(unittest.TestCase):
 
@@ -87,7 +98,7 @@ class TestIDStartingVals(unittest.TestCase):
 		'''
 		self.gaussian_method = \
 			_GaussianFitThresholdMethod('test', self.array_data[0],
-				self.array_data[2], np.ones(6), np.ones(6))
+				self.array_data[2], np.ones(6), np.ones(6), np.inf)
 		expected_mu1 = 54.095238095238
 		expected_sigma1 = 90.1587301587302
 		expected_lambda1 = 10.4417048619897
@@ -105,7 +116,7 @@ class TestDigaussCalculator(unittest.TestCase):
 
 	@classmethod
 	def setUpClass(self):
-		self.gausian_threshold_standin = \
+		self.gaussian_threshold_standin = \
 			object.__new__(_GaussianFitThresholdMethod)
 		self.test_x = np.array([-3, -2, -1, 0, 1, 2, 3])
 
@@ -126,7 +137,7 @@ class TestDigaussCalculator(unittest.TestCase):
 				[0.184063130389808, 0.407716030424437, 0.867879441171442,
 				1.3894003915357, 0.551819161757164, 0.0710152511696663,
 				0.00928122924845377])
-		test_y = self.gausian_threshold_standin._digauss_calculator(self.test_x,
+		test_y = self.gaussian_threshold_standin._digauss_calculator(self.test_x,
 			lambda_1, mu_1, sigma_1, lambda_2, mu_2, sigma_2)
 		assert_allclose(expected_y, test_y)
 
@@ -145,7 +156,7 @@ class TestDigaussCalculator(unittest.TestCase):
 		expected_y = np.array([0, 0, 0, 1, 0, 0, 0])
 		with warnings.catch_warnings():
 			warnings.simplefilter("ignore")
-			test_y = self.gausian_threshold_standin._digauss_calculator(
+			test_y = self.gaussian_threshold_standin._digauss_calculator(
 				self.test_x, lambda_1, mu_1, sigma_1, lambda_2, mu_2, sigma_2)
 		assert_allclose(expected_y, test_y)
 
@@ -153,9 +164,9 @@ class TestDigaussianResidualFunCalculator(unittest.TestCase):
 
 	@classmethod
 	def setUpClass(self):
-		self.gausian_threshold_standin = \
+		self.gaussian_threshold_standin = \
 			object.__new__(_GaussianFitThresholdMethod)
-		self.gausian_threshold_standin.param_idx_dict = \
+		self.gaussian_threshold_standin.param_idx_dict = \
 			{'lambda_1': 0, 'mu_1': 1, 'sigma_1': 2, 'lambda_2': 3, 'mu_2': 4,
 				'sigma_2': 5}
 		self.test_x = np.array([-3, -2, -1, 0, 1, 2, 3])
@@ -177,7 +188,7 @@ class TestDigaussianResidualFunCalculator(unittest.TestCase):
 		expected_resid = \
 			np.array([0.81593687, 0.59228397, 0.13212056, -0.38940039,
 				0.44818084, 0.92898475, 0.99071877])
-		test_resid = self.gausian_threshold_standin._digaussian_residual_fun(
+		test_resid = self.gaussian_threshold_standin._digaussian_residual_fun(
 			params, self.test_x, self.test_y)
 		assert_allclose(expected_resid, test_resid)
 
@@ -195,7 +206,7 @@ class TestDigaussianResidualFunCalculator(unittest.TestCase):
 		params = np.array([lambda_1, mu_1, sigma_1, lambda_2, mu_2, sigma_2])
 		# resid from y expected by matlab code
 		expected_resid = np.array([1, 1, 1, 0, 1, 1, 1])
-		test_resid = self.gausian_threshold_standin._digaussian_residual_fun(
+		test_resid = self.gaussian_threshold_standin._digaussian_residual_fun(
 			params, self.test_x, self.test_y)
 		assert_allclose(expected_resid, test_resid)
 
@@ -210,9 +221,9 @@ class TestFitGaussians(unittest.TestCase):
 		self.y = array_data[2]
 
 	def setUp(self):
-		self.gausian_threshold_standin = \
+		self.gaussian_threshold_standin = \
 			object.__new__(_GaussianFitThresholdMethod)
-		self.gausian_threshold_standin.param_idx_dict = \
+		self.gaussian_threshold_standin.param_idx_dict = \
 			{'lambda_1': 0, 'mu_1': 1, 'sigma_1': 2, 'lambda_2': 3, 'mu_2': 4,
 				'sigma_2': 5}
 
@@ -225,13 +236,13 @@ class TestFitGaussians(unittest.TestCase):
 		starting_param_vals = \
 			np.array([10.4417048619897, 81.1428571428571, 113.90566370064,
 				4.96075048462661, 243.428571428571, 157.449461988403])
-		self.gausian_threshold_standin.lower_bounds = \
+		self.gaussian_threshold_standin.lower_bounds = \
 			np.array([1, 0, 0, 0.5, -np.inf, 0])
-		self.gausian_threshold_standin.upper_bounds = np.array([np.inf]*6)
+		self.gaussian_threshold_standin.upper_bounds = np.array([np.inf]*6)
 		expected_sse = 0.71
-		self.gausian_threshold_standin._fit_gaussians(starting_param_vals,
+		self.gaussian_threshold_standin._fit_gaussians(starting_param_vals,
 			self.x, self.y)
-		test_sse = self.gausian_threshold_standin.fit_results.cost
+		test_sse = self.gaussian_threshold_standin.fit_results.cost
 		# check that the cost in the python fit is less than 1.25x of
 		# the cost of the matlab fit
 		self.assertTrue(test_sse < expected_sse * 1.25)
@@ -239,60 +250,312 @@ class TestFitGaussians(unittest.TestCase):
 class TestCalcFitAdjRsq(unittest.TestCase):
 
 	def setUp(self):
-		self.gausian_threshold_standin = \
+		self.gaussian_threshold_standin = \
 			object.__new__(_GaussianFitThresholdMethod)
-
-	def _regression_model(self, params, x, y):
-		'''
-		Linear model to create least squares fit
-		'''
-		yhat = params[0]*x + params[1]
-		res = y - yhat
-		return(res)
 
 	def test_adjusted_rsq(self):
 		'''
 		Run linear model on some fake data, calculate adj r squared
 		'''
-		self.gausian_threshold_standin.x = np.arange(0,10)
-		self.gausian_threshold_standin.y = np.arange(0,10)*2+3
-		self.gausian_threshold_standin.y[[3,5]] = [10,12]
-		self.gausian_threshold_standin.fit_results = \
-			least_squares(self._regression_model, [2,3],
-				args=(self.gausian_threshold_standin.x,
-					self.gausian_threshold_standin.y))
+		self.gaussian_threshold_standin.x = np.arange(0,10)
+		self.gaussian_threshold_standin.y = np.arange(0,10)*2+3
+		self.gaussian_threshold_standin.y[[3,5]] = [10,12]
+		self.gaussian_threshold_standin.fit_results = \
+			least_squares(_regression_model, [2,3],
+				args=(self.gaussian_threshold_standin.x,
+					self.gaussian_threshold_standin.y))
 		expected_adj_rsq = 0.9922558922558923
-		self.gausian_threshold_standin._calc_fit_adj_rsq()
+		self.gaussian_threshold_standin._calc_fit_adj_rsq()
 		self.assertEqual(expected_adj_rsq,
-			self.gausian_threshold_standin.rsq_adj)
+			self.gaussian_threshold_standin.rsq_adj)
 
-class TestFindPeakXPos(unittest.TestCase):
+class TestFindPeak(unittest.TestCase):
 
 	def setUp(self):
-		self.gausian_threshold_standin = \
+		self.gaussian_threshold_standin = \
 			object.__new__(_GaussianFitThresholdMethod)
 
 	def test_single_peak_finder(self):
 		'''
 		Tests finding x-position corresponding to single peak of y_hat
 		'''
-		x = np.array([0, 0.3, 1, 2, 3.5])
-		y = np.array([1]*len(x))
+		self.gaussian_threshold_standin.x = np.array([0, 0.3, 1, 2, 3.5])
+		self.gaussian_threshold_standin.y = \
+			np.array([1]*len(self.gaussian_threshold_standin.x))
 		y_hat = np.array([0, 1.5, 1.3, .9, 1.4])
-		residuals = y - y_hat
-		self.gausian_threshold_standin._find_peak_x_pos(x, y, residuals)
-		self.assertEqual(0.3, self.gausian_threshold_standin.peak_x_pos)
+		residuals = self.gaussian_threshold_standin.y - y_hat
+		self.gaussian_threshold_standin._find_peak(residuals)
+		self.assertEqual(0.3, self.gaussian_threshold_standin.peak_x_pos)
+		self.assertEqual(1.5, self.gaussian_threshold_standin.y_peak_height)
 
 	def test_double_peak_finder(self):
 		'''
 		Tests finding x-position corresponding to first peak of y_hat
 		'''
-		x = np.array([0, 0.3, 1, 2, 3.5])
-		y = np.array([1]*len(x))
+		self.gaussian_threshold_standin.x = np.array([0, 0.3, 1, 2, 3.5])
+		self.gaussian_threshold_standin.y = \
+			np.array([1]*len(self.gaussian_threshold_standin.x))
 		y_hat = np.array([0, 1.5, 1.3, .9, 1.5])
-		residuals = y - y_hat
-		self.gausian_threshold_standin._find_peak_x_pos(x, y, residuals)
-		self.assertEqual(0.3, self.gausian_threshold_standin.peak_x_pos)
+		residuals = self.gaussian_threshold_standin.y - y_hat
+		self.gaussian_threshold_standin._find_peak(residuals)
+		self.assertEqual(0.3, self.gaussian_threshold_standin.peak_x_pos)
+		self.assertEqual(1.5, self.gaussian_threshold_standin.y_peak_height)
+
+class TestGenerateFitResultDict(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.gaussian_threshold_standin = \
+			object.__new__(_GaussianFitThresholdMethod)
+		self.gaussian_threshold_standin.param_idx_dict = \
+			{'mu': 0, 'sigma': 1}
+		self.gaussian_threshold_standin.x = np.arange(0,10)
+		self.gaussian_threshold_standin.y = np.arange(0,10)*2+3
+		self.gaussian_threshold_standin.y[[3,5]] = [10,12]
+		self.gaussian_threshold_standin.fit_results = \
+			least_squares(_regression_model, [2,3],
+				args=(self.gaussian_threshold_standin.x,
+					self.gaussian_threshold_standin.y))
+
+	def test_generate_fit_result_dict(self):
+		'''
+		Test generation of dictionary with parameter name keys from fit
+		results
+		'''
+		self.gaussian_threshold_standin._generate_fit_result_dict()
+		self.assertEqual(self.gaussian_threshold_standin.fit_results.x[0],
+			self.gaussian_threshold_standin.fit_result_dict['mu'])
+		self.assertEqual(self.gaussian_threshold_standin.fit_results.x[1],
+			self.gaussian_threshold_standin.fit_result_dict['sigma'])
+
+class TestCalcTypicalThreshold(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.gaussian_threshold_standin = \
+			object.__new__(_GaussianFitThresholdMethod)
+		self.gaussian_threshold_standin.fit_result_dict = \
+			{'mu_1': 0, 'sigma_1': 2, 'mu_2': -1, 'sigma_2': 0.7}
+
+	def test_calc_threshold_1(self):
+		'''
+		Tests calculation of threshold based on mu_1+2*sigma_1
+		'''
+		expected_threshold = 4
+		test_threshold = \
+			self.gaussian_threshold_standin._calc_typical_threshold(1)
+		assert_allclose(expected_threshold, test_threshold)
+
+	def test_calc_threshold_2(self):
+		'''
+		Tests calculation of threshold based on mu_2+2*sigma_2
+		'''
+		expected_threshold = .4
+		test_threshold = \
+			self.gaussian_threshold_standin._calc_typical_threshold(2)
+		assert_allclose(expected_threshold, test_threshold)
+
+class TestCalcMuDistanceToPeak(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.gaussian_threshold_standin = \
+			object.__new__(_GaussianFitThresholdMethod)
+		self.gaussian_threshold_standin.fit_result_dict = \
+			{'mu_1': 0, 'mu_2': 2}
+		self.gaussian_threshold_standin.peak_x_pos = 0.3
+
+	def test_mu_distance_to_peak(self):
+		'''
+		Tests calculation of absolute value of distance of mu values to
+		peak x positions
+		'''
+		expected_distances = np.array([0.3, 1.7])
+		test_distances = \
+			self.gaussian_threshold_standin._calc_mu_distance_to_peak()
+		assert_allclose(expected_distances, test_distances)
+
+class TestFitThresholdWithDistantPeaks(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.array_data = \
+			np.loadtxt('PIE_tests/test_ims/tophat_im_small_best_hist.csv',
+				delimiter=',')
+
+	def setUp(self):
+		self.gaussian_method = \
+			_GaussianFitThresholdMethod('test', self.array_data[0],
+				self.array_data[2], np.ones(6), np.ones(6), 2000)
+		# self.gaussian_method._min_real_peak_x_pos = 2.772380952380952
+		# self.gaussian_threshold_standin._close_to_peak_dist = 2000
+
+	def test_threshold_based_on_mu_1(self):
+		'''
+		Calculate threshold based on mu, with the first distribution
+		used for threshold calculation
+		'''
+		self.gaussian_method.peak_x_pos = 50
+		self.gaussian_method.fit_result_dict = \
+			{'lambda_1': 7.75, 'mu_1': 103.7, 'sigma_1': 154.9, \
+			'lambda_2': 4200, 'mu_2': -61096.85, 'sigma_2': 22622.0}
+		mu_to_peak_distvec = self.gaussian_method._calc_mu_distance_to_peak()
+		expected_threshold = 103.7 + 2*154.9
+		test_threshold = \
+			self.gaussian_method._find_threshold_with_distant_peaks(
+				mu_to_peak_distvec)
+
+	def test_threshold_based_on_mu_2(self):
+		'''
+		Calculate threshold based on mu, with the first distribution
+		used for threshold calculation
+		(Flip result values from test_threshold_based_on_mu_1)
+		'''
+		self.gaussian_method.peak_x_pos = 50
+		self.gaussian_method.fit_result_dict = \
+			{'lambda_2': 7.75, 'mu_2': 103.7, 'sigma_2': 154.9, \
+			'lambda_1': 4200, 'mu_1': -61096.85, 'sigma_1': 22622.0}
+		mu_to_peak_distvec = self.gaussian_method._calc_mu_distance_to_peak()
+		expected_threshold = 103.7 + 2*154.9
+		test_threshold = \
+			self.gaussian_method._find_threshold_with_distant_peaks(
+				mu_to_peak_distvec)
+
+	def test_threshold_based_on_sigma_1_peak_close_to_0(self):
+		'''
+		Calculate threshold based on sigma, with the first distribution
+		used for threshold calculation, due to the peak x position being
+		too close to 0
+		'''
+		self.gaussian_method.peak_x_pos = 2
+		self.gaussian_method.fit_result_dict = \
+			{'lambda_1': 7.75, 'mu_1': -61096.85, 'sigma_1': 154.9, \
+			'lambda_2': 4200, 'mu_2': 103.7, 'sigma_2': 22622.0}
+		mu_to_peak_distvec = self.gaussian_method._calc_mu_distance_to_peak()
+		expected_threshold = -61096.85 + 2*154.9
+		test_threshold = \
+			self.gaussian_method._find_threshold_with_distant_peaks(
+				mu_to_peak_distvec)
+
+	def test_threshold_based_on_sigma_2_mus_close_to_peak(self):
+		'''
+		Calculate threshold based on sigma, with the first distribution
+		used for threshold calculation, due to the peak x position being
+		too close to 0
+		'''
+		self.gaussian_method.peak_x_pos = 50
+		self.gaussian_method.fit_result_dict = \
+			{'lambda_1': 7.75, 'mu_1': 103.7, 'sigma_1': 500.0, \
+			'lambda_2': 4200, 'mu_2': -1000, 'sigma_2': 154.9}
+		mu_to_peak_distvec = self.gaussian_method._calc_mu_distance_to_peak()
+		expected_threshold = -1000 + 2*154.9
+		test_threshold = \
+			self.gaussian_method._find_threshold_with_distant_peaks(
+				mu_to_peak_distvec)
+	
+### unittests for _mu1PosTresholdMethod ###
+
+class TestIDThreshold_mu1Pos(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.array_data = \
+			np.loadtxt('PIE_tests/test_ims/tophat_im_small_best_hist.csv',
+				delimiter=',')
+
+	def setUp(self):
+		self.mu1_pos_method = \
+			_mu1PosTresholdMethod(self.array_data[0], self.array_data[2])
+		# self.gaussian_method._min_real_peak_x_pos = 2.772380952380952
+		# self.gaussian_threshold_standin._close_to_peak_dist = 2000
+
+	def test_good_rsq_mu_2_neg(self):
+		'''
+		Test that when adjusted r squared is high and mu_2 is negative,
+		threshold calculated as mu_1 + 2*sigma_1, despite low peak_x_pos
+		'''
+		self.mu1_pos_method.peak_x_pos = 1
+		self.mu1_pos_method.rsq_adj = 0.999
+		self.mu1_pos_method.fit_result_dict = \
+			{'lambda_1': 7.75, 'mu_1': 103.7, 'sigma_1': 154.9, \
+			'lambda_2': 4200, 'mu_2': -61096.85, 'sigma_2': 22622.0}
+		expected_threshold = 103.7 + 2*154.9
+		self.mu1_pos_method._id_threshold()
+		# check method name, flag, and calculated threshold
+		self.assertEqual('mu_1+2*sigma_1[mu_1-positive]',
+			self.mu1_pos_method.method_name)
+		self.assertEqual(0, self.mu1_pos_method.threshold_flag)
+		assert_allclose(expected_threshold, self.mu1_pos_method.threshold)
+
+	def test_good_rsq_mu_2_pos(self):
+		'''
+		Test that when adjusted r squared is high and mu_2 is positive,
+		threshold calculated as mu + 2*sigma for mu closest to peak
+		'''
+		self.mu1_pos_method.peak_x_pos = 100
+		self.mu1_pos_method.rsq_adj = 0.999
+		self.mu1_pos_method.fit_result_dict = \
+			{'lambda_2': 7.75, 'mu_2': 103.7, 'sigma_2': 154.9, \
+			'lambda_1': 4200, 'mu_1': 5000, 'sigma_1': 10000.0}
+		expected_threshold = 103.7 + 2*154.9
+		self.mu1_pos_method._id_threshold()
+		# check method name, flag, and calculated threshold
+		self.assertEqual('mu_1+2*sigma_1[mu_1-positive]',
+			self.mu1_pos_method.method_name)
+		self.assertEqual(0, self.mu1_pos_method.threshold_flag)
+		assert_allclose(expected_threshold, self.mu1_pos_method.threshold)
+
+	def test_poor_rsq_correct_mu1_peak(self):
+		'''
+		Test that when adjusted r squares is low but mu_1 is close to
+		the overall peak, threshold calculated as mu_1 + 2*sigma_1 but
+		with threshold flag and poor fit method name
+		'''
+		self.mu1_pos_method.peak_x_pos = 100
+		self.mu1_pos_method.y_peak_height = 10
+		self.mu1_pos_method.rsq_adj = 0.001
+		self.mu1_pos_method.fit_result_dict = \
+			{'lambda_1': 7.75, 'mu_1': 103.7, 'sigma_1': 154.9, \
+			'lambda_2': 4200, 'mu_2': -61096.85, 'sigma_2': 22622.0}
+		expected_threshold = 103.7 + 2*154.9
+		self.mu1_pos_method._id_threshold()
+		# check method name, flag, and calculated threshold
+		self.assertEqual('mu_1+2*sigma_1[mu_1-positive]_poor_minor_fit',
+			self.mu1_pos_method.method_name)
+		self.assertEqual(5, self.mu1_pos_method.threshold_flag)
+		assert_allclose(expected_threshold, self.mu1_pos_method.threshold)
+
+	def test_poor_rsq_tall_mu1_peak(self):
+		'''
+		Test that when adjusted r squares is low and first gaussian is
+		too high, NaN is returned for threshold
+		'''
+		self.mu1_pos_method.peak_x_pos = 100
+		self.mu1_pos_method.y_peak_height = 10
+		self.mu1_pos_method.rsq_adj = 0.001
+		self.mu1_pos_method.fit_result_dict = \
+			{'lambda_1': 50, 'mu_1': 103.7, 'sigma_1': 154.9, \
+			'lambda_2': 4200, 'mu_2': -61096.85, 'sigma_2': 22622.0}
+		self.mu1_pos_method._id_threshold()
+		# check threshold missing
+		self.assertTrue(np.isnan(self.mu1_pos_method.threshold))
+
+	def test_poor_rsq_distant_peaks(self):
+		'''
+		Test that when adjusted r squares is low and both gaussians
+		have mu values far from the overall peak, NaN is returned for
+		threshold
+		'''
+		self.mu1_pos_method.peak_x_pos = 100
+		self.mu1_pos_method.y_peak_height = 10
+		self.mu1_pos_method.rsq_adj = 0.001
+		self.mu1_pos_method.fit_result_dict = \
+			{'lambda_1': 7.75, 'mu_1': 200, 'sigma_1': 154.9, \
+			'lambda_2': 4200, 'mu_2': -61096.85, 'sigma_2': 22622.0}
+		self.mu1_pos_method._id_threshold()
+		# check threshold missing
+		self.assertTrue(np.isnan(self.mu1_pos_method.threshold))
+
 
 
 if __name__ == '__main__':
