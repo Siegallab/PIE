@@ -5,7 +5,7 @@ import numpy as np
 import sys
 import warnings
 from scipy.optimize import least_squares
-from PIE.colony_edge_detect import _GaussianFitThresholdMethod, \
+from PIE.adaptive_threshold import _GaussianFitThresholdMethod, \
 	_mu1PosTresholdMethod
 from numpy.testing import assert_array_equal, assert_allclose
 

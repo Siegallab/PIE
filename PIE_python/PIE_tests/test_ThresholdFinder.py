@@ -3,7 +3,7 @@
 import unittest
 import cv2
 import numpy as np
-from PIE.colony_edge_detect import _ThresholdFinder
+from PIE.adaptive_threshold import _ThresholdFinder
 from numpy.testing import assert_array_equal, assert_allclose
 
 class TestGetTophat(unittest.TestCase):
