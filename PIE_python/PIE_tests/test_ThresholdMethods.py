@@ -6,7 +6,7 @@ import sys
 import warnings
 from scipy.optimize import least_squares
 from PIE.adaptive_threshold import _GaussianFitThresholdMethod, \
-	_mu1PosTresholdMethod
+	_mu1PosThresholdMethod, _mu1ReleasedThresholdMethod
 from numpy.testing import assert_array_equal, assert_allclose
 
 def _regression_model(params, x, y):
@@ -453,7 +453,7 @@ class TestFitThresholdWithDistantPeaks(unittest.TestCase):
 			self.gaussian_method._find_threshold_with_distant_peaks(
 				mu_to_peak_distvec)
 	
-### unittests for _mu1PosTresholdMethod ###
+### unittests for _mu1PosThresholdMethod ###
 
 class TestIDThreshold_mu1Pos(unittest.TestCase):
 
@@ -465,7 +465,7 @@ class TestIDThreshold_mu1Pos(unittest.TestCase):
 
 	def setUp(self):
 		self.mu1_pos_method = \
-			_mu1PosTresholdMethod(self.array_data[0], self.array_data[2])
+			_mu1PosThresholdMethod(self.array_data[0], self.array_data[2])
 		# self.gaussian_method._min_real_peak_x_pos = 2.772380952380952
 		# self.gaussian_threshold_standin._close_to_peak_dist = 2000
 
@@ -542,7 +542,7 @@ class TestIDThreshold_mu1Pos(unittest.TestCase):
 
 	def test_poor_rsq_distant_peaks(self):
 		'''
-		Test that when adjusted r squares is low and both gaussians
+		Test that when adjusted r squared is low and both gaussians
 		have mu values far from the overall peak, NaN is returned for
 		threshold
 		'''
@@ -556,6 +556,115 @@ class TestIDThreshold_mu1Pos(unittest.TestCase):
 		# check threshold missing
 		self.assertTrue(np.isnan(self.mu1_pos_method.threshold))
 
+### unittests for _mu1ReleasedThresholdMethod ###
+
+class TestIDThreshold_mu1Released(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.array_data = \
+			np.loadtxt('PIE_tests/test_ims/tophat_im_small_best_hist.csv',
+				delimiter=',')
+
+	def setUp(self):
+		self.mu1_released_method = \
+			_mu1ReleasedThresholdMethod(self.array_data[0], self.array_data[2])
+		# self.gaussian_method._min_real_peak_x_pos = 2.772380952380952
+		# self.gaussian_threshold_standin._close_to_peak_dist = 2000
+
+	def test_both_mu_neg(self):
+		'''
+		Test that when both mu values are negative, NaN is returned for
+		threshold
+		'''
+		self.mu1_released_method.peak_x_pos = 100
+		self.mu1_released_method.rsq_adj = 0.999
+		self.mu1_released_method.fit_result_dict = \
+			{'lambda_2': 7.75, 'mu_2': -103.7, 'sigma_2': 154.9, \
+			'lambda_1': 4200, 'mu_1': -5000, 'sigma_1': 10000.0}
+		self.mu1_released_method._id_threshold()
+		self.assertTrue(np.isnan(self.mu1_released_method.threshold))
+
+	def test_poor_rsq(self):
+		'''
+		Test that when adjusted r squared is low, NaN is returned for
+		threshold
+		'''
+		self.mu1_released_method.peak_x_pos = 100
+		self.mu1_released_method.rsq_adj = 0.001
+		self.mu1_released_method.fit_result_dict = \
+			{'lambda_2': 7.75, 'mu_2': 103.7, 'sigma_2': 154.9, \
+			'lambda_1': 4200, 'mu_1': 5000, 'sigma_1': 10000.0}
+		self.mu1_released_method._id_threshold()
+		self.assertTrue(np.isnan(self.mu1_released_method.threshold))
+
+	def test_good_rsq_pos_mu(self):
+		'''
+		Test that when adjusted r squared is high and both mu values
+		positive, returns mean based on
+		_find_threshold_with_distant_peaks method
+		'''
+		self.mu1_released_method.peak_x_pos = 100
+		self.mu1_released_method.rsq_adj = 0.999
+		self.mu1_released_method.fit_result_dict = \
+			{'lambda_2': 7.75, 'mu_2': 103.7, 'sigma_2': 154.9, \
+			'lambda_1': 4200, 'mu_1': 5000, 'sigma_1': 10000.0}
+		expected_threshold = 103.7 + 2*154.9
+		self.mu1_released_method._id_threshold()
+		# check method name, flag, and calculated threshold
+		self.assertEqual('mu_1+2*sigma_1[mu_1-released]',
+			self.mu1_released_method.method_name)
+		self.assertEqual(2, self.mu1_released_method.threshold_flag)
+		assert_allclose(expected_threshold, self.mu1_released_method.threshold)
+
+	def test_one_pos_mu_close_to_correct_peak(self):
+		'''
+		Tests that when there is one positive mu close to the ovarall
+		peak of the fitted distribution, and that peak approximates the
+		legitimate peak of the background pixel values, threshold is
+		chosen based on the positive peak
+		'''
+		self.mu1_released_method.peak_x_pos = 100
+		self.mu1_released_method.rsq_adj = 0.999
+		self.mu1_released_method.fit_result_dict = \
+			{'lambda_2': 7.75, 'mu_2': 103.7, 'sigma_2': 154.9, \
+			'lambda_1': 4200, 'mu_1': -5000, 'sigma_1': 10000.0}
+		expected_threshold = 103.7 + 2*154.9
+		self.mu1_released_method._id_threshold()
+		# check method name, flag, and calculated threshold
+		self.assertEqual('mu_1+2*sigma_1[mu_1-released]',
+			self.mu1_released_method.method_name)
+		self.assertEqual(2, self.mu1_released_method.threshold_flag)
+		assert_allclose(expected_threshold, self.mu1_released_method.threshold)
+
+	def test_one_pos_mu_close_to_incorrect_peak(self):
+		'''
+		Tests that when there is one positive mu close to the ovarall
+		peak of the fitted distribution, but that peak doesn't
+		approximate the legitimate peak of the background pixel values,
+		NaN threshold is returned
+		'''
+		self.mu1_released_method.peak_x_pos = 1
+		self.mu1_released_method.rsq_adj = 0.999
+		self.mu1_released_method.fit_result_dict = \
+			{'lambda_2': 7.75, 'mu_2': 103.7, 'sigma_2': 154.9, \
+			'lambda_1': 4200, 'mu_1': -5000, 'sigma_1': 10000.0}
+		self.mu1_released_method._id_threshold()
+		self.assertTrue(np.isnan(self.mu1_released_method.threshold))
+
+	def test_one_pos_mu_far_from_correct_peak(self):
+		'''
+		Tests that when there is one positive mu that isn't close to the
+		ovarall peak of the fitted distribution, NaN threshold is
+		returned
+		'''
+		self.mu1_released_method.peak_x_pos = 100
+		self.mu1_released_method.rsq_adj = 0.999
+		self.mu1_released_method.fit_result_dict = \
+			{'lambda_2': 7.75, 'mu_2': 5000, 'sigma_2': 154.9, \
+			'lambda_1': 4200, 'mu_1': -5000, 'sigma_1': 10000.0}
+		self.mu1_released_method._id_threshold()
+		self.assertTrue(np.isnan(self.mu1_released_method.threshold))
 
 
 if __name__ == '__main__':

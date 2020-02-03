@@ -244,6 +244,22 @@ class _ThresholdFinder(object):
 		self.ln_tophat_smooth = \
 			signal.savgol_filter(self.ln_tophat_hist, smooth_window_size, 3)
 
+	def _perform_thresholding(self):
+		'''
+		Use smooth log histogram to find best threshold
+		'''
+		### !!! NEEDS UNITTEST
+		# try thresholding using _mu1PosThresholdMethod
+		self.threshold_method = \
+			_mu1PosThresholdMethod(self.x_pos, self.ln_tophat_smooth)
+		self.threshold_method.get_threshold()
+		# if _mu1PosThresholdMethod returns NaN threshold, try
+		# 'mu1ReleasedThresholdMethod
+		if np.isnan(self.threshold_method.threshold):
+			self.threshold_method = \
+				_mu1ReleasedThresholdMethod(self.x_pos, self.ln_tophat_smooth)
+			self.threshold_method.get_threshold()
+
 	def threshold_image(self):
 		# tophat transform on input image
 		self._get_tophat()
@@ -485,7 +501,8 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		self._calc_fit_adj_rsq()
 		self._find_peak_x_pos(self.x, self.y, self.fit_results.fun)
 
-	def _find_threshold_with_distant_peaks(self, mu_to_peak_distvec):
+	def _find_threshold_with_distant_peaks(self, mu_to_peak_distvec,
+		check_peak_pos = True):
 		'''
 		Calculates threshold for cases when peak x position not all the
 		way at the lower side of the distribution, and at least one
@@ -497,8 +514,14 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		threshold_1 = self._calc_typical_threshold(1)
 		threshold_2 = self._calc_typical_threshold(2)
 		threshold_vec = np.array([threshold_1, threshold_2])
+		# only check that peak position far enough from 0 if
+		# check_peak_pos is True
+		if check_peak_pos:
+			peak_pos_ok = self.peak_x_pos > self._min_real_peak_x_pos
+		else:
+			peak_pos_ok = True
 		if np.sum(mu_to_peak_distvec > self._close_to_peak_dist) > 0 and \
-			self.peak_x_pos > self._min_real_peak_x_pos:
+			peak_pos_ok:
 			# use the distribution with the closest mu to the overall
 			# peak to calculate the threshold if they are not
 			# both very close to the peak and the peak is not followed
@@ -514,7 +537,8 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 			threshold = threshold_vec[np.argmin(sigma_vec)]
 		return(threshold)
 		
-class _mu1PosTresholdMethod(_GaussianFitThresholdMethod):
+class _mu1PosThresholdMethod(_GaussianFitThresholdMethod):
+	### !!! NEEDS BETTER METHOD DESCRIPTION
 
 	def __init__(self, x_vals, y_vals):
 		method_name = 'mu_1+2*sigma_1[mu_1-positive]'
@@ -522,7 +546,7 @@ class _mu1PosTresholdMethod(_GaussianFitThresholdMethod):
 			[1, 0, sys.float_info.min, 0.5, -np.inf, sys.float_info.min])
 		upper_bounds = np.array([np.inf]*6)
 		close_to_peak_dist = 0.05 * np.max(x_vals)
-		super(_mu1PosTresholdMethod, self).__init__(
+		super(_mu1PosThresholdMethod, self).__init__(
 			method_name, x_vals, y_vals, lower_bounds, upper_bounds,
 			close_to_peak_dist)
 
@@ -537,6 +561,8 @@ class _mu1PosTresholdMethod(_GaussianFitThresholdMethod):
 			if self.fit_result_dict['mu_2'] <= 0:
 				self.threshold = self._calc_typical_threshold(1)
 			else:
+				# this method needs to know whether overall fit peak is
+				# sufficiently far from 0
 				self.threshold = \
 					self._find_threshold_with_distant_peaks(mu_to_peak_distvec)
 		elif np.abs(self.fit_result_dict['lambda_1']-self.y_peak_height) <= \
@@ -549,5 +575,62 @@ class _mu1PosTresholdMethod(_GaussianFitThresholdMethod):
 			self.threshold_flag = 5;
 			self.threshold = self._calc_typical_threshold(1)
 		else:
+			self.threshold = np.nan
+
+class _mu1ReleasedThresholdMethod(_GaussianFitThresholdMethod):
+	### !!! NEEDS BETTER METHOD DESCRIPTION
+
+	def __init__(self, x_vals, y_vals):
+		method_name = 'mu_1+2*sigma_1[mu_1-released]'
+		lower_bounds = np.array(
+			[1, -np.inf, sys.float_info.min, 0.5, -np.inf, sys.float_info.min])
+		upper_bounds = np.array([np.inf]*6)
+		close_to_peak_dist = 0.05 * np.max(x_vals)
+		super(_mu1ReleasedThresholdMethod, self).__init__(
+			method_name, x_vals, y_vals, lower_bounds, upper_bounds,
+			close_to_peak_dist)
+		self.threshold_flag = 2
+
+	def _id_threshold(self):
+		'''
+		Identify threshold
+		'''
+		mu_to_peak_distvec = self._calc_mu_distance_to_peak()
+		if self.rsq_adj > self.good_fit_rsq and \
+			(self.fit_result_dict['mu_1'] > 0 or \
+				self.fit_result_dict['mu_2'] > 0):
+			# if fit is good and both means positive, calculate
+			# threshold based on b1+2*c1 same way as in
+			# _mu1PosThresholdMethod
+			if self.fit_result_dict['mu_1'] > 0 and \
+				self.fit_result_dict['mu_2'] > 0:
+				# no peak position requirement here, so set
+				# check_peak_pos to False
+				self.threshold = \
+					self._find_threshold_with_distant_peaks(mu_to_peak_distvec,
+						check_peak_pos = False)
+			else:
+				# either mu_1 < 0 or mu_2 < 0 (but not both)
+				# if gaussian with the positive mean corresponds to
+				# legitimate (distant from 0) peak of log histogram, it
+				# can be used for threshold
+				# otherwise, the estimate of sigma may be off (esp. if
+				# peak of fitted distribution is the result of a pileup
+				# of values close to 0 rather than the real background
+				# vals of the image), causing problems using mu+2*sigma
+				highest_mu_idx = np.argmax([self.fit_result_dict['mu_1'],
+					self.fit_result_dict['mu_2']])
+				if self.peak_x_pos > self._min_real_peak_x_pos and \
+					mu_to_peak_distvec[highest_mu_idx] < \
+						self._close_to_peak_dist:
+					# mu values indexed starting at 1
+					correct_distribution = highest_mu_idx + 1
+					self.threshold = \
+						self._calc_typical_threshold(correct_distribution)
+				else:
+					self.threshold = np.nan
+		else:
+			# if fit is bad or both mu vals are negative, return NaN
+			# threshold
 			self.threshold = np.nan
 
