@@ -6,7 +6,8 @@ import sys
 import warnings
 from scipy.optimize import least_squares
 from PIE.adaptive_threshold import _GaussianFitThresholdMethod, \
-	_mu1PosThresholdMethod, _mu1ReleasedThresholdMethod
+	_mu1PosThresholdMethod, _mu1ReleasedThresholdMethod, \
+	_SlidingCircleThresholdMethod
 from numpy.testing import assert_array_equal, assert_allclose
 
 def _regression_model(params, x, y):
@@ -668,6 +669,37 @@ class TestIDThreshold_mu1Released(unittest.TestCase):
 			'lambda_1': 4200, 'mu_1': -5000, 'sigma_1': 10000.0}
 		self.mu1_released_method._id_threshold()
 		self.assertTrue(np.isnan(self.mu1_released_method.threshold))
+
+### unittests for _SlidingCircleThresholdMethod ###
+class TestFindXStep(unittest.TestCase):
+
+	def setUp(self):
+		self.sliding_circle_standin = \
+			object.__new__(_SlidingCircleThresholdMethod)
+
+	def test_large_xstep(self):
+		'''
+		Tests xstep that is > 1
+		'''
+		element_num = 910
+		xstep_multiplier = 0.03
+		expected_xstep = 27
+		test_xstep = \
+			self.sliding_circle_standin._find_xstep(element_num, xstep_multiplier)
+		self.assertEqual(expected_xstep, test_xstep)
+		self.assertTrue(isinstance(test_xstep, np.integer) or isinstance(test_xstep, int))
+
+	def test_small_xstep(self):
+		'''
+		Tests xstep that is < 1 (and thus returns 1)
+		'''
+		element_num = 910
+		xstep_multiplier = 0.0001
+		expected_xstep = 1
+		test_xstep = \
+			self.sliding_circle_standin._find_xstep(element_num, xstep_multiplier)
+		self.assertEqual(expected_xstep, test_xstep)
+		self.assertTrue(isinstance(test_xstep, np.integer) or isinstance(test_xstep, int))
 
 
 if __name__ == '__main__':
