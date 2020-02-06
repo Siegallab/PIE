@@ -645,6 +645,97 @@ class _mu1ReleasedThresholdMethod(_GaussianFitThresholdMethod):
 			# threshold
 			self.threshold = np.nan
 
+class _SlidingCircleThresholdMethod(_ThresholdMethod):
+	'''
+	Generic class for methods that involve finding the threshold by
+	finding the point at which the highest proportion of a circle
+	centered on the graph of the log histogram of tophat intensities is
+	below the line
+	'''
+	def __init__(self, method_name, threshold_flag, x_vals, y_vals,
+		xstep):
+		super(_SlidingCircleThresholdMethod, self).__init__(
+			method_name, threshold_flag, x_vals, y_vals)
+		### some heuristics related to determining thresholds from ###
+		###           sliding circle along log histogram           ###
+		# specify the bounds on x positions between which sliding circle
+		# operates (these are essentially bounds on where the threshold
+		# may be found)
+		self._lower_bound = 0.13 * np.max(self.x)
+		self._upper_bound = 0.53 * np.max(self.x)
+		# specify radius, in number of pixels (i.e. number of points
+		# along x-axis)
+		self._radius = 100
+		# only include every xstep-th value in sliding circle
+		# the idea here is to save time by not including nearly
+		# identical values
+		self._xstep = xstep
+			# TODO: It might be good to set this based on autocorr
+			# in the future, i.e. find distance at which
+			# autocorrelation of ln histogram falls off by a certain
+			# amount and use that
+
+	def _find_xstep(self, element_num, xstep_multiplier):
+		'''
+		Finds xstep given xstep_multiplier
+		Minimum possible value returned is 1
+		'''
+		### !!! NEEDS UNITTEST
+		xstep = np.max([1, np.floor(element_num * xstep_multiplier)]
+			).astype(int)
+		return(xstep)
+
+	def _perform_fit(self):
+		'''
+		Performs fitting procedure
+		'''
+		pass
+
+	def _id_threshold(self):
+		'''
+		Identify threshold
+		'''
+		pass
+
+class _DataSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod,
+	_LogHistogramSmoother):
+	'''
+	Threshold method that takes in raw log histogram of tophat image,
+	performs smoothing, and then finds threshold using sliding circle
+	method
+	'''
+	def __init__(self, x_vals, raw_y_vals):
+		threshold_flag = 4
+		method_name = 'sliding_circle_data'
+		xstep = self._find_xstep(len(x_vals), 0.003)
+			# heuristic - see TODO in parent class
+			# NB: current implementation will not exactly reproduce
+				# matlab code, which hard-codes the xstep as either 3 or
+				# 100, for data vs fit-based sliding circle, respectively
+		self.default_smoothing_window_size = 57
+			# TODO: heuristic - maybe better to use number of histogram
+			# elements here?
+		y_vals = self._smooth_log_histogram(raw_y_vals,
+			self.default_smoothing_window_size)
+		super(_DataSlidingCircleThresholdMethod, self).__init__(
+			method_name, threshold_flag, x_vals, y_vals, xstep)
+
+class _FitSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod):
+	'''
+	Threshold method that takes in best fit to histogram of tophat
+	image and finds threshold using sliding circle method
+	'''
+	def __init__(self, x_vals, y_vals):
+		threshold_flag = 3
+		method_name = 'sliding_circle_data'
+		xstep = self._find_xstep(len(x_vals), 0.1)
+			# heuristic - see TODO in parent class
+			# NB: current implementation will not exactly reproduce
+				# matlab code, which hard-codes the xstep as either 3 or
+				# 100, for data vs fit-based sliding circle, respectively
+		super(_FitSlidingCircleThresholdMethod, self).__init__(
+			method_name, threshold_flag, x_vals, y_vals, xstep)
+
 if __name__ == '__main__':
 
 	pass
