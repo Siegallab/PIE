@@ -11,7 +11,38 @@ import sys
 from scipy import signal
 from scipy.optimize import least_squares
 
-class _ThresholdFinder(object):
+class _LogHistogramSmoother(object):
+	'''
+	Performs smoothing on log histogram
+	'''
+	def _set_smoothing_window_size(self, ln_tophat_hist, window_size):
+		'''
+		Sets the window size to be used for smoothing, which must be odd
+		Window size should not be more than 1/3 the # of elements in the
+		histogram (heuristic)
+		'''
+		hist_elements = len(ln_tophat_hist)
+		if window_size > hist_elements/3:
+			# round to the nearest odd number
+			smooth_window_size = \
+				2*int(round((float(hist_elements)/3+1)/2))-1
+		else:
+			smooth_window_size = window_size
+		return(smooth_window_size)
+
+	def _smooth_log_histogram(self, ln_tophat_hist, window_size):
+		'''
+		Performs Savitzky-Golay filtration on log of tophat histogram
+		with 3rd degree polynomial order
+		'''
+		# set smoothing window size
+		smooth_window_size = self._set_smoothing_window_size(ln_tophat_hist,
+			window_size)
+		ln_tophat_smooth = \
+			signal.savgol_filter(ln_tophat_hist, smooth_window_size, 3)
+		return(ln_tophat_smooth)
+
+class _ThresholdFinder(_LogHistogramSmoother):
 	'''
 	Finds adaptive threshold for image
 	'''
@@ -42,16 +73,19 @@ class _ThresholdFinder(object):
 			[0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
 			[0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
 			[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0]])
-			# !!! This is a place that we can consider changing in future
+			# TODO: This is a place that we can consider changing in future
 			# versions: the radius here should really depend on expected
 			# cell size and background properties (although some prelim
 			# tests showed increasing element radius had only negative
 			# consequences)
-			# !!! Also a good idea to see if the corresponding cv2
+			# Also a good idea to see if the corresponding cv2
 			# ellipse structuring element works here
 		# set a warning flag to 0 (no warning)
 		self.threshold_flag = 0
-			# !!! would be good to make an enum class for these
+			# TODO: would be good to make an enum class for these
+		self.default_smoothing_window_size = 21
+			# TODO: heuristic - maybe better to use number of histogram
+			# elements here?
 
 	def _get_tophat(self):
 		'''
@@ -219,31 +253,6 @@ class _ThresholdFinder(object):
 				self.x_pos = bin_centers
 				break
 
-	def _set_smoothing_window_size(self, default_window_size = 21):
-		'''
-		Sets the window size to be used for smoothing, which must be odd
-		Window size should not be more than 1/3 the # of elements in the
-		histogram (heuristic)
-		'''
-		hist_elements = len(self.ln_tophat_hist)
-		if default_window_size > hist_elements/3:
-			# round to the nearest odd number
-			smooth_window_size = \
-				2*int(round((float(hist_elements)/3+1)/2))-1
-		else:
-			smooth_window_size = default_window_size
-		return(smooth_window_size)
-
-	def _smooth_log_histogram(self):
-		'''
-		Performs Savitzky-Golay filtration on log of tophat histogram
-		with 3rd degree polynomial order
-		'''
-		# set smoothing window size
-		smooth_window_size = self._set_smoothing_window_size()
-		self.ln_tophat_smooth = \
-			signal.savgol_filter(self.ln_tophat_hist, smooth_window_size, 3)
-
 	def _perform_thresholding(self):
 		'''
 		Use smooth log histogram to find best threshold
@@ -267,7 +276,8 @@ class _ThresholdFinder(object):
 		# image to use for identifying threshold
 		self._identify_best_histogram()
 		# smooth the log of the histogram values
-		self._smooth_log_histogram()
+		self.ln_tophat_smooth = self._smooth_log_histogram(self.ln_tophat_hist,
+			self.default_smoothing_window_size)
 
 class _ThresholdMethod(object):
 	'''
@@ -275,15 +285,12 @@ class _ThresholdMethod(object):
 	(See _GaussianFitThresholdMethod and _RollingCircleThresholdMethod)
 	'''
 
-	def __init__(self, method_name, x_vals, y_vals):
+	def __init__(self, method_name, threshold_flag, x_vals, y_vals):
 		self.method_name = method_name
 		self.x = x_vals.astype(float)
 		self.y = y_vals.astype(float)
 		# initialize threshold flag at 0
-		self.threshold_flag = 0
-		# lower cutoff value for adjusted r squared to be considered a
-		# good fit
-		self.good_fit_rsq = 0.85
+		self.threshold_flag = threshold_flag
 
 	def _perform_fit(self):
 		'''
@@ -310,10 +317,10 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 	fitting a mixture of two gaussians
 	'''
 
-	def __init__(self, method_name, x_vals, y_vals, lower_bounds, upper_bounds,
-		close_to_peak_dist):
+	def __init__(self, method_name, threshold_flag, x_vals, y_vals,
+		lower_bounds, upper_bounds):
 		super(_GaussianFitThresholdMethod, self).__init__(
-			method_name, x_vals, y_vals)
+			method_name, threshold_flag, x_vals, y_vals)
 		self.param_idx_dict = \
 			{'lambda_1': 0, 'mu_1': 1, 'sigma_1': 2, 'lambda_2': 3, 'mu_2': 4,
 				'sigma_2': 5}
@@ -331,7 +338,7 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		self._min_real_peak_x_pos = 0.0025 * np.max(self.x)
 		# specify a distance at which the peak of a single gaussian
 		# component is considered 'close' to the overall peak
-		self._close_to_peak_dist = close_to_peak_dist
+		self._close_to_peak_dist = 0.05 * np.max(x_vals)
 		# specify a distance in the y-axis within which the highest peak
 		# of a gaussian can be considered a 'close enough' approximation
 		# for the highest peak of the full histogram
@@ -342,6 +349,9 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 			# For now, leaving this at 20 to be consistent with current
 			# matlab code + paper, but this effectively blocks off the
 			# "sliding circle on fit" route
+		# lower cutoff value for adjusted r squared to be considered a
+		# good fit
+		self.good_fit_rsq = 0.85
 
 	def _check_bounds(self, bounds):
 		'''
@@ -435,6 +445,7 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 			least_squares(self._digaussian_residual_fun,
 				starting_param_vals, args=(x_vals, y_vals),
 				bounds = (self.lower_bounds, self.upper_bounds))
+		self.y_hat = y_vals - self.fit_results.fun
 
 	def _calc_fit_adj_rsq(self):
 		'''
@@ -450,16 +461,15 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		# (inexplicably) uses ss_res/(n-p) in the numerator
 		self.rsq_adj = 1-(ss_res/(n-p-1))/(ss_tot/(n-1))
 
-	def _find_peak(self, residuals):
+	def _find_peak(self):
 		'''
 		Finds highest point in mixture distribution, and its
 		corresponding x value
 		If two y values are equally high, returns x value corresponding
 		to the first
 		'''
-		y_hat = self.y - residuals
-		self.peak_x_pos = self.x[np.argmax(y_hat)]
-		self.y_peak_height = np.max(y_hat)
+		self.peak_x_pos = self.x[np.argmax(self.y_hat)]
+		self.y_peak_height = np.max(self.y_hat)
 
 	def _generate_fit_result_dict(self):
 		'''
@@ -496,10 +506,11 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		Performs fit with mixture of two gaussians and runs calculation
 		of adjusted r squared and peak of distribution mixture
 		'''
+		# no unittest needed here
 		self._id_starting_vals()
 		self._fit_gaussians(self.starting_param_vals, self.x, self.y)
 		self._calc_fit_adj_rsq()
-		self._find_peak_x_pos(self.x, self.y, self.fit_results.fun)
+		self._find_peak()
 
 	def _find_threshold_with_distant_peaks(self, mu_to_peak_distvec,
 		check_peak_pos = True):
@@ -536,6 +547,7 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 				self.fit_result_dict['sigma_2']])
 			threshold = threshold_vec[np.argmin(sigma_vec)]
 		return(threshold)
+
 		
 class _mu1PosThresholdMethod(_GaussianFitThresholdMethod):
 	### !!! NEEDS BETTER METHOD DESCRIPTION
@@ -545,10 +557,10 @@ class _mu1PosThresholdMethod(_GaussianFitThresholdMethod):
 		lower_bounds = np.array(
 			[1, 0, sys.float_info.min, 0.5, -np.inf, sys.float_info.min])
 		upper_bounds = np.array([np.inf]*6)
-		close_to_peak_dist = 0.05 * np.max(x_vals)
+		threshold_flag = 0
 		super(_mu1PosThresholdMethod, self).__init__(
-			method_name, x_vals, y_vals, lower_bounds, upper_bounds,
-			close_to_peak_dist)
+			method_name, threshold_flag, x_vals, y_vals, lower_bounds,
+			upper_bounds)
 
 	def _id_threshold(self):
 		'''
@@ -585,11 +597,10 @@ class _mu1ReleasedThresholdMethod(_GaussianFitThresholdMethod):
 		lower_bounds = np.array(
 			[1, -np.inf, sys.float_info.min, 0.5, -np.inf, sys.float_info.min])
 		upper_bounds = np.array([np.inf]*6)
-		close_to_peak_dist = 0.05 * np.max(x_vals)
+		threshold_flag = 2
 		super(_mu1ReleasedThresholdMethod, self).__init__(
-			method_name, x_vals, y_vals, lower_bounds, upper_bounds,
-			close_to_peak_dist)
-		self.threshold_flag = 2
+			method_name, threshold_flag, x_vals, y_vals, lower_bounds,
+			upper_bounds)
 
 	def _id_threshold(self):
 		'''
@@ -633,4 +644,9 @@ class _mu1ReleasedThresholdMethod(_GaussianFitThresholdMethod):
 			# if fit is bad or both mu vals are negative, return NaN
 			# threshold
 			self.threshold = np.nan
+
+if __name__ == '__main__':
+
+	pass
+	# need to read in image file name via argparse, load image, pass it to threshold_finder, get back threshold mask
 

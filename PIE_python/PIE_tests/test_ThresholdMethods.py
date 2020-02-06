@@ -13,8 +13,8 @@ def _regression_model(params, x, y):
 	'''
 	Linear model to create least squares fit
 	'''
-	yhat = params[0]*x + params[1]
-	res = y - yhat
+	y_hat = params[0]*x + params[1]
+	res = y - y_hat
 	return(res)
 
 ### unittests for _GaussianFitThresholdMethod ###
@@ -97,8 +97,8 @@ class TestIDStartingVals(unittest.TestCase):
 		histogram of small test image
 		'''
 		self.gaussian_method = \
-			_GaussianFitThresholdMethod('test', self.array_data[0],
-				self.array_data[2], np.ones(6), np.ones(6), np.inf)
+			_GaussianFitThresholdMethod('test', 0, self.array_data[0],
+				self.array_data[2], np.ones(6), np.ones(6))
 		expected_mu1 = 54.095238095238
 		expected_sigma1 = 90.1587301587302
 		expected_lambda1 = 10.4417048619897
@@ -246,6 +246,11 @@ class TestFitGaussians(unittest.TestCase):
 		# check that the cost in the python fit is less than 1.25x of
 		# the cost of the matlab fit
 		self.assertTrue(test_sse < expected_sse * 1.25)
+		# check that self.gaussian_threshold_standin.y_hat is the output
+		# of applying the model to the x values
+		expected_y_hat = self.gaussian_threshold_standin._digauss_calculator(
+			self.x, *self.gaussian_threshold_standin.fit_results.x)
+		assert_allclose(expected_y_hat, self.gaussian_threshold_standin.y_hat)
 
 class TestCalcFitAdjRsq(unittest.TestCase):
 
@@ -282,9 +287,8 @@ class TestFindPeak(unittest.TestCase):
 		self.gaussian_threshold_standin.x = np.array([0, 0.3, 1, 2, 3.5])
 		self.gaussian_threshold_standin.y = \
 			np.array([1]*len(self.gaussian_threshold_standin.x))
-		y_hat = np.array([0, 1.5, 1.3, .9, 1.4])
-		residuals = self.gaussian_threshold_standin.y - y_hat
-		self.gaussian_threshold_standin._find_peak(residuals)
+		self.gaussian_threshold_standin.y_hat = np.array([0, 1.5, 1.3, .9, 1.4])
+		self.gaussian_threshold_standin._find_peak()
 		self.assertEqual(0.3, self.gaussian_threshold_standin.peak_x_pos)
 		self.assertEqual(1.5, self.gaussian_threshold_standin.y_peak_height)
 
@@ -295,9 +299,8 @@ class TestFindPeak(unittest.TestCase):
 		self.gaussian_threshold_standin.x = np.array([0, 0.3, 1, 2, 3.5])
 		self.gaussian_threshold_standin.y = \
 			np.array([1]*len(self.gaussian_threshold_standin.x))
-		y_hat = np.array([0, 1.5, 1.3, .9, 1.5])
-		residuals = self.gaussian_threshold_standin.y - y_hat
-		self.gaussian_threshold_standin._find_peak(residuals)
+		self.gaussian_threshold_standin.y_hat = np.array([0, 1.5, 1.3, .9, 1.5])
+		self.gaussian_threshold_standin._find_peak()
 		self.assertEqual(0.3, self.gaussian_threshold_standin.peak_x_pos)
 		self.assertEqual(1.5, self.gaussian_threshold_standin.y_peak_height)
 
@@ -385,10 +388,10 @@ class TestFitThresholdWithDistantPeaks(unittest.TestCase):
 
 	def setUp(self):
 		self.gaussian_method = \
-			_GaussianFitThresholdMethod('test', self.array_data[0],
-				self.array_data[2], np.ones(6), np.ones(6), 2000)
+			_GaussianFitThresholdMethod('test', 0, self.array_data[0],
+				self.array_data[2], np.ones(6), np.ones(6))
 		# self.gaussian_method._min_real_peak_x_pos = 2.772380952380952
-		# self.gaussian_threshold_standin._close_to_peak_dist = 2000
+		self.gaussian_method._close_to_peak_dist = 2000
 
 	def test_threshold_based_on_mu_1(self):
 		'''
