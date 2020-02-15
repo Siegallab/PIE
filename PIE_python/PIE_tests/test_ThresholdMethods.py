@@ -701,6 +701,70 @@ class TestFindXStep(unittest.TestCase):
 		self.assertEqual(expected_xstep, test_xstep)
 		self.assertTrue(isinstance(test_xstep, np.integer) or isinstance(test_xstep, int))
 
+class TestSampleandStrechGraph(unittest.TestCase):
+
+	def setUp(self):
+		self.sliding_circle_standin = \
+			object.__new__(_SlidingCircleThresholdMethod)
+		self.sliding_circle_standin._x_stretch_factor = 0.1
+		self.sliding_circle_standin._y_stretch_factor = 100
+		self.sliding_circle_standin.x_vals = np.array([100, 150, 250, 300, 500, 550, 700]).astype(float)
+		self.sliding_circle_standin.y_vals = np.array([5, 10, 9, 7, 6, 5.5, 4])
+
+	def test_stretch_and_subsample_step_1(self):
+		'''
+		Tests that when _xstep is 1, original arrays multiplied by
+		stretch factors
+		'''
+		self.sliding_circle_standin._xstep = 1
+		self.sliding_circle_standin._sample_and_stretch_graph()
+		expected_x_stretched = self.sliding_circle_standin.x_vals/10
+		expected_y_stretched = self.sliding_circle_standin.y_vals*100
+		assert_array_equal(expected_x_stretched,
+			self.sliding_circle_standin.x_vals_stretched)
+		assert_array_equal(expected_y_stretched,
+			self.sliding_circle_standin.y_vals_stretched)
+
+	def test_stretch_and_subsample_step_3(self):
+		'''
+		Tests that when _xstep is 3, every 3rd value of original array
+		(starting with position 0) is multiplied by the appropriate
+		stretch factor and placed in stretch version of array
+		'''
+		self.sliding_circle_standin._xstep = 3
+		self.sliding_circle_standin._sample_and_stretch_graph()
+		expected_x_stretched = np.array([10, 30, 70])
+		expected_y_stretched = np.array([500, 700, 400])
+		assert_array_equal(expected_x_stretched,
+			self.sliding_circle_standin.x_vals_stretched)
+		assert_array_equal(expected_y_stretched,
+			self.sliding_circle_standin.y_vals_stretched)
+
+class TestCreatePolyMask(unittest.TestCase):
+
+	def setUp(self):
+		self.sliding_circle_standin = \
+			object.__new__(_SlidingCircleThresholdMethod)
+
+	def test_poly_mask(self):
+		'''
+		Test polygon mask image creation
+		'''
+		self.sliding_circle_standin.x_vals_stretched = \
+			np.array([1, 2.9, 4, 5.9]).astype(float)
+		self.sliding_circle_standin.y_vals_stretched = \
+			np.array([2, 4, 1.9, 1]).astype(float)
+		expected_mask = np.array([
+			[1, 1, 1, 1, 1, 1],
+			[0, 1, 1, 1, 1, 1],
+			[0, 1, 1, 1, 0, 0],
+			[0, 0, 1, 1, 0, 0]
+			])
+		self.sliding_circle_standin._create_poly_mask()
+		assert_array_equal(expected_mask, self.sliding_circle_standin._fit_im)
+
+
+
 
 if __name__ == '__main__':
 	unittest.main()

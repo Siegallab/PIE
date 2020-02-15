@@ -8,6 +8,8 @@ import cv2
 import numpy as np
 import warnings
 import sys
+from PIE import ported_matlab
+from PIL import Image, ImageDraw
 from scipy import signal
 from scipy.optimize import least_squares
 
@@ -108,50 +110,6 @@ class _ThresholdFinder(_LogHistogramSmoother):
 			self.threshold_flag = 1
 		return(tophat_unique)
 
-	def _bin_centers_to_edges(self, bin_centers):
-		'''
-		Calculates edges of histogram bins given bin centers in the same
-		way as matlab hist function: each internal edge is equidistant
-		from the two bin centers around it, external edges are -Inf and
-		Inf
-		'''
-		internal_edges = (bin_centers.astype(float)[0:-1] +
-			bin_centers.astype(float)[1:])/2
-		bin_edges = np.concatenate(([-np.inf], internal_edges, [np.inf]),
-			axis = 0)
-		return(bin_edges)
-
-	def _reproduce_matlab_hist(self, x, bins):
-		'''
-		Reproduces behavior of matlab hist function
-		x is an array, and bins is either an integer for the number of
-		equally sized bins, or a vector with the centers of unequally
-		spaced bins to be used
-		Unable to reproduce matlab behavior for an array x with integer
-		values on the edges of the bins because matlab behaves
-		unpredicatably in those cases
-		e.g.: self._reproduce_matlab_hist(np.array([0, 0, 2, 3, 0, 2]), 3)
-		'''
-		# if bins is a numpy array, treat it as a list of bin
-		# centers, and convert to bin edges
-		if isinstance(bins, np.ndarray):
-			# identify bin edges based on centers as matlab hist
-			# function would
-			bin_centers = bins
-			bin_edges = self._bin_centers_to_edges(bins)
-			# get histogram using bin_edges
-			(counts, _) = np.histogram(x, bin_edges)
-		elif isinstance(bins, int):
-			# get histogram using bins as number of equally sized bins
-			(counts, bin_edges) = np.histogram(x, bins)
-			# identify bin centers
-			bin_centers = (bin_edges[0:-1] + bin_edges[1:])/2
-		else:
-			raise TypeError('bins may be either an integer for the ' +
-				'number of equally sized bins, or a vector with the centers ' +
-				'of unequally spaced bins to be used')
-		return(counts, bin_centers)
-
 	def _get_log_tophat_hist(self, tophat_bins):
 		'''
 		Calculates the log of histogram values of tophat_im at bins
@@ -162,7 +120,7 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		'''
 		# calculate histogram of self.tophat_im, as in matlab
 		tophat_hist, bin_centers = \
-			self._reproduce_matlab_hist(self.tophat_im.flatten(), tophat_bins)
+			ported_matlab.hist(self.tophat_im.flatten(), tophat_bins)
 		# take logs of histogram y values
 		# mask invalid entries (e.g. where tophat_hist == 0) and replace
 		# them with 0s
@@ -674,6 +632,9 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 			# in the future, i.e. find distance at which
 			# autocorrelation of ln histogram falls off by a certain
 			# amount and use that
+		# factors by which to stretch x and y dimensions
+		self._x_stretch_factor = 0.1
+		self._y_stretch_factor = 100
 
 	def _find_xstep(self, element_num, xstep_multiplier):
 		'''
@@ -684,11 +645,55 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 			).astype(int)
 		return(xstep)
 
+	def _sample_and_stretch_graph(self):
+		'''
+		Subsamples and stretches graph to be used for sliding circle
+		'''
+		# take every x_step-th value of xData and yData, multiply by
+		# respective stretch factors
+		self.x_vals_stretched = \
+			x_val_ori = self.x_vals[0::self._xstep] * self._x_stretch_factor
+		self.y_vals_stretched = \
+			self.y_vals[0::self._xstep] * self._y_stretch_factor
+
+	def _create_poly_mask(self):
+		'''
+		Creates a mask where area under (stretched) curve is white, area
+		above curve is black
+		'''
+		# pad ends of stretched, subsampled x and y vals so that they
+		# loop back on themselves (to allow polygon creation)
+		x_poly = np.concatenate([[0], self.x_vals_stretched,
+			[self.x_vals_stretched[-1]], [0]])
+		y_poly = np.concatenate([[0], self.y_vals_stretched, [0, 0]])
+		# create mask in which area under curve is white, area over
+		# curve black, but upside down
+		# calculate width and height of image as ceiling on max values
+		# of x and y
+		im_width = int(np.ceil(np.max(x_poly)))
+		im_height = int(np.ceil(np.max(y_poly)))
+		# (python code based on https://stackoverflow.com/a/3732128,
+		# modified to reproduce matlab behavior)
+		poly_img = Image.new('L', (im_width, im_height), 0)
+			# create blank image of all 0s
+		polygon = list(zip(x_poly, y_poly))
+			# create list of tuples of every x and y value
+		ImageDraw.Draw(poly_img).polygon(polygon, outline=1, fill=1)
+			# draw polygon based on x-y coordinates
+		self._fit_im = np.array(poly_img)
+		# NB on ImageDraw.Draw.polygon behavior: if each position in the
+		# output matrix is a grid square, ImageDraw treats (0,0) as the
+		# upper left corner of the (0,0) square. All positions at
+		# integers values are drawn within the top and left corners of
+		# the corresponding coordinate box, with floats being rounded to
+		# the nearest ~10^-15 (see unittest for more info)
+
 	def _perform_fit(self):
 		'''
 		Performs fitting procedure
 		'''
-		pass
+		self._sample_and_stretch_graph()
+		self._create_poly_mask()
 
 	def _id_threshold(self):
 		'''

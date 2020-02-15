@@ -1,4 +1,5 @@
 PIE
-opencv-contrib-python > 4.0.0.0
 numpy >= 1.14.0
+opencv-contrib-python > 4.0.0.0
+PIL > 0.0.0
 scipy >= 1.1.0
