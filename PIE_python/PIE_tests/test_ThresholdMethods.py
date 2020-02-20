@@ -708,8 +708,8 @@ class TestSampleandStrechGraph(unittest.TestCase):
 			object.__new__(_SlidingCircleThresholdMethod)
 		self.sliding_circle_standin._x_stretch_factor = 0.1
 		self.sliding_circle_standin._y_stretch_factor = 100
-		self.sliding_circle_standin.x_vals = np.array([100, 150, 250, 300, 500, 550, 700]).astype(float)
-		self.sliding_circle_standin.y_vals = np.array([5, 10, 9, 7, 6, 5.5, 4])
+		self.sliding_circle_standin.x = np.array([100, 150, 250.2, 300, 500, 550, 699.8])
+		self.sliding_circle_standin.y = np.array([5, 10, 9, 7, 6, 5.5, 4])
 
 	def test_stretch_and_subsample_step_1(self):
 		'''
@@ -718,12 +718,18 @@ class TestSampleandStrechGraph(unittest.TestCase):
 		'''
 		self.sliding_circle_standin._xstep = 1
 		self.sliding_circle_standin._sample_and_stretch_graph()
-		expected_x_stretched = self.sliding_circle_standin.x_vals/10
-		expected_y_stretched = self.sliding_circle_standin.y_vals*100
-		assert_array_equal(expected_x_stretched,
-			self.sliding_circle_standin.x_vals_stretched)
-		assert_array_equal(expected_y_stretched,
-			self.sliding_circle_standin.y_vals_stretched)
+		expected_x_stretched = self.sliding_circle_standin.x/10
+		expected_y_stretched = self.sliding_circle_standin.y*100
+		expected_x_stretched_max_int = 70
+		expected_y_stretched_max_int = 1000
+		assert_allclose(expected_x_stretched,
+			self.sliding_circle_standin._x_vals_stretched)
+		assert_allclose(expected_y_stretched,
+			self.sliding_circle_standin._y_vals_stretched)
+		self.assertEqual(expected_x_stretched_max_int,
+			self.sliding_circle_standin._x_stretched_max_int)
+		self.assertEqual(expected_y_stretched_max_int,
+			self.sliding_circle_standin._y_stretched_max_int)
 
 	def test_stretch_and_subsample_step_3(self):
 		'''
@@ -733,12 +739,18 @@ class TestSampleandStrechGraph(unittest.TestCase):
 		'''
 		self.sliding_circle_standin._xstep = 3
 		self.sliding_circle_standin._sample_and_stretch_graph()
-		expected_x_stretched = np.array([10, 30, 70])
+		expected_x_stretched = np.array([10, 30, 69.98])
 		expected_y_stretched = np.array([500, 700, 400])
-		assert_array_equal(expected_x_stretched,
-			self.sliding_circle_standin.x_vals_stretched)
-		assert_array_equal(expected_y_stretched,
-			self.sliding_circle_standin.y_vals_stretched)
+		expected_x_stretched_max_int = 70
+		expected_y_stretched_max_int = 700
+		assert_allclose(expected_x_stretched,
+			self.sliding_circle_standin._x_vals_stretched)
+		assert_allclose(expected_y_stretched,
+			self.sliding_circle_standin._y_vals_stretched)
+		self.assertEqual(expected_x_stretched_max_int,
+			self.sliding_circle_standin._x_stretched_max_int)
+		self.assertEqual(expected_y_stretched_max_int,
+			self.sliding_circle_standin._y_stretched_max_int)
 
 class TestCreatePolyMask(unittest.TestCase):
 
@@ -750,10 +762,12 @@ class TestCreatePolyMask(unittest.TestCase):
 		'''
 		Test polygon mask image creation
 		'''
-		self.sliding_circle_standin.x_vals_stretched = \
+		self.sliding_circle_standin._x_vals_stretched = \
 			np.array([1, 2.9, 4, 5.9]).astype(float)
-		self.sliding_circle_standin.y_vals_stretched = \
+		self.sliding_circle_standin._y_vals_stretched = \
 			np.array([2, 4, 1.9, 1]).astype(float)
+		self.sliding_circle_standin._x_stretched_max_int = 6
+		self.sliding_circle_standin._y_stretched_max_int = 4
 		expected_mask = np.array([
 			[1, 1, 1, 1, 1, 1],
 			[0, 1, 1, 1, 1, 1],
@@ -763,7 +777,134 @@ class TestCreatePolyMask(unittest.TestCase):
 		self.sliding_circle_standin._create_poly_mask()
 		assert_array_equal(expected_mask, self.sliding_circle_standin._fit_im)
 
+class TestCreateCircleMask(unittest.TestCase):
 
+	def setUp(self):
+		self.sliding_circle_standin = \
+			object.__new__(_SlidingCircleThresholdMethod)
+
+	def test_circle_mask(self):
+		'''
+		Test circle mask creation
+		'''
+		center_x = 5.1
+		center_y = 4.1
+		radius = 2.7
+		im_width = 10
+		im_height = 9
+		expected_circle_mask = \
+			np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+				[0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+				[0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+				[0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+				[0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+				[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype = bool)
+		test_circle_mask = \
+			self.sliding_circle_standin._create_circle_mask(center_x, center_y,
+				radius, im_width, im_height)
+		assert_array_equal(expected_circle_mask, test_circle_mask)
+
+class TestIDCircleCenters(unittest.TestCase):
+
+	def setUp(self):
+		self.sliding_circle_standin = \
+			object.__new__(_SlidingCircleThresholdMethod)
+		self.sliding_circle_standin._x_stretch_factor = 0.1
+		self.sliding_circle_standin._y_stretch_factor = 100
+		self.sliding_circle_standin._x_vals_stretched = \
+			np.array([10, 15, 25.02, 30, 50, 55, 69.98])
+		self.sliding_circle_standin._y_vals_stretched = \
+			np.array([500, 1000, 900, 700, 600, 550, 400])
+
+	def test_id_circle_centers(self):
+		'''
+		Test identifying positions between bounds in stretched arrays
+		'''
+		self.sliding_circle_standin._lower_bound = 130
+		self.sliding_circle_standin._upper_bound = 520
+		expected_x_centers = np.array([15, 25.02, 30, 50])
+		expected_y_centers = np.array([1000, 900, 700, 600], dtype = float)
+		self.sliding_circle_standin._id_circle_centers()
+		assert_array_equal(expected_x_centers,
+			self.sliding_circle_standin._x_centers)
+		assert_array_equal(expected_y_centers,
+			self.sliding_circle_standin._y_centers)
+
+class TestCalculateCircleAreas(unittest.TestCase):
+
+	def setUp(self):
+		self.sliding_circle_standin = \
+			object.__new__(_SlidingCircleThresholdMethod)
+		self.sliding_circle_standin._fit_im = \
+			np.vstack([np.ones([5,20]), np.zeros([5,20])])
+
+	def test_calculate_circle_areas(self):
+		'''
+		Tests calculation of area of circle centered at various
+		positions along x and y axis in a _fit_im whose top half is
+		white and whose bottom half is black
+		'''
+		self.sliding_circle_standin._x_centers = np.array([2, 6, 15])
+		self.sliding_circle_standin._y_centers = np.array([2, 5, 7])
+		self.sliding_circle_standin._radius = 2.7
+		self.sliding_circle_standin._x_stretched_max_int = 20
+		self.sliding_circle_standin._y_stretched_max_int = 10
+		expected_areas = np.array([20, 12, 2])
+		self.sliding_circle_standin._calculate_circle_areas()
+		assert_array_equal(expected_areas,
+			self.sliding_circle_standin._inside_area)
+
+class TestIdentifyThresholdSlidingCircle(unittest.TestCase):
+
+	def setUp(self):
+		self.sliding_circle_standin = \
+			object.__new__(_SlidingCircleThresholdMethod)
+		self.sliding_circle_standin._x_stretch_factor = 0.1
+		self.sliding_circle_standin._inside_area = \
+			np.array([1.8, 2.9, 3, 1.7, 1.1, .5, 0.1, 0])
+		self.sliding_circle_standin._x_centers = \
+			np.array([10, 15, 23, 25.7, 32.4, 48, 50, 53])
+
+	def test_id_threshold_windowsize_1(self):
+		'''
+		Tests idenitification of threshold when not averaging over
+		neighboring positions in circle area caculations
+		'''
+		self.sliding_circle_standin._area_sum_sliding_window_size = 1
+		expected_threshold = 230
+		self.sliding_circle_standin._id_threshold()
+		self.assertEqual(expected_threshold,
+			self.sliding_circle_standin.threshold)
+
+	def test_id_threshold_windowsize_5(self):
+		'''
+		Tests idenitification of threshold when averaging over three
+		neighboring positions in circle area caculations
+		'''
+		self.sliding_circle_standin._area_sum_sliding_window_size = 3
+		expected_threshold = 150
+		self.sliding_circle_standin._id_threshold()
+		self.assertEqual(expected_threshold,
+			self.sliding_circle_standin.threshold)
+
+	def test_id_threshold_windowsize_all(self):
+		'''
+		Tests idenitification of threshold when
+		_area_sum_sliding_window_size is larger than the number of
+		elements in _inside_area, resulting in a sliding window that
+		effectively averages over every position (with 0 padding on the
+		ends), which results in the middle position having the largest
+		convolved _inside_area (the first of these is used if number of
+		elements is even)
+		'''
+		self.sliding_circle_standin._area_sum_sliding_window_size = 200
+		expected_threshold = 257
+		self.sliding_circle_standin._id_threshold()
+		self.assertEqual(expected_threshold,
+			self.sliding_circle_standin.threshold)
 
 
 if __name__ == '__main__':

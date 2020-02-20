@@ -240,7 +240,7 @@ class _ThresholdFinder(_LogHistogramSmoother):
 class _ThresholdMethod(object):
 	'''
 	Generic class for methods for finding threshold
-	(See _GaussianFitThresholdMethod and _RollingCircleThresholdMethod)
+	(See _GaussianFitThresholdMethod and _SlidingCircleThresholdMethod)
 	'''
 
 	def __init__(self, method_name, threshold_flag, x_vals, y_vals):
@@ -262,12 +262,19 @@ class _ThresholdMethod(object):
 		'''
 		pass
 
+	def plot(self):
+		'''
+		Plot threshold identification graph
+		'''
+		pass
+
 	def get_threshold(self):
 		'''
 		Perform fit, calculate and return threshold
 		'''
 		self._perform_fit()
 		self._id_threshold()
+		return(self.threshold)
 
 class _GaussianFitThresholdMethod(_ThresholdMethod):
 	'''
@@ -467,6 +474,7 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		# no unittest needed here
 		self._id_starting_vals()
 		self._fit_gaussians(self.starting_param_vals, self.x, self.y)
+		self._generate_fit_result_dict()
 		self._calc_fit_adj_rsq()
 		self._find_peak()
 
@@ -635,6 +643,9 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		# factors by which to stretch x and y dimensions
 		self._x_stretch_factor = 0.1
 		self._y_stretch_factor = 100
+		# number of neighboring circles to sum/average over when
+		# calculating threshold position
+		self._area_sum_sliding_window_size = 5
 
 	def _find_xstep(self, element_num, xstep_multiplier):
 		'''
@@ -651,10 +662,13 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		'''
 		# take every x_step-th value of xData and yData, multiply by
 		# respective stretch factors
-		self.x_vals_stretched = \
-			x_val_ori = self.x_vals[0::self._xstep] * self._x_stretch_factor
-		self.y_vals_stretched = \
-			self.y_vals[0::self._xstep] * self._y_stretch_factor
+		self._x_vals_stretched = \
+			self.x[0::self._xstep] * self._x_stretch_factor
+		self._y_vals_stretched = \
+			self.y[0::self._xstep] * self._y_stretch_factor
+		# calculate ceiling on max values of stretched x and y
+		self._x_stretched_max_int = int(np.ceil(np.max(self._x_vals_stretched)))
+		self._y_stretched_max_int = int(np.ceil(np.max(self._y_vals_stretched)))
 
 	def _create_poly_mask(self):
 		'''
@@ -663,24 +677,21 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		'''
 		# pad ends of stretched, subsampled x and y vals so that they
 		# loop back on themselves (to allow polygon creation)
-		x_poly = np.concatenate([[0], self.x_vals_stretched,
-			[self.x_vals_stretched[-1]], [0]])
-		y_poly = np.concatenate([[0], self.y_vals_stretched, [0, 0]])
+		x_poly = np.concatenate([[0], self._x_vals_stretched,
+			[self._x_vals_stretched[-1]], [0]])
+		y_poly = np.concatenate([[0], self._y_vals_stretched, [0, 0]])
 		# create mask in which area under curve is white, area over
 		# curve black, but upside down
-		# calculate width and height of image as ceiling on max values
-		# of x and y
-		im_width = int(np.ceil(np.max(x_poly)))
-		im_height = int(np.ceil(np.max(y_poly)))
 		# (python code based on https://stackoverflow.com/a/3732128,
 		# modified to reproduce matlab behavior)
-		poly_img = Image.new('L', (im_width, im_height), 0)
+		poly_img = Image.new('L',
+			(self._x_stretched_max_int, self._y_stretched_max_int), 0)
 			# create blank image of all 0s
 		polygon = list(zip(x_poly, y_poly))
 			# create list of tuples of every x and y value
 		ImageDraw.Draw(poly_img).polygon(polygon, outline=1, fill=1)
 			# draw polygon based on x-y coordinates
-		self._fit_im = np.array(poly_img)
+		self._fit_im = np.array(poly_img, dtype = bool)
 		# NB on ImageDraw.Draw.polygon behavior: if each position in the
 		# output matrix is a grid square, ImageDraw treats (0,0) as the
 		# upper left corner of the (0,0) square. All positions at
@@ -688,18 +699,88 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		# the corresponding coordinate box, with floats being rounded to
 		# the nearest ~10^-15 (see unittest for more info)
 
+	def _create_circle_mask(self, center_x, center_y, radius, im_width,
+		im_height):
+		'''
+		Creates a white mask on a black im_width x im_height background
+		that is a circle centered on (center_x, center_y) of specified
+		radius
+		Returns mask as np array
+		'''
+		# create matrices of distances of every point from center along
+		# x and y axes
+		# shift center by 0.5 in both directions to center circle in the
+		# point in gridspace where the corresponding polygon coordinate
+		# would be in self._fit_im
+		# Corresponding matlab PIE code behaves identically, but without
+		# the shift in center values
+		x_center_dist_mat = \
+			np.array([range(0, im_width)] * im_height) - center_x + 0.5
+		y_center_dist_mat = \
+			np.transpose(np.array([range(0, im_height)] * im_width)) - center_y + 0.5
+		# identify points whose distance from center is less than or
+		# equal to radius
+		circle_mask = \
+			(x_center_dist_mat**2 + y_center_dist_mat**2) <= radius**2
+		return(circle_mask)
+
+	def _id_circle_centers(self):
+		'''
+		Identifies x positions between lower and upper bound, and
+		corresponding y positions, as centers of circles to overlap
+		with self._fit_im
+		'''
+		### !!! NEEDS UNITTEST
+		x_center_bool = np.logical_and(
+			(self._x_vals_stretched >
+				self._lower_bound * self._x_stretch_factor),
+			(self._x_vals_stretched <
+				self._upper_bound * self._x_stretch_factor))
+		self._x_centers = self._x_vals_stretched[x_center_bool]
+		self._y_centers = self._y_vals_stretched[x_center_bool]
+
+	def _calculate_circle_areas(self):
+		'''
+		Slides circle along ridge of self._fit_im and calculates area
+		under the curve within each circle
+		'''
+		# keep track of area inside circle at each position along
+		# x_centers
+		self._inside_area = np.zeros(len(self._x_centers))
+		# loop through center positions, identify circle mask, and
+		# calculate area of self._fit_im within that circle
+		for idx, (cx, cy) in enumerate(zip(self._x_centers, self._y_centers)):
+			current_circle_mask = \
+				self._create_circle_mask(cx, cy, self._radius,
+					self._x_stretched_max_int, self._y_stretched_max_int)
+			mask_overlap = np.logical_and(current_circle_mask, self._fit_im)
+			self._inside_area[idx] = np.count_nonzero(mask_overlap)
+
 	def _perform_fit(self):
 		'''
-		Performs fitting procedure
+		Performs circle sliding procedure
 		'''
 		self._sample_and_stretch_graph()
 		self._create_poly_mask()
+		self._id_circle_centers()
+		self._calculate_circle_areas()
 
 	def _id_threshold(self):
 		'''
 		Identify threshold
 		'''
-		pass
+		# sum over each self._area_sum_sliding_window_size
+		# neighboring points
+		if len(self._inside_area) <= self._area_sum_sliding_window_size:
+			convolution_window = np.ones(len(self._inside_area))
+		else:
+			convolution_window = np.ones(self._area_sum_sliding_window_size)
+		sum_inside_area = \
+			np.convolve(self._inside_area, convolution_window, mode = 'same')
+		# threshold is the x position at which sum_inside_area is
+		# highest, corrected for the 'stretch factor' originally used
+		self.threshold = \
+			self._x_centers[np.argmax(sum_inside_area)] / self._x_stretch_factor
 
 class _DataSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod,
 	_LogHistogramSmoother):
@@ -733,6 +814,7 @@ class _FitSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod):
 		threshold_flag = 3
 		method_name = 'sliding_circle_data'
 		xstep = self._find_xstep(len(x_vals), 0.1)
+		#xstep = self._find_xstep(len(x_vals), 0.01)
 			# heuristic - see TODO in parent class
 			# NB: current implementation will not exactly reproduce
 				# matlab code, which hard-codes the xstep as either 3 or
@@ -743,5 +825,5 @@ class _FitSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod):
 if __name__ == '__main__':
 
 	pass
-	# need to read in image file name via argparse, load image, pass it to threshold_finder, get back threshold mask
+	# TODO: need to read in image file name via argparse, load image, pass it to threshold_finder, get back threshold mask
 
