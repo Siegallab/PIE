@@ -715,14 +715,35 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		# Corresponding matlab PIE code behaves identically, but without
 		# the shift in center values
 		circle_mask = np.zeros((im_height, im_width), dtype = bool)
-		x_center_dist_mat = \
-			np.tile(np.array([range(0, im_width)]), [im_height, 1]) - (center_x - 0.5)
+		# only calculate mask within a reasonable window around the
+		# center, or it will be too computationally expensive/slow
+		# create arrays of distances from a shifted center point,
+		x_center_list_full = np.arange(0, im_width) - (center_x - 0.5)
+		y_center_list_full = np.arange(0, im_height) - (center_y - 0.5)
+		x_center_list = \
+			x_center_list_full[np.logical_and(x_center_list_full >= -radius,
+				x_center_list_full <= radius)]
+		y_center_list = \
+			y_center_list_full[np.logical_and(y_center_list_full >= -radius,
+				y_center_list_full <= radius)]
+		# tile arrays of distances from
+		x_center_dist_mat = np.tile(x_center_list, [len(y_center_list), 1])
 		y_center_dist_mat = \
-			np.tile(np.transpose(np.array([range(0, im_height)])), [1, im_width]) - (center_y - 0.5)
+			np.tile(np.reshape(y_center_list, [len(y_center_list), 1]),
+				[1, len(x_center_list)])
 		# identify points whose distance from center is less than or
 		# equal to radius
-		circle_mask = \
-			(np.square(x_center_dist_mat) + np.square(y_center_dist_mat)) <= radius**2
+		circle_minimask = \
+			(np.square(x_center_dist_mat) + np.square(y_center_dist_mat)) \
+				<= radius**2
+		# place circle_minimask in correct position relative to
+		# self._fit_im
+		x_mask_bottom_idx = np.floor(center_x + x_center_list[0]).astype(int)
+		x_mask_top_idx = np.ceil(center_x + x_center_list[-1]).astype(int)
+		y_mask_bottom_idx = np.floor(center_y + y_center_list[0]).astype(int)
+		y_mask_top_idx = np.ceil(center_y + y_center_list[-1]).astype(int)
+		circle_mask[y_mask_bottom_idx:y_mask_top_idx,
+			x_mask_bottom_idx: x_mask_top_idx] = circle_minimask
 		return(circle_mask)
 
 	def _id_circle_centers(self):
@@ -731,7 +752,6 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		corresponding y positions, as centers of circles to overlap
 		with self._fit_im
 		'''
-		### !!! NEEDS UNITTEST
 		x_center_bool = np.logical_and(
 			(self._x_vals_stretched >
 				self._lower_bound * self._x_stretch_factor),
