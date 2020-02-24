@@ -714,14 +714,15 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		# would be in self._fit_im
 		# Corresponding matlab PIE code behaves identically, but without
 		# the shift in center values
+		circle_mask = np.zeros((im_height, im_width), dtype = bool)
 		x_center_dist_mat = \
-			np.array([range(0, im_width)] * im_height) - center_x + 0.5
+			np.tile(np.array([range(0, im_width)]), [im_height, 1]) - (center_x - 0.5)
 		y_center_dist_mat = \
-			np.transpose(np.array([range(0, im_height)] * im_width)) - center_y + 0.5
+			np.tile(np.transpose(np.array([range(0, im_height)])), [1, im_width]) - (center_y - 0.5)
 		# identify points whose distance from center is less than or
 		# equal to radius
 		circle_mask = \
-			(x_center_dist_mat**2 + y_center_dist_mat**2) <= radius**2
+			(np.square(x_center_dist_mat) + np.square(y_center_dist_mat)) <= radius**2
 		return(circle_mask)
 
 	def _id_circle_centers(self):
