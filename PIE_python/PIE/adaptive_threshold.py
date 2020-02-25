@@ -8,8 +8,10 @@ import cv2
 import numpy as np
 import warnings
 import sys
+import pandas as pd
 from PIE import ported_matlab
 from PIL import Image, ImageDraw
+from plotnine import *
 from scipy import signal
 from scipy.optimize import least_squares
 
@@ -211,23 +213,52 @@ class _ThresholdFinder(_LogHistogramSmoother):
 				self.x_pos = bin_centers
 				break
 
-	def _perform_thresholding(self):
+	def _select_threshold(self):
 		'''
-		Use smooth log histogram to find best threshold
+		Use log histogram (or smooth log histogram) to find the optimal
+		threshold
 		'''
 		### !!! NEEDS UNITTEST
 		# try thresholding using _mu1PosThresholdMethod
-		self.threshold_method = \
+		threshold_method_mu_pos = \
 			_mu1PosThresholdMethod(self.x_pos, self.ln_tophat_smooth)
-		self.threshold_method.get_threshold()
+		threshold = threshold_method.get_threshold()
 		# if _mu1PosThresholdMethod returns NaN threshold, try
 		# 'mu1ReleasedThresholdMethod
-		if np.isnan(self.threshold_method.threshold):
-			self.threshold_method = \
+		if np.isnan(threshold):
+			threshold_method = \
 				_mu1ReleasedThresholdMethod(self.x_pos, self.ln_tophat_smooth)
-			self.threshold_method.get_threshold()
+			threshold = threshold_method.get_threshold()
+			# if _mu1ReleasedThresholdMethod returns NaN threshold,
+			# perform sliding circle threshold identification - if the
+			# fit is good, use the fitted data, otherwise, use the raw
+			# data
+			if np.isnan(threshold):
+				if threshold_method.rsq_adj > threshold_method.good_fit_rsq:
+					threshold_method = \
+						_FitSlidingCircleThresholdMethod(self.x_pos,
+							threshold_method.y_hat)
+					threshold = threshold_method.get_threshold()
+				else:
+					threshold_method = \
+						_DataSlidingCircleThresholdMethod(self.x_pos,
+							self.ln_tophat_hist)
+					threshold = threshold_method.get_threshold()
+		# save threshold method
+		self.threshold_method = threshold_method
+	
+	def _perform_thresholding(self, input_im, threshold):
+		'''
+		Thresholds self.input_im based on the threshold in
+		self.threshold_method
+		'''
+		### !!! NEEDS UNITTEST
+		# create a mask of 0s and 1s for input_im based on threshold
+		_, threshold_mask = cv2.threshold(input_im, threshold, 1, cv2.THRESH_BINARY)
+		# return mask as bool
+		return(threshold_mask.astype(bool))
 
-	def threshold_image(self):
+	def get_threshold_mask(self):
 		# tophat transform on input image
 		self._get_tophat()
 		# identify the best (least periodically bumpy) histogram of the
@@ -236,6 +267,11 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		# smooth the log of the histogram values
 		self.ln_tophat_smooth = self._smooth_log_histogram(self.ln_tophat_hist,
 			self.default_smoothing_window_size)
+		# run through threshold methods to select optimal one
+		self._select_threshold()
+		# threshold image
+		self.threshold_mask = self._perform_thresholding()
+		return(self.threshold_mask)
 
 class _ThresholdMethod(object):
 	'''
@@ -261,6 +297,37 @@ class _ThresholdMethod(object):
 		Identify threshold
 		'''
 		pass
+
+	def _create_ggplot(self, df, color_dict):
+		'''
+		Create ggplot-like plot of values in df, which must contain 'x',
+		'y', 'data_type', 'linetype', and 'id' columns
+		'''
+		p = ggplot(df) + \
+			geom_line(aes(x = 'x', y = 'y', color = 'data_type',
+				linetype = 'linetype', group = 'id'), size = 1) + \
+			geom_vline(xintercept = self.threshold,
+				color='#984ea3', size=0.7) + \
+			scale_x_continuous(name = 'pixel intensity') + \
+			scale_y_continuous(name = 'log(count)') + \
+			scale_color_manual(values = color_dict) + \
+			scale_linetype_manual(values = \
+				{'dashed':'dashed', 'solid':'solid'},
+				guide = False) + \
+			theme(legend_position = (0.75, 0.7),
+				plot_title = element_text(face='bold'),
+                panel_background = element_rect(fill='white'),
+                panel_grid_major=element_line(color='grey',size=0.3),
+                axis_line = element_line(color="black", size = 0.5),
+                legend_title=element_blank(),
+                legend_key = element_rect(fill='white'),
+                legend_text=element_text(size=18,face='bold'),
+                axis_text_x=element_text(size=18,face='bold'),
+                axis_text_y=element_text(size=18,face='bold'),
+                axis_title_x=element_text(size=20,face='bold'),
+                axis_title_y=element_text(size=20,face='bold',angle=90)
+				)
+		return(p)
 
 	def plot(self):
 		'''
@@ -374,13 +441,20 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		self.starting_param_vals[self.param_idx_dict['sigma_1']] = x_span/12
 		self.starting_param_vals[self.param_idx_dict['sigma_2']] = x_span/6
 
+	def _single_gauss_calculator(self, x, l, mu, sigma):
+		'''
+		Computes a single gaussian with weight l
+		'''
+		y = float(l)*np.exp(-((x-float(mu))/float(sigma))**2)
+		return(y)
+
 	def _digauss_calculator(self, x, lambda_1, mu_1, sigma_1, lambda_2, mu_2, sigma_2):
 		'''
 		Computes sum of two gaussians with weights lamdba_1 and
 		lambda_2, respectively
 		'''
-		y = float(lambda_1)*np.exp(-((x-float(mu_1))/float(sigma_1))**2) + \
-			float(lambda_2)*np.exp(-((x-float(mu_2))/float(sigma_2))**2)
+		y = self._single_gauss_calculator(x, lambda_1, mu_1, sigma_1) + \
+			self._single_gauss_calculator(x, lambda_2, mu_2, sigma_2)
 		return(y)
 
 	def _digaussian_residual_fun(self, params, x, y_data):
@@ -514,6 +588,37 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 			threshold = threshold_vec[np.argmin(sigma_vec)]
 		return(threshold)
 
+	def plot(self):
+		'''
+		Plot threshold identification graph
+		'''
+		original_df = pd.DataFrame({'x': self.x, 'y': self.y,
+			'id': 'smoothed data', 'linetype': 'solid'})
+		original_df['data_type'] = original_df['id']
+		fitted_df = pd.DataFrame({'x': self.x, 'y': self.y_hat,
+			'id': 'combined fit model', 'linetype': 'solid'})
+		fitted_df['data_type'] = fitted_df['id']
+		indiv_df_1 = pd.DataFrame({'x': self.x, 'y':
+			self._single_gauss_calculator(self.x,
+				self.fit_result_dict['lambda_1'], self.fit_result_dict['mu_1'],
+				self.fit_result_dict['sigma_1']),
+			'data_type': 'individual fit gaussians', 'linetype': 'dashed',
+			'id': 'gauss1'})
+		indiv_df_2 = pd.DataFrame({'x': self.x, 'y':
+			self._single_gauss_calculator(self.x,
+				self.fit_result_dict['lambda_2'], self.fit_result_dict['mu_2'],
+				self.fit_result_dict['sigma_2']),
+			'data_type': 'individual fit gaussians', 'linetype': 'dashed',
+			'id': 'gauss2'})
+		combined_df = \
+			pd.concat([original_df, fitted_df, indiv_df_1, indiv_df_2],
+				sort = True)
+		color_dict = \
+			{'smoothed data': '#377eb8', 'combined fit model': '#e41a1c',
+				'individual fit gaussians': '#4daf4a'}
+#		color_dict = ['#377eb8', '#e41a1c', '#4daf4a']
+		p = self._create_ggplot(combined_df, color_dict)
+		return(p)
 		
 class _mu1PosThresholdMethod(_GaussianFitThresholdMethod):
 	### !!! NEEDS BETTER METHOD DESCRIPTION
@@ -826,6 +931,18 @@ class _DataSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod,
 		super(_DataSlidingCircleThresholdMethod, self).__init__(
 			method_name, threshold_flag, x_vals, y_vals, xstep)
 
+	def plot(self):
+		'''
+		Plot threshold identification graph
+		'''
+		original_df = pd.DataFrame({'x': self.x, 'y': self.y,
+			'id': 'smoothed data', 'linetype': 'solid'})
+		original_df['data_type'] = original_df['id']
+		color_dict = \
+			{'smoothed data': '#377eb8'}
+		p = self._create_ggplot(original_df, color_dict)
+		return(p)
+
 class _FitSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod):
 	'''
 	Threshold method that takes in best fit to histogram of tophat
@@ -842,6 +959,44 @@ class _FitSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod):
 				# 100, for data vs fit-based sliding circle, respectively
 		super(_FitSlidingCircleThresholdMethod, self).__init__(
 			method_name, threshold_flag, x_vals, y_vals, xstep)
+
+	def plot(self, original_y = None):
+		'''
+		Plot threshold identification graph
+		'''
+		if original_y is not None:
+			original_df = pd.DataFrame({'x': self.x, 'y': original_y,
+				'id': 'smoothed data', 'linetype': 'solid'})
+			original_df['data_type'] = original_df['id']
+		else:
+			original_df = pd.DataFrame()
+		fitted_df = pd.DataFrame({'x': self.x, 'y': self.y,
+			'id': 'combined fit model', 'linetype': 'solid'})
+		fitted_df['data_type'] = fitted_df['id']
+		combined_df = \
+			pd.concat([original_df, fitted_df], sort = True)
+		color_dict = \
+			{'smoothed data': '#377eb8', 'combined fit model': '#e41a1c'}
+		p = self._create_ggplot(combined_df, color_dict)
+		return(p)
+
+def threshold_image(input_im, return_plot = False):
+	'''
+	Reads in input_im and returns an automatically thresholded bool mask
+	If return_plot is true, also returns a plotnine plot object
+	'''
+	### !!! NEEDS UNITTEST
+	threshold_finder = _ThresholdFinder(input_im)
+	threshold_mask = threshold_finder.get_threshold_mask()
+	if return_plot:
+		threshold_plot = threshold_finder.plot()
+	else:
+		threshold_plot = None
+	threshold_method = threshold_finder.threshold_method.method_name
+	return(threshold_mask, threshold_method, threshold_plot)
+
+### !!! TODO: GET RID OF FLAGS
+
 
 if __name__ == '__main__':
 
