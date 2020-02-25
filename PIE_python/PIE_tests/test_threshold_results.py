@@ -83,7 +83,7 @@ class Test_mu1ReleasedThresholdMethod(unittest.TestCase):
 		'''
 		Opens histogram file (calculated in matlab) corresponding to
 		im_name, reads in smoothed log histogram, calculates and returns
-		threshold via PIE.adaptive_threshold._mu1PosThresholdMethod
+		threshold via PIE.adaptive_threshold._mu1ReleasedThresholdMethod
 		'''
 		im_path = os.path.join('PIE_tests', 'test_ims',
 			(im_name + '_best_hist.csv'))
@@ -128,7 +128,8 @@ class Test_DataSlidingCircleThresholdMethod(unittest.TestCase):
 		'''
 		Opens histogram file (calculated in matlab) corresponding to
 		im_name, reads in smoothed log histogram, calculates and returns
-		threshold via PIE.adaptive_threshold._mu1PosThresholdMethod
+		threshold via
+		PIE.adaptive_threshold._DataSlidingCircleThresholdMethod
 		'''
 		im_path = os.path.join('PIE_tests', 'test_ims',
 			(im_name + '_best_hist.csv'))
@@ -138,15 +139,6 @@ class Test_DataSlidingCircleThresholdMethod(unittest.TestCase):
 		threshold_method = \
 			adaptive_threshold._DataSlidingCircleThresholdMethod(x_pos, ln_hist)
 		threshold = threshold_method.get_threshold()
-#		print('\n\n')
-#		print(im_name)
-#		print(threshold)
-#		output_df = pd.DataFrame(
-#			{'x_vals': (threshold_method._x_vals_stretched / threshold_method._x_stretch_factor),
-#			'y_vals': (threshold_method._y_vals_stretched / threshold_method._y_stretch_factor)})
-#		p = ggplot(output_df) + geom_line(aes(x = 'x_vals', y = 'y_vals')) + geom_vline(aes(xintercept = threshold))
-#		ggsave(plot = p, filename = os.path.join('PIE_tests', 'test_ims',
-#			(im_name + '_plot.pdf')))
 		return(threshold)
 
 	def test_xy01_08ms_3702(self):
@@ -183,6 +175,80 @@ class Test_DataSlidingCircleThresholdMethod(unittest.TestCase):
 
 	def test_t09xy1107(self):
 		# 7141.8
+		test_threshold = self._get_threshold('t09xy1107')
+		expected_threshold = 7142
+		assert_allclose(expected_threshold, test_threshold,
+			rtol = self.rel_tolerance)
+
+class Test_FitSlidingCircleThresholdMethod(unittest.TestCase):
+	'''
+	Tests that threshold calculated for images by slide_circle_data
+	function on smooth log histogram in matlab PIE code is close to the
+	one calculated by
+	PIE.adaptive_threshold._FitSlidingCircleThresholdMethod
+	'''
+
+	@classmethod
+	def setUpClass(self):
+		# set relative fold tolerance for comparison of expected and
+		# actual thresholds
+		self.rel_tolerance = 0.3
+
+	def _get_threshold(self, im_name):
+		'''
+		Opens histogram file (calculated in matlab) corresponding to
+		im_name, reads in smoothed log histogram, calculates and returns
+		threshold via PIE.adaptive_threshold._FitSlidingCircleThresholdMethod
+		'''
+		im_path = os.path.join('PIE_tests', 'test_ims',
+			(im_name + '_best_hist.csv'))
+		hist_data = np.loadtxt(im_path, delimiter=',')
+		x_pos = hist_data[0]
+		ln_hist_smooth = hist_data[2]
+		threshold_method = \
+			adaptive_threshold._FitSlidingCircleThresholdMethod(x_pos, ln_hist_smooth)
+		threshold = threshold_method.get_threshold()
+		#print('\n')
+		#p = threshold_method.plot()
+		#print(p)
+		#print(im_name)
+		#print(threshold)
+		return(threshold)
+
+	def test_xy01_08ms_3702(self):
+		# 9856
+		test_threshold = self._get_threshold('xy01_08ms_3702')
+		expected_threshold = 9312
+		assert_allclose(expected_threshold, test_threshold,
+			rtol = self.rel_tolerance)
+
+	def test_t10xy0320(self):
+		'''
+		Here, threshold differs a lot from that calculated via gaussians
+		because default lower bound is higher than optimal threshold
+		'''
+		# 7686.1
+		test_threshold = self._get_threshold('t10xy0320')
+		expected_threshold = 7686
+		assert_allclose(expected_threshold, test_threshold,
+			rtol = self.rel_tolerance)
+
+	def test_xy01_14ms_3702(self):
+		# 12579
+		test_threshold = self._get_threshold('xy01_14ms_3702')
+		expected_threshold = 13360
+		assert_allclose(expected_threshold, test_threshold,
+			rtol = self.rel_tolerance)
+
+	def test_t02xy0225(self):
+		# 10507
+		test_threshold = self._get_threshold('t02xy0225')
+		expected_threshold = 9024
+		assert_allclose(expected_threshold, test_threshold,
+			rtol = self.rel_tolerance)
+
+	def test_t09xy1107(self):
+		# 7931
 		test_threshold = self._get_threshold('t09xy1107')
 		expected_threshold = 7142
 		assert_allclose(expected_threshold, test_threshold,

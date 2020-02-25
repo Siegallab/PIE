@@ -104,7 +104,6 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		Throws a warning if the number is less than/equal to 200
 		Throws an error if the number is less than/equal to 3
 		'''
-		# !!! It's important to make sure this code is run with try-except in the pipeline to avoid an error for one image derailing the whole analysis
 		tophat_unique = np.unique(self.tophat_im)
 		if len(tophat_unique) <= 3:
 			raise ValueError('3 or fewer unique values in tophat image')
@@ -732,6 +731,8 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		# specify the bounds on x positions between which sliding circle
 		# operates (these are essentially bounds on where the threshold
 		# may be found)
+		# TODO: test lowering the lower bound to the same calculation
+		# as is used in gaussian methods for minimum peak x position
 		self._lower_bound = 0.13 * np.max(self.x)
 		self._upper_bound = 0.53 * np.max(self.x)
 		# specify radius, in number of pixels (i.e. number of points
@@ -947,29 +948,49 @@ class _FitSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod):
 	'''
 	Threshold method that takes in best fit to histogram of tophat
 	image and finds threshold using sliding circle method
+	If no best fit is provided, performs its own fit via
+	_mu1ReleasedThresholdMethod
 	'''
-	def __init__(self, x_vals, y_vals):
+	def __init__(self, x_vals, y_original, y_model = None):
+		'''
+		y_original is the smoothed log histogram
+		y_model is the result of the best fit of a mixture of two
+		gaussians to the smoothed log histogram
+		'''
 		threshold_flag = 3
 		method_name = 'sliding_circle_data'
-		xstep = self._find_xstep(len(x_vals), 0.1)
-		#xstep = self._find_xstep(len(x_vals), 0.01)
+		#xstep = self._find_xstep(len(x_vals), 0.1)
+		xstep = self._find_xstep(len(x_vals), 0.03)
 			# heuristic - see TODO in parent class
 			# NB: current implementation will not exactly reproduce
 				# matlab code, which hard-codes the xstep as either 3 or
 				# 100, for data vs fit-based sliding circle, respectively
+				# In fact, relative xstep for this method has been
+				# decreased 3x
+		if y_model is None:
+			y_model = self._fit_mu1Released(x_vals, y_original)
+		self.y_original = y_original
 		super(_FitSlidingCircleThresholdMethod, self).__init__(
-			method_name, threshold_flag, x_vals, y_vals, xstep)
+			method_name, threshold_flag, x_vals, y_model, xstep)
 
-	def plot(self, original_y = None):
+	def _fit_mu1Released(self, x, y):
+		'''
+		Performs fit with _mu1ReleasedThresholdMethod, returns fitted y
+		values
+		'''
+		### !!! NEEDS UNITTEST
+		threshold_method = _mu1ReleasedThresholdMethod(x, y)
+		threshold_method._perform_fit()
+		y_model = threshold_method.y_hat
+		return(y_model)
+
+	def plot(self):
 		'''
 		Plot threshold identification graph
 		'''
-		if original_y is not None:
-			original_df = pd.DataFrame({'x': self.x, 'y': original_y,
-				'id': 'smoothed data', 'linetype': 'solid'})
-			original_df['data_type'] = original_df['id']
-		else:
-			original_df = pd.DataFrame()
+		original_df = pd.DataFrame({'x': self.x, 'y': self.y_original,
+			'id': 'smoothed data', 'linetype': 'solid'})
+		original_df['data_type'] = original_df['id']
 		fitted_df = pd.DataFrame({'x': self.x, 'y': self.y,
 			'id': 'combined fit model', 'linetype': 'solid'})
 		fitted_df['data_type'] = fitted_df['id']
@@ -987,12 +1008,19 @@ def threshold_image(input_im, return_plot = False):
 	'''
 	### !!! NEEDS UNITTEST
 	threshold_finder = _ThresholdFinder(input_im)
-	threshold_mask = threshold_finder.get_threshold_mask()
-	if return_plot:
-		threshold_plot = threshold_finder.plot()
-	else:
-		threshold_plot = None
-	threshold_method = threshold_finder.threshold_method.method_name
+	try:
+		threshold_mask = threshold_finder.get_threshold_mask()
+		if return_plot:
+			threshold_plot = threshold_finder.plot()
+		else:
+			threshold_plot = None
+		threshold_method = threshold_finder.threshold_method.method_name
+	except ValueError as e:
+		if str(e) == '3 or fewer unique values in tophat image':
+			# return empty mask
+			threshold_mask = np.zeros(np.shape(input_im), dtype = bool)
+			threshold_method = 'Error: ' + str(e)
+			threshold_plot = None
 	return(threshold_mask, threshold_method, threshold_plot)
 
 ### !!! TODO: GET RID OF FLAGS
