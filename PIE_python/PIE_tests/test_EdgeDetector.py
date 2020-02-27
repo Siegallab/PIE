@@ -28,7 +28,60 @@ class TestGetPiePieces(unittest.TestCase):
 			assert_array_equal(self.expected_pie_piece_dict[quad],
 				self.edge_detector_standin.pie_piece_dict[quad].pie_mask)
 
-		
+class TestFillHoles(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.edge_detector_standin = object.__new__(_EdgeDetector)
+		self.input_mask = np.array([
+			[False, False, False,  False, True,  True,  True],
+			[False, False, False,  False, True,  False,  True],
+			[ True,  True,  False, False, True,  True,  True],
+			[ True,  True,  True,  True, False,  False, False],
+			[ True,  False,  False,  True, True, False, False],
+			[ True,  True,  True, True, False, False, False]])
+
+	def test_hole_size_0(self):
+		'''
+		Tests that no holes filled when hole_fill_area is 0
+		'''
+		self.edge_detector_standin.hole_fill_area = 0
+		expected_filled_holes_mask = self.input_mask
+		test_filled_holes_mask = \
+			self.edge_detector_standin._fill_holes(self.input_mask)
+		assert_array_equal(expected_filled_holes_mask, test_filled_holes_mask)
+
+	def test_hole_size_1(self):
+		'''
+		Tests that only small holes filled when hole_fill_area is 1
+		'''
+		self.edge_detector_standin.hole_fill_area = 1
+		expected_filled_holes_mask = np.array([
+			[False, False, False,  False, True,  True,  True],
+			[False, False, False,  False, True,  True,  True],
+			[ True,  True,  False, False, True,  True,  True],
+			[ True,  True,  True,  True, False,  False, False],
+			[ True,  False,  False,  True, True, False, False],
+			[ True,  True,  True, True, False, False, False]])
+		test_filled_holes_mask = \
+			self.edge_detector_standin._fill_holes(self.input_mask)
+		assert_array_equal(expected_filled_holes_mask, test_filled_holes_mask)
+
+	def test_hole_size_inf(self):
+		'''
+		Tests that no holes filled when hole_fill_area is np.inf
+		'''
+		self.edge_detector_standin.hole_fill_area = np.inf
+		expected_filled_holes_mask = np.array([
+			[False, False, False,  False, True,  True,  True],
+			[False, False, False,  False, True,  True,  True],
+			[ True,  True,  False, False, True,  True,  True],
+			[ True,  True,  True,  True, False,  False, False],
+			[ True,  True, True,  True, True, False, False],
+			[ True,  True,  True, True, False, False, False]])
+		test_filled_holes_mask = \
+			self.edge_detector_standin._fill_holes(self.input_mask)
+		assert_array_equal(expected_filled_holes_mask, test_filled_holes_mask)
 
 
 if __name__ == '__main__':

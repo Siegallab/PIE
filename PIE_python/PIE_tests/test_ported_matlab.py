@@ -71,5 +71,91 @@ class TestHist(unittest.TestCase):
 			test_counts, test_centers = ported_matlab.hist(self.x,
 					bins)
 
+class TestBwperim(unittest.TestCase):
+
+	def test_bwperim_full(self):
+		'''
+		Checks that perim_mask returned for an input mask is the same
+		as that returned by matlab with default connectivity
+		'''
+		input_mask = np.array([
+			[False, False, False,  True,  True,  True],
+			[False, False, False,  True,  True,  True],
+			[ True,  True,  True,  True,  True,  True],
+			[ True,  True,  True,  True,  True, False],
+			[ True,  True,  True,  True, False, False],
+			[ True,  True,  True, False, False, False]])
+		expected_perim_mask = np.array([
+			[False, False, False, True, True, True],
+			[False, False, False, True, False, True],
+			[True, True, True, False, False, True],
+			[True, False, False, False, True, False],
+			[True, False, False, True, False, False],
+			[True, True, True, False, False, False]])
+		test_perim_mask = ported_matlab.bwperim(input_mask)
+		assert_array_equal(expected_perim_mask, test_perim_mask)
+
+	def test_bwperim_holes(self):
+		'''
+		Checks that perim_mask returned for an input mask with holes in
+		it is the same as that returned by matlab with default
+		connectivity
+		'''
+		input_mask = np.array([
+			[False, False, False,  True,  True,  True],
+			[False, False, False,  True,  True,  True],
+			[ True,  True,  True,  True,  True,  True],
+			[ True,  False,  True,  True,  True, False],
+			[ True,  False,  True,  True, False, False],
+			[ True,  True,  True, False, False, False]])
+		expected_perim_mask = np.array([
+			[False, False, False, True, True, True],
+			[False, False, False, True, False, True],
+			[True, True, True, False, False, True],
+			[True, False, True, False, True, False],
+			[True, False, True, True, False, False],
+			[True, True, True, False, False, False]])
+		test_perim_mask = ported_matlab.bwperim(input_mask)
+		assert_array_equal(expected_perim_mask, test_perim_mask)
+
+class TestBwareaopen(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.input_mask = np.array([
+			[False, False, False,  True,  True,  True],
+			[False, False, False,  True,  False,  True],
+			[ True,  True,  False,  True,  True,  True],
+			[ True,  True,  True,  False,  False, False],
+			[ True,  False,  True,  True, False, False],
+			[ True,  True,  True, False, False, False]])
+
+	def test_bwareaopen_conn_4(self):
+		'''
+		Checks that when connecticity is set to 4, object
+		whose area is same as P is removed from final mask
+		'''
+		P = 8
+		expected_filled_mask = np.array([
+			[False, False, False,  False,  False,  False],
+			[False, False, False,  False,  False,  False],
+			[ True,  True,  False,  False,  False,  False],
+			[ True,  True,  True,  False,  False, False],
+			[ True,  False,  True,  True, False, False],
+			[ True,  True,  True, False, False, False]])
+		test_filled_mask = ported_matlab.bwareaopen(self.input_mask, P, conn = 4)
+		assert_array_equal(expected_filled_mask, test_filled_mask)
+
+	def test_bwareaopen_conn_8(self):
+		'''
+		Checks that when connecticity is set to 8 (default), object
+		whose area is same as P is removed from final mask
+		'''
+		P = 8
+		expected_filled_mask = self.input_mask
+		test_filled_mask = \
+			ported_matlab.bwareaopen(self.input_mask, P)
+		assert_array_equal(expected_filled_mask, test_filled_mask)
+
 if __name__ == '__main__':
 	unittest.main()

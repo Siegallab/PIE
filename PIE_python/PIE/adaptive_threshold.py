@@ -90,6 +90,8 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		self.default_smoothing_window_size = 21
 			# TODO: heuristic - maybe better to use number of histogram
 			# elements here?
+		# set 'default' threshold method name
+		self.default_threshold_method_name = 'mu_1+2*sigma_1[mu_1-positive]'
 
 	def _get_tophat(self):
 		'''
@@ -219,7 +221,7 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		'''
 		### !!! NEEDS UNITTEST
 		# try thresholding using _mu1PosThresholdMethod
-		threshold_method_mu_pos = \
+		threshold_method = \
 			_mu1PosThresholdMethod(self.x_pos, self.ln_tophat_smooth)
 		threshold = threshold_method.get_threshold()
 		# if _mu1PosThresholdMethod returns NaN threshold, try
@@ -246,14 +248,14 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		# save threshold method
 		self.threshold_method = threshold_method
 	
-	def _perform_thresholding(self, input_im, threshold):
+	def _perform_thresholding(self, tophat_im, threshold):
 		'''
-		Thresholds self.input_im based on the threshold in
+		Thresholds tophat_im based on the threshold in
 		self.threshold_method
 		'''
 		### !!! NEEDS UNITTEST
 		# create a mask of 0s and 1s for input_im based on threshold
-		_, threshold_mask = cv2.threshold(input_im, threshold, 1, cv2.THRESH_BINARY)
+		_, threshold_mask = cv2.threshold(tophat_im, threshold, 1, cv2.THRESH_BINARY)
 		# return mask as bool
 		return(threshold_mask.astype(bool))
 
@@ -269,7 +271,8 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		# run through threshold methods to select optimal one
 		self._select_threshold()
 		# threshold image
-		self.threshold_mask = self._perform_thresholding()
+		self.threshold_mask = \
+			self._perform_thresholding(self.tophat_im, self.threshold_method.threshold)
 		return(self.threshold_mask)
 
 class _ThresholdMethod(object):
@@ -1011,17 +1014,23 @@ def threshold_image(input_im, return_plot = False):
 	try:
 		threshold_mask = threshold_finder.get_threshold_mask()
 		if return_plot:
-			threshold_plot = threshold_finder.plot()
+			threshold_plot = threshold_finder.threshold_method.plot()
 		else:
 			threshold_plot = None
-		threshold_method = threshold_finder.threshold_method.method_name
+		threshold_method_name = threshold_finder.threshold_method.method_name
+		threshold = threshold_finder.threshold_method.threshold
 	except ValueError as e:
 		if str(e) == '3 or fewer unique values in tophat image':
 			# return empty mask
 			threshold_mask = np.zeros(np.shape(input_im), dtype = bool)
-			threshold_method = 'Error: ' + str(e)
+			threshold_method_name = 'Error: ' + str(e)
 			threshold_plot = None
-	return(threshold_mask, threshold_method, threshold_plot)
+			threshold = 0
+	# check whether default threshold method was used
+	default_threshold_method_usage = \
+		threshold_method_name == threshold_finder.default_threshold_method_name
+	return(threshold_mask, threshold_method_name, threshold_plot,
+		threshold, default_threshold_method_usage)
 
 ### !!! TODO: GET RID OF FLAGS
 
