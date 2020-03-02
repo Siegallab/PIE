@@ -447,7 +447,6 @@ class _EdgeDetector(object):
 		'''
 		Removes any objects in mask_to_clear that touch its edge
 		'''
-		### !!! NEEDS UNITTEST
 		mask_edge = \
 			ported_matlab.bwperim(np.ones(np.shape(mask_to_clear), dtype = bool))
 		cleared_mask = \
@@ -567,6 +566,7 @@ def read_and_run_analysis(input_im_path, output_path,
 		image_type, hole_fill_area, cleanup, max_proportion_exposed_edge,
 		save_extra_info)
 	image_analyzer.process_image()
+	return(image_analyzer.colony_mask, image_analyzer.colony_property_df)
 
 # !!! NB: explain in doc that this assumes that there will never be two images with the same name being placed in the same output folder
 

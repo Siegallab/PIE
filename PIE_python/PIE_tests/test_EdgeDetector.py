@@ -83,6 +83,78 @@ class TestFillHoles(unittest.TestCase):
 			self.edge_detector_standin._fill_holes(self.input_mask)
 		assert_array_equal(expected_filled_holes_mask, test_filled_holes_mask)
 
+class TestClearMaskEdges(unittest.TestCase):
+
+	@classmethod
+	def setUp(self):
+		self.edge_detector_standin = object.__new__(_EdgeDetector)
+
+	def test_clear_nothing(self):
+		'''
+		Tests behavior on a mask with no objects touching image edge
+		'''
+		colony_mask = np.array([
+			[0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 0, 0, 0, 1, 1, 1, 0],
+			[0, 0, 0, 0, 1, 1, 1, 0],
+			[0, 1, 1, 0, 1, 1, 1, 0],
+			[0, 1, 0, 1, 0, 1, 0, 0],
+			[0, 1, 0, 1, 0, 0, 0, 0],
+			[0, 1, 1, 1, 0, 0, 0, 0],
+			[0, 0, 0, 0, 0, 0, 0, 0]], dtype = bool)
+		test_cleared_mask = \
+			self.edge_detector_standin._clear_mask_edges(colony_mask)
+		assert_array_equal(colony_mask, test_cleared_mask)
+
+	def test_clear_single_object(self):
+		'''
+		Tests behavior on a mask with one object touching image edge
+		'''
+		colony_mask = np.array([
+			[0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 0, 0, 0, 1, 1, 1, 1],
+			[0, 0, 0, 0, 1, 1, 1, 0],
+			[0, 1, 1, 0, 1, 1, 1, 0],
+			[0, 1, 0, 1, 0, 1, 0, 0],
+			[0, 1, 0, 1, 0, 0, 0, 0],
+			[0, 1, 1, 1, 0, 0, 0, 0],
+			[0, 0, 0, 0, 0, 0, 0, 0]], dtype = bool)
+		expected_cleared_mask = np.array([
+			[0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 1, 1, 0, 0, 0, 0, 0],
+			[0, 1, 0, 1, 0, 0, 0, 0],
+			[0, 1, 0, 1, 0, 0, 0, 0],
+			[0, 1, 1, 1, 0, 0, 0, 0],
+			[0, 0, 0, 0, 0, 0, 0, 0]], dtype = bool)
+		test_cleared_mask = \
+			self.edge_detector_standin._clear_mask_edges(colony_mask)
+		assert_array_equal(expected_cleared_mask, test_cleared_mask)
+
+	def test_clear_everything(self):
+		'''
+		Tests behavior on a mask with both objects touching image edge
+		'''
+		colony_mask = np.array([
+			[0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 0, 0, 0, 1, 1, 1, 1],
+			[0, 0, 0, 0, 1, 1, 1, 0],
+			[0, 1, 1, 0, 1, 1, 1, 0],
+			[0, 1, 0, 1, 0, 1, 0, 0],
+			[0, 1, 0, 1, 0, 0, 0, 0],
+			[0, 1, 1, 1, 0, 0, 0, 0],
+			[0, 1, 0, 0, 0, 0, 0, 0]], dtype = bool)
+		expected_cleared_mask = np.zeros(colony_mask.shape, colony_mask.dtype)
+		test_cleared_mask = \
+			self.edge_detector_standin._clear_mask_edges(colony_mask)
+		assert_array_equal(expected_cleared_mask, test_cleared_mask)
+
+class TestClearMaskEdges(unittest.TestCase):
+
+	# test this on EP_160110_t02xy1005_small.tif
+	pass
+
 
 if __name__ == '__main__':
 	unittest.main()
