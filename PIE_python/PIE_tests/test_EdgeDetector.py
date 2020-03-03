@@ -3,8 +3,28 @@
 import unittest
 import cv2
 import numpy as np
-from PIE.colony_edge_detect import _EdgeDetector
+import os
+from PIE.colony_edge_detect import _EdgeDetector, create_color_overlay
 from numpy.testing import assert_array_equal
+from time import sleep
+
+def show_mask_diffs(green_mask, mag_mask, im, im_name):
+	'''
+	Displays im with pixels unique to green_mask as green and pixels
+	unique to mag_mask as magenta
+	'''
+	norm_im = \
+		cv2.normalize(im, None, alpha=0, beta=(2**8-1),
+			norm_type=cv2.NORM_MINMAX)
+	green_pixels = np.copy(green_mask)
+	green_pixels[mag_mask] = False
+	mag_pixels = np.copy(mag_mask)
+	mag_pixels[green_mask] = False
+	green_im = create_color_overlay(norm_im, green_pixels, [0, 255, 0], 1)
+	green_mag_im = create_color_overlay(green_im, mag_pixels, [255, 0, 255], 1)
+	out_path = os.path.join('PIE_tests', 'test_ims',
+		('test_overlap_' + im_name + '.tif'))
+	cv2.imwrite(out_path, green_mag_im * 2**8)
 
 class TestGetPiePieces(unittest.TestCase):
 
@@ -150,10 +170,87 @@ class TestClearMaskEdges(unittest.TestCase):
 			self.edge_detector_standin._clear_mask_edges(colony_mask)
 		assert_array_equal(expected_cleared_mask, test_cleared_mask)
 
-class TestClearMaskEdges(unittest.TestCase):
 
-	# test this on EP_160110_t02xy1005_small.tif
-	pass
+class TestCreateInitialColonyMask(unittest.TestCase):
+
+	def _compare_overlays(self, im_name):
+		hole_fill_area = 0
+		# read in images
+		im_path = os.path.join('PIE_tests', 'test_ims', (im_name + '.tif'))
+		center_path = os.path.join('PIE_tests', 'test_ims',
+			(im_name + '_cell_centers.tif'))
+		initial_overlay_path = os.path.join('PIE_tests', 'test_ims',
+			(im_name + '_initial_overlay.tif'))
+		input_im = cv2.imread(im_path, cv2.IMREAD_ANYDEPTH)
+		cell_centers = cv2.imread(center_path, cv2.IMREAD_ANYDEPTH).astype(bool)
+		expected_initial_colony_mask = \
+			cv2.imread(initial_overlay_path, cv2.IMREAD_ANYDEPTH).astype(bool)
+		# run initial overlay identification
+		edge_detector = _EdgeDetector(input_im, cell_centers, hole_fill_area,
+			False, 0.25)
+		test_initial_colony_mask = edge_detector._create_inital_colony_mask()
+		if not np.array_equal(expected_initial_colony_mask,
+			test_initial_colony_mask):
+			show_mask_diffs(expected_initial_colony_mask,
+				test_initial_colony_mask, input_im, im_name)
+		assert_array_equal(expected_initial_colony_mask,
+			test_initial_colony_mask)
+
+	def test_test_im_small(self):
+		'''
+		Test initial overlay creation on test_im_small
+		'''
+		self._compare_overlays('test_im_small')
+
+	def test_EP_160110_t02xy1005_small(self):
+		'''
+		Test initial overlay creation on EP_160110_t02xy1005_small
+		'''
+		self._compare_overlays('EP_160110_t02xy1005_small')
+
+class TestRunEdgeDetection(unittest.TestCase):
+
+	def _compare_overlays(self, im_name, cleanup):
+		hole_fill_area = np.inf
+		# read in images
+		im_path = os.path.join('PIE_tests', 'test_ims', (im_name + '.tif'))
+		center_path = os.path.join('PIE_tests', 'test_ims',
+			(im_name + '_cell_centers.tif'))
+		if cleanup:
+			colony_mask_path = os.path.join('PIE_tests', 'test_ims',
+				(im_name + '_colony_mask_cleanup.tif'))
+		else:
+			colony_mask_path = os.path.join('PIE_tests', 'test_ims',
+				(im_name + '_colony_mask.tif'))
+		input_im = cv2.imread(im_path, cv2.IMREAD_ANYDEPTH)
+		cell_centers = cv2.imread(center_path, cv2.IMREAD_ANYDEPTH).astype(bool)
+		expected_final_colony_mask = \
+			cv2.imread(colony_mask_path, cv2.IMREAD_ANYDEPTH).astype(bool)
+		# run initial overlay identification
+		edge_detector = _EdgeDetector(input_im, cell_centers, hole_fill_area, cleanup, 0.25)
+		test_final_colony_mask = edge_detector.run_edge_detection()
+		if not np.array_equal(expected_final_colony_mask,
+			test_final_colony_mask):
+			show_mask_diffs(expected_final_colony_mask,
+				test_final_colony_mask, input_im, im_name)
+		assert_array_equal(expected_final_colony_mask,
+			test_final_colony_mask)
+
+	def test_test_im_small_no_cleanup(self):
+		'''
+		Test initial overlay creation on test_im_small
+		'''
+		self._compare_overlays('test_im_small', False)
+
+	def test_EP_160110_t02xy1005_small_no_cleanup(self):
+		'''
+		Test initial overlay creation on EP_160110_t02xy1005_small
+		Actually, original colony mask differs from matlab results by 8
+		pixels that have been deleted, seemingly as a result of matlab
+		including a 'valley' in image intensity in PIE pieces, and
+		python not including it
+		'''
+		self._compare_overlays('EP_160110_t02xy1005_small', False)
 
 
 if __name__ == '__main__':

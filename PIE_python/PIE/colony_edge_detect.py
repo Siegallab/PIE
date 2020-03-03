@@ -393,7 +393,6 @@ class _EdgeDetector(object):
 		'''
 		Runs initial edge detection without cleanup
 		'''
-		### ??? NEEDS UNITTEST ??? ###
 		# identify 'pie pieces' that overlap cell centers, and combine
 		# them into a composite colony_mask
 		initial_colony_mask = np.zeros(self.input_im.shape, dtype = bool)
@@ -462,7 +461,6 @@ class _EdgeDetector(object):
 		'''
 		Runs full edge detection and returns colony mask
 		'''
-		### !!! NEEDS UNITTEST
 		initial_colony_mask = self._create_inital_colony_mask()
 		colony_mask_filled_holes = self._fill_holes(initial_colony_mask)
 		if self.cleanup:
