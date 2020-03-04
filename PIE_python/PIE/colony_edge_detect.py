@@ -502,10 +502,6 @@ class _PiePiece(object):
 		is part of the contour of colony_mask does not exceed
 		max_proportion_exposed_edge
 		'''
-		### !!! NEEDS UNITTEST
-		#
-		# TODO: Check out logic here, it seems kind of backwards, with lots of extra steps
-		#
 		# Identified pie pieces that are part of colony_mask
 		pie_pieces = \
 			np.logical_and(self.cell_overlap_pie_mask, colony_mask)
@@ -515,11 +511,11 @@ class _PiePiece(object):
 		# Create mask with the contour of each complete colony
 		colony_perim = ported_matlab.bwperim(colony_mask)
 		# Create images with the parts of the perimeter of each pie
-		# piece that doesn't overlap with the outer edge of the object
-		neighbors_pie_pieces = \
-			np.logical_and(pie_piece_perim, np.invert(colony_perim))
-		neighbors_pie_piece_labeled = self.cell_overlap_labeled_pie_mask * \
-			neighbors_pie_pieces.astype(int)
+		# piece that overlaps with the outer edge of the object
+		exposed_pie_edges = \
+			np.logical_and(pie_piece_perim, colony_perim)
+		exposed_pie_edge_labeled = self.cell_overlap_labeled_pie_mask * \
+			exposed_pie_edges.astype(int)
 		total_pie_piece_perim_labeled = self.cell_overlap_labeled_pie_mask * \
 			pie_piece_perim.astype(int)
 		# make a list of potential non-background pie piece labels (with
@@ -535,18 +531,19 @@ class _PiePiece(object):
 		pie_piece_tot_border_counts, _ = \
 			np.histogram(total_pie_piece_perim_labeled,
 				pie_piece_histogram_bins)
-		# Count the perimeter pixels of every pie piece that doesn't
-		# overlap with the outer edge of an object in overlay (i.e.,
-		# which is an internal edge in a colony)
-		pie_piece_touching_border_counts, _ = \
-			np.histogram(neighbors_pie_piece_labeled, pie_piece_histogram_bins)
-		# calculate the proportion of each pie piece
-		pie_piece_touching_border_proportion = \
-			np.divide(pie_piece_touching_border_counts.astype(float),
+		# Count the perimeter pixels of every pie piece that overlaps
+		# with the outer edge of colony_mask (i.e., which is an external
+		# edge in a colony)
+		pie_piece_exposed_border_counts, _ = \
+			np.histogram(exposed_pie_edge_labeled, pie_piece_histogram_bins)
+		# calculate the proportion of each pie piece edge that is
+		# 'exposed' (on the outer edge of the colony)
+		pie_piece_exposed_border_proportion = \
+			np.divide(pie_piece_exposed_border_counts.astype(float),
 				pie_piece_tot_border_counts.astype(float))
 		allowed_objects = pie_piece_labels[
-			pie_piece_touching_border_proportion >=
-				(1 - max_proportion_exposed_edge)]
+			pie_piece_exposed_border_proportion <=
+				max_proportion_exposed_edge]
 		edge_filtered_pie_mask = \
 			np.isin(self.cell_overlap_labeled_pie_mask, allowed_objects)
 		return(edge_filtered_pie_mask)
