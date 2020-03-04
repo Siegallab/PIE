@@ -246,9 +246,11 @@ class TestRunEdgeDetection(unittest.TestCase):
 		'''
 		Test initial overlay creation on EP_160110_t02xy1005_small
 		Actually, original colony mask differs from matlab results by 8
-		pixels that have been deleted, seemingly as a result of matlab
-		including a 'valley' in image intensity in PIE pieces, and
-		python not including it
+		pixels that have been deleted, probably as a result of matlab
+		filling holes that are 8-connected to background, while PIE does
+		not
+		These holes were re-created in reference mask to make this test
+		not fail
 		'''
 		self._compare_overlays('EP_160110_t02xy1005_small', False)
 

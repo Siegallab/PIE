@@ -5,12 +5,12 @@ Performs colony edge detection
 '''
 
 # !!! TODO: ANALYSIS NOT WORKING ON JPEG?!
+# TODO: CHANGE DEFAULT VALUE OF max_proportion_exposed_edge to 0.75 in app
 
 import cv2
 import csv
-from PIE import adaptive_threshold
+from PIE import adaptive_threshold, ported_matlab
 import os
-from PIE import ported_matlab
 import numpy as np
 import pandas as pd
 import copy
@@ -22,7 +22,7 @@ class _ImageAnalyzer(object):
 	# TODO: save all jpegs as jpeg2000s instead?
 	def __init__(self, original_im, image_name, output_path, image_type = 'brightfield',
 				hole_fill_area = np.inf, cleanup = False,
-				max_proportion_exposed_edge = 0.25,
+				max_proportion_exposed_edge = 0.75,
 				save_extra_info = False, threshold_plot_width = 6,
 				threshold_plot_height = 4, threshold_plot_dpi = 200,
 				threshold_plot_filetype = 'png',
@@ -398,11 +398,10 @@ class _EdgeDetector(object):
 		initial_colony_mask = np.zeros(self.input_im.shape, dtype = bool)
 		for pie_quad_name, pie_piece_quadrant in \
 			self.pie_piece_dict.items():
-			current_cell_pieces = \
-				pie_piece_quadrant.id_center_overlapping_pie_pieces(
+			pie_piece_quadrant.id_center_overlapping_pie_pieces(
 					self.cell_centers)
 			initial_colony_mask = np.logical_or(initial_colony_mask,
-				current_cell_pieces)
+				pie_piece_quadrant.cell_overlap_pie_mask)
 		return(initial_colony_mask)
 
 	def _fill_holes(self, colony_mask):
@@ -448,7 +447,7 @@ class _EdgeDetector(object):
 		'''
 		mask_edge = \
 			ported_matlab.bwperim(np.ones(np.shape(mask_to_clear), dtype = bool))
-		cleared_mask = \
+		cleared_mask, _ = \
 			_filter_by_overlaps(mask_to_clear, mask_edge,
 				keep_overlapping_objects = False)
 		return(cleared_mask)
@@ -481,17 +480,76 @@ class _PiePiece(object):
 		x_grad_mask and y_grad_mask are both true
 		'''
 		self.pie_mask = np.logical_and(x_grad_mask, y_grad_mask)
+		self._translation_matrices = \
+			{'left': np.float32([[1,0,-1],[0,1,0]]),
+				'right': np.float32([[1,0,1],[0,1,0]]),
+				'up': np.float32([[1,0,0],[0,1,-1]]),
+				'down': np.float32([[1,0,0],[0,1,-1]])}
 
 	def id_center_overlapping_pie_pieces(self, cell_center_mask):
 		'''
 		We identify the parts of self.pie_mask that belong to real
 		cells by seeing which ones overlap with cell_center_mask
 		'''
-		cell_overlapping_pie_mask = \
+		self.cell_overlap_pie_mask, \
+			self.cell_overlap_labeled_pie_mask = \
 			_filter_by_overlaps(self.pie_mask, cell_center_mask,
 				keep_overlapping_objects = True)
-		return(cell_overlapping_pie_mask)
 
+	def filter_by_exposed_edge(self, colony_mask, max_proportion_exposed_edge):
+		'''
+		Identify pie_pieces for which the proportion of the contour that
+		is part of the contour of colony_mask does not exceed
+		max_proportion_exposed_edge
+		'''
+		### !!! NEEDS UNITTEST
+		#
+		# TODO: Check out logic here, it seems kind of backwards, with lots of extra steps
+		#
+		# Identified pie pieces that are part of colony_mask
+		pie_pieces = \
+			np.logical_and(self.cell_overlap_pie_mask, colony_mask)
+		# Create mask with the contour of each pie piece overlapping
+		# colony_mask
+		pie_piece_perim = ported_matlab.bwperim(pie_pieces)
+		# Create mask with the contour of each complete colony
+		colony_perim = ported_matlab.bwperim(colony_mask)
+		# Create images with the parts of the perimeter of each pie
+		# piece that doesn't overlap with the outer edge of the object
+		neighbors_pie_pieces = \
+			np.logical_and(pie_piece_perim, np.invert(colony_perim))
+		neighbors_pie_piece_labeled = self.cell_overlap_labeled_pie_mask * \
+			neighbors_pie_pieces.astype(int)
+		total_pie_piece_perim_labeled = self.cell_overlap_labeled_pie_mask * \
+			pie_piece_perim.astype(int)
+		# make a list of potential non-background pie piece labels (with
+		# an extra np.inf at the end so that np.histogram doesn't bin
+		# the counts for the last two values
+		pie_piece_labels_with_background = \
+			np.unique(self.cell_overlap_labeled_pie_mask)
+		pie_piece_labels = \
+			pie_piece_labels_with_background[
+				pie_piece_labels_with_background > 0]
+		pie_piece_histogram_bins = np.append(pie_piece_labels, np.inf)
+		# Count total perimeter pixels of every pie piece
+		pie_piece_tot_border_counts, _ = \
+			np.histogram(total_pie_piece_perim_labeled,
+				pie_piece_histogram_bins)
+		# Count the perimeter pixels of every pie piece that doesn't
+		# overlap with the outer edge of an object in overlay (i.e.,
+		# which is an internal edge in a colony)
+		pie_piece_touching_border_counts, _ = \
+			np.histogram(neighbors_pie_piece_labeled, pie_piece_histogram_bins)
+		# calculate the proportion of each pie piece
+		pie_piece_touching_border_proportion = \
+			np.divide(pie_piece_touching_border_counts.astype(float),
+				pie_piece_tot_border_counts.astype(float))
+		allowed_objects = pie_piece_labels[
+			pie_piece_touching_border_proportion >=
+				(1 - max_proportion_exposed_edge)]
+		edge_filtered_pie_mask = \
+			np.isin(self.cell_overlap_labeled_pie_mask, allowed_objects)
+		return(edge_filtered_pie_mask)
 
 
 def _filter_by_overlaps(mask_to_filter, guide_mask, keep_overlapping_objects):
@@ -531,7 +589,7 @@ def _filter_by_overlaps(mask_to_filter, guide_mask, keep_overlapping_objects):
 	# allowed_labels
 	filtered_mask = \
 		np.isin(labeled_mask, allowed_labels)
-	return(filtered_mask)
+	return(filtered_mask, labeled_mask)
 
 def create_color_overlay(image, mask, mask_color, mask_alpha):
 	'''
