@@ -4,27 +4,23 @@ import unittest
 import cv2
 import numpy as np
 import os
-from PIE.colony_edge_detect import _EdgeDetector, create_color_overlay
+from PIE.colony_edge_detect import _EdgeDetector, _PiePiece
+import general_pie_testing_functions
 from numpy.testing import assert_array_equal
-from time import sleep
 
-def show_mask_diffs(green_mask, mag_mask, im, im_name):
-	'''
-	Displays im with pixels unique to green_mask as green and pixels
-	unique to mag_mask as magenta
-	'''
-	norm_im = \
-		cv2.normalize(im, None, alpha=0, beta=(2**8-1),
-			norm_type=cv2.NORM_MINMAX)
-	green_pixels = np.copy(green_mask)
-	green_pixels[mag_mask] = False
-	mag_pixels = np.copy(mag_mask)
-	mag_pixels[green_mask] = False
-	green_im = create_color_overlay(norm_im, green_pixels, [0, 255, 0], 1)
-	green_mag_im = create_color_overlay(green_im, mag_pixels, [255, 0, 255], 1)
-	out_path = os.path.join('PIE_tests', 'test_ims',
-		('test_overlap_' + im_name + '.tif'))
-	cv2.imwrite(out_path, green_mag_im * 2**8)
+def _set_up_edge_detector(im_name, cleanup, max_proportion_exposed_edge):
+	# read in images
+	im_path = os.path.join('PIE_tests', 'test_ims', (im_name + '.tif'))
+	center_path = os.path.join('PIE_tests', 'test_ims',
+		(im_name + '_cell_centers.tif'))
+	input_im = cv2.imread(im_path, cv2.IMREAD_ANYDEPTH)
+	cell_centers = cv2.imread(center_path, cv2.IMREAD_ANYDEPTH).astype(bool)
+	# find pie pieces in initialization
+	edge_detector = _EdgeDetector(input_im, cell_centers, None, cleanup,
+		max_proportion_exposed_edge)
+	# create overlap of each piece piece with cell center
+	edge_detector._create_inital_colony_mask()
+	return(edge_detector)
 
 class TestGetPiePieces(unittest.TestCase):
 
@@ -106,7 +102,7 @@ class TestFillHoles(unittest.TestCase):
 class TestClearMaskEdges(unittest.TestCase):
 
 	@classmethod
-	def setUp(self):
+	def setUpClass(self):
 		self.edge_detector_standin = object.__new__(_EdgeDetector)
 
 	def test_clear_nothing(self):
@@ -191,7 +187,7 @@ class TestCreateInitialColonyMask(unittest.TestCase):
 		test_initial_colony_mask = edge_detector._create_inital_colony_mask()
 		if not np.array_equal(expected_initial_colony_mask,
 			test_initial_colony_mask):
-			show_mask_diffs(expected_initial_colony_mask,
+			general_pie_testing_functions.show_mask_diffs(expected_initial_colony_mask,
 				test_initial_colony_mask, input_im, im_name)
 		assert_array_equal(expected_initial_colony_mask,
 			test_initial_colony_mask)
@@ -207,6 +203,469 @@ class TestCreateInitialColonyMask(unittest.TestCase):
 		Test initial overlay creation on EP_160110_t02xy1005_small
 		'''
 		self._compare_overlays('EP_160110_t02xy1005_small')
+
+
+class TestCreateTranslationMatrix(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.edge_detector_standin = object.__new__(_EdgeDetector)
+		self.edge_detector_standin.pie_piece_position_dict = \
+			{'i': np.array([[0, 1], [0, 0]]),
+			'ii': np.array([[1, 0], [0, 0]]),
+			'iii': np.array([[0, 0], [1, 0]]),
+			'iv': np.array([[0, 0], [0, 1]])}
+
+	def test_translation_i_to_ii(self):
+		source_quad = 'i'
+		target_quad = 'ii'
+		expected_translation_mat = \
+			np.array([[1, 0, -1], [0, 1, 0]]).astype(float)
+		test_translation_mat = \
+			self.edge_detector_standin._create_translation_matrix(
+				self.edge_detector_standin.pie_piece_position_dict[source_quad],
+				self.edge_detector_standin.pie_piece_position_dict[target_quad])
+		assert_array_equal(expected_translation_mat, test_translation_mat)
+
+	def test_translation_ii_to_i(self):
+		source_quad = 'ii'
+		target_quad = 'i'
+		expected_translation_mat = \
+			np.array([[1, 0, 1], [0, 1, 0]]).astype(float)
+		test_translation_mat = \
+			self.edge_detector_standin._create_translation_matrix(
+				self.edge_detector_standin.pie_piece_position_dict[source_quad],
+				self.edge_detector_standin.pie_piece_position_dict[target_quad])
+		assert_array_equal(expected_translation_mat, test_translation_mat)
+
+	def test_translation_i_to_iii(self):
+		source_quad = 'i'
+		target_quad = 'iii'
+		expected_translation_mat = \
+			np.array([[1, 0, -1], [0, 1, 1]]).astype(float)
+		test_translation_mat = \
+			self.edge_detector_standin._create_translation_matrix(
+				self.edge_detector_standin.pie_piece_position_dict[source_quad],
+				self.edge_detector_standin.pie_piece_position_dict[target_quad])
+		assert_array_equal(expected_translation_mat, test_translation_mat)
+
+	def test_translation_iii_to_i(self):
+		source_quad = 'iii'
+		target_quad = 'i'
+		expected_translation_mat = \
+			np.array([[1, 0, 1], [0, 1, -1]]).astype(float)
+		test_translation_mat = \
+			self.edge_detector_standin._create_translation_matrix(
+				self.edge_detector_standin.pie_piece_position_dict[source_quad],
+				self.edge_detector_standin.pie_piece_position_dict[target_quad])
+		assert_array_equal(expected_translation_mat, test_translation_mat)
+
+	def test_translation_i_to_iv(self):
+		source_quad = 'i'
+		target_quad = 'iv'
+		expected_translation_mat = \
+			np.array([[1, 0, 0], [0, 1, 1]]).astype(float)
+		test_translation_mat = \
+			self.edge_detector_standin._create_translation_matrix(
+				self.edge_detector_standin.pie_piece_position_dict[source_quad],
+				self.edge_detector_standin.pie_piece_position_dict[target_quad])
+		assert_array_equal(expected_translation_mat, test_translation_mat)
+
+	def test_translation_iv_to_i(self):
+		source_quad = 'iv'
+		target_quad = 'i'
+		expected_translation_mat = \
+			np.array([[1, 0, 0], [0, 1, -1]]).astype(float)
+		test_translation_mat = \
+			self.edge_detector_standin._create_translation_matrix(
+				self.edge_detector_standin.pie_piece_position_dict[source_quad],
+				self.edge_detector_standin.pie_piece_position_dict[target_quad])
+		assert_array_equal(expected_translation_mat, test_translation_mat)
+
+	def test_translation_ii_to_iii(self):
+		source_quad = 'ii'
+		target_quad = 'iii'
+		expected_translation_mat = \
+			np.array([[1, 0, 0], [0, 1, 1]]).astype(float)
+		test_translation_mat = \
+			self.edge_detector_standin._create_translation_matrix(
+				self.edge_detector_standin.pie_piece_position_dict[source_quad],
+				self.edge_detector_standin.pie_piece_position_dict[target_quad])
+		assert_array_equal(expected_translation_mat, test_translation_mat)
+
+	def test_translation_ii_to_iii(self):
+		source_quad = 'iii'
+		target_quad = 'ii'
+		expected_translation_mat = \
+			np.array([[1, 0, 0], [0, 1, -1]]).astype(float)
+		test_translation_mat = \
+			self.edge_detector_standin._create_translation_matrix(
+				self.edge_detector_standin.pie_piece_position_dict[source_quad],
+				self.edge_detector_standin.pie_piece_position_dict[target_quad])
+		assert_array_equal(expected_translation_mat, test_translation_mat)
+
+	def test_translation_ii_to_iv(self):
+		source_quad = 'ii'
+		target_quad = 'iv'
+		expected_translation_mat = \
+			np.array([[1, 0, 1], [0, 1, 1]]).astype(float)
+		test_translation_mat = \
+			self.edge_detector_standin._create_translation_matrix(
+				self.edge_detector_standin.pie_piece_position_dict[source_quad],
+				self.edge_detector_standin.pie_piece_position_dict[target_quad])
+		assert_array_equal(expected_translation_mat, test_translation_mat)
+
+	def test_translation_iv_to_ii(self):
+		source_quad = 'iv'
+		target_quad = 'ii'
+		expected_translation_mat = \
+			np.array([[1, 0, -1], [0, 1, -1]]).astype(float)
+		test_translation_mat = \
+			self.edge_detector_standin._create_translation_matrix(
+				self.edge_detector_standin.pie_piece_position_dict[source_quad],
+				self.edge_detector_standin.pie_piece_position_dict[target_quad])
+		assert_array_equal(expected_translation_mat, test_translation_mat)
+
+	def test_translation_iv_to_iv(self):
+		source_quad = 'iv'
+		target_quad = 'iv'
+		expected_translation_mat = \
+			np.array([[1, 0, 0], [0, 1, 0]]).astype(float)
+		test_translation_mat = \
+			self.edge_detector_standin._create_translation_matrix(
+				self.edge_detector_standin.pie_piece_position_dict[source_quad],
+				self.edge_detector_standin.pie_piece_position_dict[target_quad])
+		assert_array_equal(expected_translation_mat, test_translation_mat)
+
+class TestPerformNeighborFiltering(unittest.TestCase):
+
+	def setUp(self):
+		self.edge_detector_standin = object.__new__(_EdgeDetector)
+		self.edge_detector_standin.pie_piece_position_dict = \
+			{'i': np.array([[0, 1], [0, 0]]),
+			'ii': np.array([[1, 0], [0, 0]]),
+			'iii': np.array([[0, 0], [1, 0]]),
+			'iv': np.array([[0, 0], [0, 1]])}
+		self.edge_detector_standin.pie_piece_dict = \
+			{'i': object.__new__(_PiePiece),
+			'ii': object.__new__(_PiePiece),
+			'iii': object.__new__(_PiePiece),
+			'iv': object.__new__(_PiePiece)}
+		self.edge_detector_standin.pie_piece_dict['i'].\
+			edge_filtered_pie_mask = np.array([
+				[0,0,0,1,1,0,0,0,0,0,0,1,1,0,0],
+				[0,0,0,1,1,1,0,0,0,0,0,1,1,1,0],
+				[0,0,0,0,1,1,0,0,0,0,0,0,1,1,0],
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]], dtype = bool)
+		self.edge_detector_standin.pie_piece_dict['ii'].\
+			edge_filtered_pie_mask = np.array([
+				[0,1,1,0,0,0,0,0,0,1,1,0,0,0,0],
+				[1,1,1,0,0,0,0,0,1,1,1,0,0,0,0],
+				[1,1,0,0,0,0,0,0,1,1,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]], dtype = bool)
+		self.edge_detector_standin.pie_piece_dict['iii'].\
+			edge_filtered_pie_mask = np.array([
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+				[1,1,0,0,0,0,0,0,1,1,0,0,0,0,0],
+				[1,1,1,0,0,0,0,0,1,1,1,0,0,0,0],
+				[0,1,1,0,0,0,0,0,0,1,1,0,0,0,0]], dtype = bool)
+		self.edge_detector_standin.pie_piece_dict['iv'].\
+			edge_filtered_pie_mask = np.array([
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,1,1,0,0,0,0,0,0,0,0,0],
+				[0,0,0,1,1,1,0,0,0,0,0,0,0,0,0],
+				[0,0,0,1,1,0,0,0,0,0,0,0,0,0,0]], dtype = bool)
+		# create cell_overlap_labeled_pie_masks and
+		# neighbor_filtered_pie_masks
+		for quad in self.edge_detector_standin.pie_piece_dict.keys():
+			self.edge_detector_standin.pie_piece_dict[quad].\
+				neighbor_filtered_pie_mask = \
+				np.copy(self.edge_detector_standin.pie_piece_dict[quad].\
+					edge_filtered_pie_mask)
+			_, self.edge_detector_standin.pie_piece_dict[quad].\
+			cell_overlap_labeled_pie_mask = \
+				cv2.connectedComponents(np.uint8(
+					self.edge_detector_standin.pie_piece_dict[quad].\
+						neighbor_filtered_pie_mask), connectivity = 4)
+
+	def test_filter_i(self):
+		'''
+		Filter quadrant i objects based on presence/absence of expected
+		direct neighbors horizontally and vertically
+		'''
+		focal_pie_quad_name = 'i'
+		focal_pie_piece_quadrant = \
+			self.edge_detector_standin.pie_piece_dict[focal_pie_quad_name]
+		# object on right missing neighbor from below, should be
+		# filtered out
+		expected_neighbor_filtered_pie_mask = np.array([
+			[0,0,0,1,1,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,1,1,1,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,1,1,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]], dtype = bool)
+		self.edge_detector_standin._perform_neighbor_filtering(focal_pie_quad_name,
+			focal_pie_piece_quadrant)
+		assert_array_equal(expected_neighbor_filtered_pie_mask,
+			self.edge_detector_standin.pie_piece_dict[
+				focal_pie_quad_name].neighbor_filtered_pie_mask)
+
+	def test_filter_ii(self):
+		'''
+		Filter quadrant ii objects based on presence/absence of expected
+		direct neighbors horizontally and vertically
+		'''
+		focal_pie_quad_name = 'ii'
+		focal_pie_piece_quadrant = \
+			self.edge_detector_standin.pie_piece_dict[focal_pie_quad_name]
+		# all objects have non-diagonal neighbors and are present
+		expected_neighbor_filtered_pie_mask = \
+			np.copy(focal_pie_piece_quadrant.neighbor_filtered_pie_mask)
+		self.edge_detector_standin._perform_neighbor_filtering(
+			focal_pie_quad_name, focal_pie_piece_quadrant)
+		assert_array_equal(expected_neighbor_filtered_pie_mask,
+			self.edge_detector_standin.pie_piece_dict[
+				focal_pie_quad_name].neighbor_filtered_pie_mask)
+
+	def test_filter_iii(self):
+		'''
+		Filter quadrant iii objects based on presence/absence of expected
+		direct neighbors horizontally and vertically
+		'''
+		focal_pie_quad_name = 'iii'
+		focal_pie_piece_quadrant = \
+			self.edge_detector_standin.pie_piece_dict[focal_pie_quad_name]
+		# object on right missing neighbor from the right, should be
+		# filtered out
+		expected_neighbor_filtered_pie_mask = np.array([
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[1,1,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[1,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,1,1,0,0,0,0,0,0,0,0,0,0,0,0]], dtype = bool)
+		self.edge_detector_standin._perform_neighbor_filtering(focal_pie_quad_name,
+			focal_pie_piece_quadrant)
+		assert_array_equal(expected_neighbor_filtered_pie_mask,
+			self.edge_detector_standin.pie_piece_dict[
+				focal_pie_quad_name].neighbor_filtered_pie_mask)
+
+	def test_filter_iv(self):
+		'''
+		Filter quadrant iv objects based on presence/absence of expected
+		direct neighbors horizontally and vertically
+		'''
+		focal_pie_quad_name = 'iv'
+		focal_pie_piece_quadrant = \
+			self.edge_detector_standin.pie_piece_dict[focal_pie_quad_name]
+		# only one object, has non-diagonal neighbors
+		expected_neighbor_filtered_pie_mask = \
+			np.copy(focal_pie_piece_quadrant.neighbor_filtered_pie_mask)
+		self.edge_detector_standin._perform_neighbor_filtering(
+			focal_pie_quad_name, focal_pie_piece_quadrant)
+		assert_array_equal(expected_neighbor_filtered_pie_mask,
+			self.edge_detector_standin.pie_piece_dict[
+				focal_pie_quad_name].neighbor_filtered_pie_mask)
+
+class TestSingleRoundEdgeFiltering(unittest.TestCase):
+
+	def test_EP_160110_t02xy1005_small_edge_filter_first(self):
+		'''
+		Tests first round of filtration by edge on
+		EP_160110_t02xy1005_small
+		'''
+		max_proportion_exposed_edge = 0.75
+		# set up pie pieces for EP_160110_t02xy1005_small
+		edge_detector = \
+			_set_up_edge_detector(
+				'EP_160110_t02xy1005_small', True, max_proportion_exposed_edge)
+		initial_colony_mask_path = os.path.join('PIE_tests', 'test_ims',
+			'EP_160110_t02xy1005_small_initial_overlay.tif')
+		initial_colony_mask = cv2.imread(initial_colony_mask_path,
+			cv2.IMREAD_ANYDEPTH).astype(bool)
+		# filter by edges
+		edge_detector._single_round_edge_filtering(initial_colony_mask)
+		# test filtering results
+		for pie_quad_name, pie_piece_quadrant in \
+			edge_detector.pie_piece_dict.items():
+			current_pie_piece_im_name = 'EP_160110_t02xy1005_small_round1_pie_' + \
+				pie_quad_name + '_edge_cleared'
+			expected_pie_edge_mask_path = \
+				os.path.join('PIE_tests', 'test_ims',
+					(current_pie_piece_im_name + '.tif'))
+			expected_edge_filtered_mask = \
+				cv2.imread(expected_pie_edge_mask_path,
+					cv2.IMREAD_ANYDEPTH).astype(bool)
+			test_edge_filtered_mask = pie_piece_quadrant.edge_filtered_pie_mask
+			if not np.array_equal(expected_edge_filtered_mask,
+				test_edge_filtered_mask):
+				general_pie_testing_functions.show_mask_diffs(expected_edge_filtered_mask,
+					test_edge_filtered_mask, edge_detector.input_im,
+					(current_pie_piece_im_name))
+			assert_array_equal(expected_edge_filtered_mask,
+				test_edge_filtered_mask)
+
+class TestSingleRoundNeighborFiltering(unittest.TestCase):
+
+	def test_EP_160110_t02xy1005_small_neighbor_filter_first(self):
+		'''
+		Tests first round of filtration by neighbor on
+		EP_160110_t02xy1005_small
+		'''
+		# set up pie pieces for EP_160110_t02xy1005_small
+		max_proportion_exposed_edge = 0.75
+#		edge_detector = \
+#			_set_up_edge_detector(
+#				'EP_160110_t02xy1005_small', True, max_proportion_exposed_edge)
+		edge_detector = object.__new__(_EdgeDetector)
+		edge_detector.max_proportion_exposed_edge = max_proportion_exposed_edge
+		# create 'pie' quadrants
+		edge_detector.pie_piece_position_dict = \
+			{'i': np.array([[0, 1], [0, 0]]),
+			'ii': np.array([[1, 0], [0, 0]]),
+			'iii': np.array([[0, 0], [1, 0]]),
+			'iv': np.array([[0, 0], [0, 1]])}
+		edge_detector.pie_piece_dict = dict()
+		edge_detector.pie_piece_dict['i'] = object.__new__(_PiePiece)
+		edge_detector.pie_piece_dict['ii'] = object.__new__(_PiePiece)
+		edge_detector.pie_piece_dict['iii'] = object.__new__(_PiePiece)
+		edge_detector.pie_piece_dict['iv'] = object.__new__(_PiePiece)
+		# assign edge masks from files
+		for pie_quad_name, pie_piece_quadrant in \
+			edge_detector.pie_piece_dict.items():
+			# read in edge-filtered pie piece
+			labeled_pie_piece_file_name = 'EP_160110_t02xy1005_small_pie_' + \
+				pie_quad_name + '_labeled_pie_mask.tif'
+			edge_filtered_pie_mask_file_name = 'EP_160110_t02xy1005_small_round1_pie_' + \
+				pie_quad_name + '_edge_cleared.tif'
+			edge_mask_path = \
+				os.path.join('PIE_tests', 'test_ims',
+					edge_filtered_pie_mask_file_name)
+			labeled_pie_piece_path = \
+				os.path.join('PIE_tests', 'test_ims',
+					labeled_pie_piece_file_name)
+			pie_piece_quadrant.edge_filtered_pie_mask = \
+				cv2.imread(edge_mask_path,
+					cv2.IMREAD_ANYDEPTH).astype(bool)
+			pie_piece_quadrant.cell_overlap_labeled_pie_mask = \
+				cv2.imread(labeled_pie_piece_path,
+					cv2.IMREAD_ANYDEPTH)
+		# perform neighbor filtering on all pie pieces
+		combined_filtered_pieces = \
+			np.zeros(
+				edge_detector.pie_piece_dict['i'].edge_filtered_pie_mask.shape,
+				dtype = bool)
+		edge_detector._single_round_neighbor_filtering(combined_filtered_pieces)
+		# test neighbor mask
+		for pie_quad_name, pie_piece_quadrant in \
+			edge_detector.pie_piece_dict.items():
+			# read in expected neighbor-filtered pie piece
+			current_pie_piece_im_name = 'EP_160110_t02xy1005_small_round1_pie_' + \
+				pie_quad_name
+			neighbor_mask_path = \
+				os.path.join('PIE_tests', 'test_ims',
+					(current_pie_piece_im_name + '_neighbor_cleared.tif'))
+			expected_neighbor_filtered_mask = \
+				cv2.imread(neighbor_mask_path,
+					cv2.IMREAD_ANYDEPTH).astype(bool)
+			test_neighbor_filtered_mask = \
+				pie_piece_quadrant.neighbor_filtered_pie_mask
+			if not np.array_equal(expected_neighbor_filtered_mask,
+				test_neighbor_filtered_mask):
+				general_pie_testing_functions.show_mask_diffs(
+					expected_neighbor_filtered_mask,
+					test_neighbor_filtered_mask, edge_detector.input_im,
+					(current_pie_piece_im_name + '_neighbor_cleared'))
+			assert_array_equal(expected_neighbor_filtered_mask,
+				test_neighbor_filtered_mask)
+
+class TestRunCleanup(unittest.TestCase):
+
+	def _compare_cleanup_results(self, im_name, max_proportion_exposed_edge, hole_fill_area):
+		# set up pie pieces for EP_160110_t02xy1005_small
+		edge_detector = object.__new__(_EdgeDetector)
+		edge_detector.max_proportion_exposed_edge = max_proportion_exposed_edge
+		edge_detector.hole_fill_area = hole_fill_area
+		# edge_detector needs input_im for size
+		# (and to overlay masks onto in case of failed test)
+		im_path = os.path.join('PIE_tests', 'test_ims', (im_name + '.tif'))
+		edge_detector.input_im = cv2.imread(im_path, cv2.IMREAD_ANYDEPTH)
+		# create 'pie' quadrants
+		edge_detector.pie_piece_position_dict = \
+			{'i': np.array([[0, 1], [0, 0]]),
+			'ii': np.array([[1, 0], [0, 0]]),
+			'iii': np.array([[0, 0], [1, 0]]),
+			'iv': np.array([[0, 0], [0, 1]])}
+		edge_detector.pie_piece_dict = dict()
+		edge_detector.pie_piece_dict['i'] = object.__new__(_PiePiece)
+		edge_detector.pie_piece_dict['ii'] = object.__new__(_PiePiece)
+		edge_detector.pie_piece_dict['iii'] = object.__new__(_PiePiece)
+		edge_detector.pie_piece_dict['iv'] = object.__new__(_PiePiece)
+		# assign edge masks from files
+		for pie_quad_name, pie_piece_quadrant in \
+			edge_detector.pie_piece_dict.items():
+			# read in edge-filtered pie piece
+			current_pie_piece_im_name = im_name + '_pie_' + \
+				pie_quad_name
+			pie_piece_path = \
+				os.path.join('PIE_tests', 'test_ims',
+					(current_pie_piece_im_name + '_pie_pieces_cell_center_cleared.tif'))
+			labeled_pie_piece_path = \
+				os.path.join('PIE_tests', 'test_ims',
+					(current_pie_piece_im_name + '_labeled_pie_mask.tif'))
+			pie_piece_quadrant.cell_overlap_pie_mask = \
+				cv2.imread(pie_piece_path,
+					cv2.IMREAD_ANYDEPTH).astype(bool)
+			pie_piece_quadrant.cell_overlap_labeled_pie_mask = \
+				cv2.imread(labeled_pie_piece_path,
+					cv2.IMREAD_ANYDEPTH)
+		# load initial colony masks
+		initial_colony_mask_file = os.path.join('PIE_tests', 'test_ims',
+			(im_name + '_initial_overlay.tif'))
+		colony_mask_filled_holes_file = os.path.join('PIE_tests', 'test_ims',
+			(im_name + '_colony_mask.tif'))
+		expected_colony_mask_filled_holes_file = os.path.join('PIE_tests',
+			'test_ims', (im_name + '_colony_mask_cleanup.tif'))
+		initial_colony_mask = cv2.imread(initial_colony_mask_file,
+			cv2.IMREAD_ANYDEPTH).astype(bool)
+		colony_mask_filled_holes = cv2.imread(colony_mask_filled_holes_file,
+			cv2.IMREAD_ANYDEPTH).astype(bool)
+		expected_colony_mask_filled_holes = \
+			cv2.imread(expected_colony_mask_filled_holes_file,
+				cv2.IMREAD_ANYDEPTH).astype(bool)
+		# perform cleanup
+		test_colony_mask_filled_holes = \
+			edge_detector._run_cleanup(initial_colony_mask,
+				colony_mask_filled_holes)
+		# test equality
+		if not np.array_equal(expected_colony_mask_filled_holes,
+			test_colony_mask_filled_holes):
+			general_pie_testing_functions.show_mask_diffs(expected_colony_mask_filled_holes,
+				test_colony_mask_filled_holes, edge_detector.input_im, im_name)
+		assert_array_equal(expected_colony_mask_filled_holes,
+			test_colony_mask_filled_holes)
+
+	def test_EP_160110_t02xy1005_small(self):
+		'''
+		Test cleanup on EP_160110_t02xy1005_small
+		The colony mask created here differs from matlab results; see
+		comment in PIE.colony_edge_detect._EdgeDetector._run_cleanup
+		In addition, hole filling is 4-connected in matlab, but
+		8-connected in python PIE code
+		'''
+		max_proportion_exposed_edge = 0.75
+		hole_fill_area = np.inf
+		self._compare_cleanup_results('EP_160110_t02xy1005_small',
+			max_proportion_exposed_edge, hole_fill_area)
 
 class TestRunEdgeDetection(unittest.TestCase):
 
@@ -227,11 +686,11 @@ class TestRunEdgeDetection(unittest.TestCase):
 		expected_final_colony_mask = \
 			cv2.imread(colony_mask_path, cv2.IMREAD_ANYDEPTH).astype(bool)
 		# run initial overlay identification
-		edge_detector = _EdgeDetector(input_im, cell_centers, hole_fill_area, cleanup, 0.25)
+		edge_detector = _EdgeDetector(input_im, cell_centers, hole_fill_area, cleanup, 0.75)
 		test_final_colony_mask = edge_detector.run_edge_detection()
 		if not np.array_equal(expected_final_colony_mask,
 			test_final_colony_mask):
-			show_mask_diffs(expected_final_colony_mask,
+			general_pie_testing_functions.show_mask_diffs(expected_final_colony_mask,
 				test_final_colony_mask, input_im, im_name)
 		assert_array_equal(expected_final_colony_mask,
 			test_final_colony_mask)
@@ -254,6 +713,22 @@ class TestRunEdgeDetection(unittest.TestCase):
 		'''
 		self._compare_overlays('EP_160110_t02xy1005_small', False)
 
+	def test_test_im_small_with_cleanup(self):
+		'''
+		Test initial overlay creation + cleanup on test_im_small
+		'''
+		self._compare_overlays('test_im_small', True)
+
+	def test_EP_160110_t02xy1005_small_with_cleanup(self):
+		'''
+		Test initial overlay creation + cleanup on
+		EP_160110_t02xy1005_small
+		The colony mask created here differs from matlab results; see
+		comment in PIE.colony_edge_detect._EdgeDetector._run_cleanup
+		In addition, hole filling is 4-connected in matlab, but
+		8-connected in python PIE code
+		'''
+		self._compare_overlays('EP_160110_t02xy1005_small', True)
 
 if __name__ == '__main__':
 	unittest.main()

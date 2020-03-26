@@ -44,7 +44,7 @@ To call PIE within other python code, you may:
 
    * `cleanup`: whether or not to perform 'cleanup' of spurious pieces of background attached to colonies; *True* or *False*. (we recommend trying PIE both with and without cleanup on a set of sample images; you can see the Li, Plavskin *et al.* paper for details)
 
-   * `max_proportion_exposed_edge`: minimum proportion (0-1) of the perimeter of a PIE-detected gradient object ('PIE piece') that must be adjacent to another PIE piece to avoid being removed during 'cleanup' steps; *0-1*, only used if `cleanup` is *True*. 0.25 works well for 10x yeast images
+   * `max_proportion_exposed_edge`: maximum proportion (0-1) of the perimeter of a PIE-detected gradient object ('PIE piece') that may be non-adjacent to another PIE piece to avoid being removed during 'cleanup' steps; *0-1*, only used if `cleanup` is *True*. 0.75 works well for 10x yeast images
 
    * `save_extra_info`: whether to write additional files described above; *True* or *False*
 

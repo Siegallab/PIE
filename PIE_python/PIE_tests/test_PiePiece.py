@@ -2,9 +2,11 @@
 
 import unittest
 import cv2
+import general_pie_testing_functions
 import numpy as np
+import os
 from numpy.testing import assert_array_equal
-from PIE.colony_edge_detect import _PiePiece
+from PIE.colony_edge_detect import _PiePiece, _EdgeDetector
 
 class TestInit(unittest.TestCase):
 
@@ -89,7 +91,7 @@ class TestFilterByExposedEdge(unittest.TestCase):
 			[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
 			[0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
 			[0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
-			[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0]])
+			[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0]], dtype = bool)
 		self.pie_piece_standin.cell_overlap_pie_mask = np.array([
 			[0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
 			[0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
@@ -109,7 +111,7 @@ class TestFilterByExposedEdge(unittest.TestCase):
 			[0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0],
 			[0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0],
 			[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0],
-			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]], dtype = bool)
 		_, self.pie_piece_standin.cell_overlap_labeled_pie_mask = \
 			cv2.connectedComponents(
 				np.uint8(self.pie_piece_standin.cell_overlap_pie_mask),
@@ -123,11 +125,10 @@ class TestFilterByExposedEdge(unittest.TestCase):
 		max_proportion_exposed_edge = 0.1
 		expected_edge_filtered_mask = \
 			np.zeros(self.colony_mask.shape, self.colony_mask.dtype)
-		test_edge_filtered_pie_mask = \
-			self.pie_piece_standin.filter_by_exposed_edge(self.colony_mask,
-				max_proportion_exposed_edge)
+		self.pie_piece_standin.filter_by_exposed_edge(self.colony_mask,
+			max_proportion_exposed_edge)
 		assert_array_equal(expected_edge_filtered_mask,
-			test_edge_filtered_pie_mask)
+			self.pie_piece_standin.edge_filtered_pie_mask)
 
 	def test_filter_by_exposed_edge_eight_tenth(self):
 		'''
@@ -137,11 +138,10 @@ class TestFilterByExposedEdge(unittest.TestCase):
 		max_proportion_exposed_edge = 0.8
 		expected_edge_filtered_mask = \
 			self.pie_piece_standin.cell_overlap_pie_mask
-		test_edge_filtered_pie_mask = \
-			self.pie_piece_standin.filter_by_exposed_edge(self.colony_mask,
-				max_proportion_exposed_edge)
+		self.pie_piece_standin.filter_by_exposed_edge(self.colony_mask,
+			max_proportion_exposed_edge)
 		assert_array_equal(expected_edge_filtered_mask,
-			test_edge_filtered_pie_mask)
+			self.pie_piece_standin.edge_filtered_pie_mask)
 
 	def test_filter_by_exposed_edge_half(self):
 		'''
@@ -169,12 +169,125 @@ class TestFilterByExposedEdge(unittest.TestCase):
 			[0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0],
 			[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0],
 			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
-		test_edge_filtered_pie_mask = \
-			self.pie_piece_standin.filter_by_exposed_edge(self.colony_mask,
-				max_proportion_exposed_edge)
+		self.pie_piece_standin.filter_by_exposed_edge(self.colony_mask,
+			max_proportion_exposed_edge)
 		assert_array_equal(expected_edge_filtered_mask,
-			test_edge_filtered_pie_mask)
+			self.pie_piece_standin.edge_filtered_pie_mask)
 
+class TestFilterByNeighbor(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(self):
+		self.neighbor_pie_mask = np.array([
+			[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0],
+			[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0],
+			[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1],
+			[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1],
+			[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1],
+			[0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
+			[0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1],
+			[0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]], dtype = bool)
+		self.neighbor_filtered_pie_mask = np.array([
+			[0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
+			[1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
+			[1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0],
+			[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0],
+			[0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]], dtype = bool)
+		_, self.cell_overlap_labeled_pie_mask = \
+			cv2.connectedComponents(
+				np.uint8(self.neighbor_filtered_pie_mask),
+				connectivity = 4)
+
+	def setUp(self):
+		self.pie_piece_standin = object.__new__(_PiePiece)
+		self.pie_piece_standin.neighbor_filtered_pie_mask = \
+			np.copy(self.neighbor_filtered_pie_mask)
+		self.pie_piece_standin.cell_overlap_labeled_pie_mask = \
+			np.copy(self.cell_overlap_labeled_pie_mask)
+
+	def test_quad_ii(self):
+		'''
+		Tests that PIE piece in quadrant ii is kept (and quad iv filtered
+		out) when translation matrix is from quad i (where 'neighbor' pie
+		piece is) to quad ii
+		'''
+		translation_mat = np.array([[1, 0, -1],[0, 1, 0]], dtype = float)
+		expected_neighbor_filtered_pie_mask = np.array([
+			[0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+			[1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
+			[1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
+			[1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+			[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]], dtype = bool)
+		self.pie_piece_standin.filter_by_neighbor(self.neighbor_pie_mask,
+			translation_mat)
+		assert_array_equal(expected_neighbor_filtered_pie_mask,
+			self.pie_piece_standin.neighbor_filtered_pie_mask)
+
+	def test_translation_mat_self(self):
+		'''
+		Tests that no filtering occurs when translation_mat indicates no
+		translation between source and target (i.e. they're the same
+		quadrant)
+		'''
+		translation_mat = np.array([[1, 0, 0],[0, 1, 0]], dtype = float)
+		self.pie_piece_standin.filter_by_neighbor(self.neighbor_pie_mask,
+			translation_mat)
+		# original mask is the expectation
+		expected_neighbor_filtered_pie_mask = self.neighbor_filtered_pie_mask
+		assert_array_equal(expected_neighbor_filtered_pie_mask,
+			self.pie_piece_standin.neighbor_filtered_pie_mask)
+
+	def test_translation_mat_diagonal(self):
+		'''
+		Tests that no filtering occurs when translation_mat indicates
+		quadrants are diagonal from each other
+		'''
+		translation_mat = np.array([[1, 0, 1],[0, 1, -1]], dtype = float)
+		self.pie_piece_standin.filter_by_neighbor(self.neighbor_pie_mask,
+			translation_mat)
+		# original mask is the expectation
+		expected_neighbor_filtered_pie_mask = self.neighbor_filtered_pie_mask
+		assert_array_equal(expected_neighbor_filtered_pie_mask,
+			self.pie_piece_standin.neighbor_filtered_pie_mask)
 
 
 if __name__ == '__main__':
