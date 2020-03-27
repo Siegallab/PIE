@@ -109,7 +109,7 @@ class TestFindCentroids(unittest.TestCase):
 		assert_frame_equal(expected_property_df,
 			self.col_prop_finder.property_df)
 
-	def test_find_areas_0(self):
+	def test_find_centroids_0(self):
 		'''
 		Tests that no centroids returned for empty colony mask
 		'''
@@ -122,6 +122,39 @@ class TestFindCentroids(unittest.TestCase):
 			pd.DataFrame({'cX': [], 'cY': []})
 		assert_frame_equal(expected_property_df,
 			self.col_prop_finder.property_df)
+
+class TestFindBoundingBox(unittest.TestCase):
+
+	def test_find_bounding_box(self):
+		'''
+		Tests that correct non-background bounding_boxes saved into
+		property_df
+		'''
+		self.col_prop_finder = _ColonyPropertyFinder(colony_mask)
+		self.col_prop_finder._find_connected_components()
+		self.col_prop_finder._find_bounding_box()
+		expected_property_df = \
+			pd.DataFrame({'bb_x_left': [4, 1],
+				'bb_y_top': [1, 3],
+				'bb_width': [3, 3],
+				'bb_height': [4, 4]}).astype('int32')
+		assert_frame_equal(expected_property_df,
+			self.col_prop_finder.property_df, check_like = True)
+
+	def test_find_bounding_box_0(self):
+		'''
+		Tests that no bounding_boxes returned for empty colony mask
+		'''
+		self.col_prop_finder = \
+			_ColonyPropertyFinder(np.zeros(colony_mask.shape,
+				dtype = colony_mask.dtype))
+		self.col_prop_finder._find_connected_components()
+		self.col_prop_finder._find_bounding_box()
+		expected_property_df = \
+			pd.DataFrame({'bb_x_left': [], 'bb_y_top': [], 'bb_width': [],
+				'bb_height': []}).astype('int32')
+		assert_frame_equal(expected_property_df,
+			self.col_prop_finder.property_df, check_like = True)
 
 class TestFindFlatCoordinates(unittest.TestCase):
 

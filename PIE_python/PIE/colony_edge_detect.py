@@ -291,9 +291,10 @@ class _ColonyPropertyFinder(object):
 		'''
 		Records bounding box of each colony
 		'''
-		# !!! NEEDED???
-		# Can be found in self._stat_matrix
-		pass
+		# !!! NEED UNITTEST
+		# remove background bounding box
+		self.property_df[['bb_x_left','bb_y_top','bb_width','bb_height']] = \
+			pd.DataFrame(self._stat_matrix[1:, 0:4])
 
 	def _find_flat_coordinates(self, single_colony_mask):
 		'''
@@ -345,6 +346,7 @@ class _ColonyPropertyFinder(object):
 		self._find_connected_components()
 		self._find_areas()
 		self._find_centroids()
+		self._find_bounding_box()
 		self._find_colonywise_properties()
 
 	def get_properties(self):
