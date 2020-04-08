@@ -7,7 +7,7 @@ Functions that are generally useful across testing code
 import cv2
 import numpy as np
 import os
-from PIE.colony_edge_detect import create_color_overlay
+from PIE.image_properties import create_color_overlay
 from PIE.ported_matlab import bwperim
 
 def show_mask_diffs(green_mask, mag_mask, im, im_name):

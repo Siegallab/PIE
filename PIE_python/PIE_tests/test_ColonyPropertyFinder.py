@@ -3,7 +3,7 @@
 import unittest
 import numpy as np
 import pandas as pd
-from PIE.colony_edge_detect import _ColonyPropertyFinder
+from PIE.image_properties import _ColonyPropertyFinder
 from numpy.testing import assert_array_equal, assert_allclose
 from pandas.testing import assert_frame_equal
 

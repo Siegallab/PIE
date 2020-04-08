@@ -11,14 +11,14 @@ The full list of required python packages is listed in the [requirements.txt](ht
 
 To install PIE, download the directory using the button near the top right of this screen. Then install all the python packages listed in the [requirements.txt](https://github.com/Siegallab/PIE/tree/master/PIE_python/requirements.txt) file.
 
-## Running PIE
+## Running PIE single-image analysis
 
 ### Calling PIE within other python code
 
 To call PIE within other python code, you may:
 1. Run PIE with an image filename as the input
    ```python
-   from PIE.colony_edge_detection import read_and_run_analysis
+   from PIE.image_properties import read_and_run_analysis
    colony_mask, colony_property_df = \
        read_and_run_analysis(input_im_path, output_path, image_type,
            hole_fill_area, cleanup, max_proportion_exposed_edge,
@@ -53,3 +53,17 @@ To call PIE within other python code, you may:
    * `colony_mask`: a numpy boolean matrix with True at positions corresponding to pixels in the original image where a colony was detected
 
    * `colony_property_df`: a pandas dataframe containing the properties of every colony in the image (same as the ones saved to **single_image_colony_centers**, but also containing a list of all the pixels in which each colony was detected).
+
+## Running PIE multi-image experiments
+
+### Setting up multi-image experiments
+
+#### General setup
+
+#### Phases
+
+Each experiment may consist of one or more phases; the list of phases in the experiment must be provided in the experimental setup file. A single phase consists of a single, continuously labeled bout of imaging. Colony outlines are always calculated based on a "main channel", which should consist of either brightfield or phase contrast images; the colonies identified in the main channel will then be overlaid on any fluorescent images in the phase to calculate fluorescence levels.
+
+A phase can also be run that takes only fluorescent images for a single timepoint, in which case `main_channel_label` should be set to `phase_#`, where `#` indicates the number of the parent phase.
+
+During growth rate analysis, growth rates will be calculated independently for any phase that contains multiple timepoints, but colony identities will be linked across phases.
