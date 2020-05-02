@@ -388,6 +388,15 @@ def _filter_by_overlaps(mask_to_filter, guide_mask, keep_overlapping_objects,
 		np.isin(labeled_mask, allowed_labels)
 	return(filtered_mask, labeled_mask)
 
+def get_mask(input_im, cell_centers, hole_fill_area,
+		cleanup, max_proportion_exposed_edge):
+	'''
+	Runs colony edge detection on input_im given a mask of cell centers
+	'''
+	pie_edge_detector = _EdgeDetector(input_im, cell_centers, hole_fill_area,
+		cleanup, max_proportion_exposed_edge)
+	colony_mask = pie_edge_detector.run_edge_detection()
+	return(colony_mask)
 
 if __name__ == '__main__':
 	pass

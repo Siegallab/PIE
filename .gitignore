@@ -1,3 +1,12 @@
 .DS_Store
 *.pyc
 *.pdf
+color_overlay_code.py
+PIE/color_overlay_code.py
+PIE/failed_polygon_function.py
+python_pie_simple_runner.py
+PIE_tests/_test_failed_polygon_function.py
+PIE_tests/matlab_test_threshold_hist_writer.m
+PIE_tests/python_test_im_writer.m
+PIE_tests/script_runner_test.py
+

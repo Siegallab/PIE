@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 import os
 import pandas as pd
-from PIE import adaptive_threshold, ported_matlab
+from PIE import adaptive_threshold, ported_matlab, colony_edge_detect
 
 class _ImageAnalyzer(object):
 	'''
@@ -102,18 +102,17 @@ class _ImageAnalyzer(object):
 				os.path.join(self._image_output_dir_dict['threshold_plots'],
 					self.image_name + '_threshold_plot.' + 
 					self._threshold_plot_filetype)
-		# write threshold plot
-		threshold_plot.save(filename = threshold_plot_file,
-			width = self._threshold_plot_width,
-			height = self._threshold_plot_height, units = 'in',
-			dpi = self._threshold_plot_dpi, verbose = False)
+			# write threshold plot
+			threshold_plot.save(filename = threshold_plot_file,
+				width = self._threshold_plot_width,
+				height = self._threshold_plot_height, units = 'in',
+				dpi = self._threshold_plot_dpi, verbose = False)
 
 	def _write_threshold_info(self, threshold_method_name, threshold):
 		'''
 		Adds info about current image's threshold and the method used to
 		find it to a csv file
 		'''
-		# !!! NEEDS UNITTEST
 		threshold_info_file = \
 			os.path.join(self._image_output_dir_dict['threshold_plots'],
 					'threshold_info.csv')
@@ -131,7 +130,6 @@ class _ImageAnalyzer(object):
 		'''
 		Find cell centers and save threshold plot if necessary
 		'''
-		# !!! NEEDS UNITTEST
 		self.cell_centers, threshold_method_name, threshold_plot, \
 			threshold, default_threshold_method_usage = \
 			adaptive_threshold.threshold_image(self.input_im,
@@ -150,10 +148,9 @@ class _ImageAnalyzer(object):
 		'''
 		Runs PIE edge detection and finds the binary mask
 		'''
-		# !!! NEEDS UNITTEST
-		pie_edge_detector = _EdgeDetector(self.input_im, self.cell_centers,
-			self.hole_fill_area, self.cleanup, self.max_proportion_exposed_edge)
-		self.colony_mask = pie_edge_detector.run_edge_detection()
+		self.colony_mask = colony_edge_detect.get_mask(self.input_im,
+			self.cell_centers, self.hole_fill_area, self.cleanup,
+			self.max_proportion_exposed_edge)
 
 	def _save_jpeg(self):
 		'''
@@ -212,12 +209,17 @@ class _ImageAnalyzer(object):
 		Measures and records area and centroid in every detected colony
 		'''
 		# !!! NEEDS UNITTEST !!!
-		colony_property_finder = _ColonyPropertyFinder(self.colony_mask)
-		self.colony_property_df = colony_property_finder.get_properties()
+		self.colony_property_finder = _ColonyPropertyFinder(self.colony_mask)
+		self.colony_property_finder.measure_and_record_colony_properties()
 		colony_property_path = \
-			os.path.join(self._image_output_dir_dict['single_im_colony_properties'],
+			os.path.join(
+				self._image_output_dir_dict['single_im_colony_properties'],
 				self.image_name + '.csv')
-		colony_property_df_to_save = self.colony_property_df[['Area', 'Perimeter', 'cX', 'cY']]
+		columns_to_save = \
+			self.colony_property_finder.property_df.columns.difference(
+				['PixelIdxList', 'Eroded_Colony_Mask', 'Eroded_Background_Mask'])
+		colony_property_df_to_save = \
+			self.colony_property_finder.property_df[columns_to_save]
 		colony_property_df_to_save.to_csv(colony_property_path, index = False)
 
 	def _save_post_edge_detection_files(self):
@@ -248,16 +250,38 @@ class _ImageAnalyzer(object):
 		self._find_colony_mask()
 		# save analysis output files
 		self._save_post_edge_detection_files()
-		return(self.colony_mask, self.colony_property_df)
+		return(self.colony_mask, self.colony_property_finder.property_df)
+
+	def set_up_fluor_measurements(self):
+		'''
+		Sets up for measuring fluorescence
+		'''
+		self.colony_property_finder.set_up_fluor_measurements()
+
+	def measure_fluorescence(self, fluor_im, fluor_channel_name,
+		fluor_threshold):
+		'''
+		Measures fluorescence in fluor_im
+		'''
+		self.colony_property_finder.make_fluor_measurements(fluor_im,
+			fluor_channel_name, fluor_threshold)
 
 class _ColonyPropertyFinder(object):
 	'''
 	Measures and holds properties of colonies based on a colony mask
 	'''
-	# !!! TODO: CHECK WHICH OTHER PARAMETERS ARE NEEDED DOWNSTREAM, RECORD THOSE TOO
-	def __init__(self, colony_mask):
+	def __init__(self, colony_mask, fluor_measure_expansion_pixels = 5):
 		self.colony_mask = colony_mask
 		self.property_df = pd.DataFrame()
+		# set up erosion mask for removing bright saturated region
+		# around colony in fluorescence images
+		self._fluor_mask_erosion_kernel = np.uint8([
+			[0,0,1,0,0], [0,1,1,1,0], [1,1,1,1,1], [0,1,1,1,0], [0,0,1,0,0]])
+			# !!! TODO: MAKE EROSION OPTIONAL!!!
+		# set number of pixels that colony bounding box should be
+		# expanded in each direction for calculation of background
+		# fluorescence
+		self._fluor_measure_expansion_pixels = fluor_measure_expansion_pixels
 
 	def _find_connected_components(self):
 		'''
@@ -287,7 +311,6 @@ class _ColonyPropertyFinder(object):
 		'''
 		Records bounding box of each colony
 		'''
-		# !!! NEED UNITTEST
 		# remove background bounding box
 		self.property_df[['bb_x_left','bb_y_top','bb_width','bb_height']] = \
 			pd.DataFrame(self._stat_matrix[1:, 0:4])
@@ -335,7 +358,131 @@ class _ColonyPropertyFinder(object):
 			self.property_df.at[colony-1, 'PixelIdxList'] = \
 				self._find_flat_coordinates(current_colony_mask)
 
-	def _measure_and_record_properties(self):
+	def _pixel_idx_list_to_mask(self, pixel_idx_list, mask_shape):
+		'''
+		Creates a boolean nd array of shape mask_shape in which postions
+		specified in pixel_idx_list are True and every other pixel is
+		False
+		'''
+		mask = np.zeros(mask_shape, dtype = bool)
+		mask.flat[np.fromstring(pixel_idx_list,	dtype = int, sep = ' ')] = True
+		return(mask)
+
+	def _expand_bounding_box(self, bounding_box_series, im_row_num, im_col_num,
+		expansion_pixels):
+		'''
+		Takes in bounding_box_series, a pandas series containing
+		bounding box info for a single colony
+		Returns indices for first and last+1 pixels, in x and y
+		direction, of bounding box expanded on each side by size
+		expansion_pixels
+		'''
+		y_start = np.max(
+			[0,
+				np.int(np.ceil(bounding_box_series['bb_y_top']) -
+					expansion_pixels)])
+		x_start = np.max(
+			[0,
+				np.int(np.ceil(bounding_box_series['bb_x_left']) -
+					expansion_pixels)])
+		y_range_end = np.min(
+			[im_row_num,
+				np.int(np.ceil(bounding_box_series['bb_y_top'] + 
+					bounding_box_series['bb_height']) +
+					expansion_pixels)])
+		x_range_end = np.min(
+			[im_col_num,
+				np.int(np.ceil(bounding_box_series['bb_x_left'] +
+					bounding_box_series['bb_width']) +
+					expansion_pixels)])
+		return(y_start, x_start, y_range_end, x_range_end)
+
+	def _subset_im_by_bounding_box(self, im, bounding_box_series,
+		expansion_pixels):
+		'''
+		Returns the box in image im (a numpy array) defined by
+		bounding_box_series
+		'''
+		bb_y_start, bb_x_start, bb_y_range_end, bb_x_range_end = \
+			self._expand_bounding_box(bounding_box_series, im.shape[0],
+				im.shape[1], expansion_pixels)
+		bbox_im = im[bb_y_start:bb_y_range_end, bb_x_start:bb_x_range_end]
+		return(bbox_im)
+
+	def _get_eroded_bounded_mask(self, mask, colony_bounding_box_series,
+		expansion_pixels):
+		'''
+		Returns the expanded bounding_box area of mask, eroded by
+		self._fluor_mask_erosion_kernel
+		'''
+		# calculate expanded bounding box
+		bbox_mask = \
+			self._subset_im_by_bounding_box(mask, colony_bounding_box_series,
+				expansion_pixels)
+		bbox_mask_eroded = \
+			cv2.erode(np.uint8(bbox_mask), self._fluor_mask_erosion_kernel,
+				iterations = 1).astype(bool)
+		return(bbox_mask_eroded)
+
+	def _get_filtered_intensities(self, fluor_image, mask, fluor_threshold):
+		'''
+		Returns a 1D float numpy array of pixels in fluor_image that are
+		True in mask and below fluor_threshold
+		'''
+		mask_intensities_unfiltered = fluor_image[mask]
+		mask_intensities_filtered = \
+			mask_intensities_unfiltered[
+			mask_intensities_unfiltered <= fluor_threshold]
+		return(mask_intensities_filtered.astype(float))
+
+	def _measure_colony_fluor_properties(self, fluor_bbox_image,
+		single_colony_bbox_mask_eroded, background_bbox_mask_eroded,
+		fluor_threshold):
+		'''
+		Measures and records intensities of single colony and background
+		masks in fluor_channel
+		'''
+		# create a dictionary to hold fluorescent properties
+		fluor_prop_dict = dict()
+		# get the fluorescence values within colony without the
+		# saturated region at colony edge
+		colony_intensities = \
+			self._get_filtered_intensities(fluor_bbox_image,
+				single_colony_bbox_mask_eroded, fluor_threshold)
+		# get the fluorescence values in non-colony background within
+		# the bounding box, without saturated regions around colony
+		# edges
+		background_intensities = \
+			self._get_filtered_intensities(fluor_bbox_image,
+				background_bbox_mask_eroded, fluor_threshold)
+		if len(background_intensities) > 0:
+			# get the per pixel intensity for the background near the colony
+			fluor_prop_dict['back_mean_ppix'] = np.mean(background_intensities)
+			fluor_prop_dict['back_med_ppix'] = np.median(background_intensities)
+			# calculate the variance of pixel intensities
+			fluor_prop_dict['back_var_ppix'] = np.var(background_intensities)
+		else:
+			fluor_prop_dict['back_mean_ppix'] = np.nan
+			fluor_prop_dict['back_med_ppix'] = np.nan
+			fluor_prop_dict['back_var_ppix'] = np.nan
+		if len(colony_intensities) > 0:
+			# get the per pixel intensity for the colony excluding saturated
+			# region at the colony edge
+			fluor_prop_dict['col_mean_ppix'] = np.mean(colony_intensities)
+			fluor_prop_dict['col_med_ppix'] = np.median(colony_intensities)
+			# calculate the variance of pixel intensities
+			fluor_prop_dict['col_var_ppix'] = np.var(colony_intensities)
+			# calculate the upper quartile value of colony intensities
+			fluor_prop_dict['col_upquartile_ppix'] = \
+				np.quantile(colony_intensities, 0.75)
+		else:
+			fluor_prop_dict['col_mean_ppix'] = np.nan
+			fluor_prop_dict['col_med_ppix'] = np.nan
+			fluor_prop_dict['col_var_ppix'] = np.nan
+			fluor_prop_dict['col_upquartile_ppix'] = np.nan
+		return(fluor_prop_dict)
+
+	def measure_and_record_colony_properties(self):
 		'''
 		Measures and records all colony properties
 		'''
@@ -345,12 +492,69 @@ class _ColonyPropertyFinder(object):
 		self._find_bounding_box()
 		self._find_colonywise_properties()
 
-	def get_properties(self):
+	def set_up_fluor_measurements(self):
 		'''
-		Returns dataframe of colony properties
+		Sets up for measuring fluorescence by calculating eroded colony
+		and background masks for every colony
 		'''
-		self._measure_and_record_properties()
-		return(self.property_df)
+		self.property_df['Eroded_Colony_Mask'] = None
+		self.property_df['Eroded_Background_Mask'] = None
+		# create mask of background, excluding colonies
+		background_mask = np.invert(self.colony_mask)
+		for idx, row in self.property_df.iterrows():
+			colony_pixel_idx_list = row['PixelIdxList']
+			colony_bounding_box_series = \
+				row[['bb_x_left','bb_y_top','bb_width','bb_height']]
+			# create a mask of the current colony
+			single_colony_mask = \
+				self._pixel_idx_list_to_mask(colony_pixel_idx_list,
+					self.colony_mask.shape)
+			# get mask for colony without saturated region at colony edge
+			self.property_df.at[idx, 'Eroded_Colony_Mask'] = \
+				self._get_eroded_bounded_mask(single_colony_mask,
+					colony_bounding_box_series,
+					self._fluor_measure_expansion_pixels)
+			# get mask for non-colony background within the bounding box
+			# without saturated regions around colony edge
+			self.property_df.at[idx, 'Eroded_Background_Mask'] = \
+				self._get_eroded_bounded_mask(background_mask,
+					colony_bounding_box_series,
+					self._fluor_measure_expansion_pixels)
+
+	def make_fluor_measurements(self, fluor_im, fluor_channel_name,
+		fluor_threshold):
+		'''
+		Measures intensity of each colony in fluor_im
+		'''
+		### NEEDS UNITTEST
+		for idx, row in self.property_df.iterrows():
+			colony_bounding_box_series = \
+				row[['bb_x_left','bb_y_top','bb_width','bb_height']]
+			# create a subimage of fluor_image
+			fluor_bbox_image = \
+				self._subset_im_by_bounding_box(fluor_im,
+					colony_bounding_box_series,
+					self._fluor_measure_expansion_pixels)
+			# retrieve current colony and background masks
+			single_colony_bbox_mask_eroded = row['Eroded_Colony_Mask']
+			background_bbox_mask_eroded = row['Eroded_Background_Mask']
+			# get dictionary of colony fluorescence properties
+			colony_fluor_prop_dict = \
+				self._measure_colony_fluor_properties(fluor_bbox_image,
+					single_colony_bbox_mask_eroded, background_bbox_mask_eroded,
+					fluor_threshold)
+			# add fluor_channel_name to names of fluorescence properties
+			channel_fluor_prop_names = \
+				['_'.join([pname, fluor_channel_name]) for pname in
+					colony_fluor_prop_dict.keys()]
+			# create columns in self.property_df if they don't already
+			# exist
+			for pname in channel_fluor_prop_names:
+				if pname not in self.property_df.columns:
+					self.property_df[pname] = np.nan
+			# add colony fluorescent properties to current row
+			self.property_df.at[idx, channel_fluor_prop_names] = \
+				colony_fluor_prop_dict.values()
 
 def create_color_overlay(image, mask, mask_color, mask_alpha):
 	'''
