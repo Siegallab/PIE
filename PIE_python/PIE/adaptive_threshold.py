@@ -183,8 +183,8 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		# get unique tophat vals
 		tophat_unique = self._get_unique_tophat_vals()
 		# set max number of bins to be used for tophat histogram
-		# the value below seems to work well for a default
-		max_bin_num = int(round(float(self.tophat_im.size)/3000))
+		# the heuristic below seems to work well for a default
+		max_bin_num = max(20, int(round(float(self.tophat_im.size)/3000)))
 		unique_tophat_vals = len(tophat_unique)
 		# loop through identifying log histograms until one passes
 		# autocorrelation test
@@ -1020,12 +1020,12 @@ def threshold_image(input_im, return_plot = False):
 		threshold_method_name = threshold_finder.threshold_method.method_name
 		threshold = threshold_finder.threshold_method.threshold
 	except ValueError as e:
-		if str(e) == '3 or fewer unique values in tophat image':
-			# return empty mask
-			threshold_mask = np.zeros(np.shape(input_im), dtype = bool)
-			threshold_method_name = 'Error: ' + str(e)
-			threshold_plot = None
-			threshold = 0
+#		if str(e) == '3 or fewer unique values in tophat image':
+		# return empty mask
+		threshold_mask = np.zeros(np.shape(input_im), dtype = bool)
+		threshold_method_name = 'Error: ' + str(e)
+		threshold_plot = None
+		threshold = 0
 	# check whether default threshold method was used
 	default_threshold_method_usage = \
 		threshold_method_name == threshold_finder.default_threshold_method_name
