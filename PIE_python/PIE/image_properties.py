@@ -22,7 +22,7 @@ class _ImageAnalyzer(object):
 				save_extra_info = False, threshold_plot_width = 6,
 				threshold_plot_height = 4, threshold_plot_dpi = 200,
 				threshold_plot_filetype = 'png',
-				create_pie_overlay = False):
+				create_pie_overlay = False, write_col_props_file = True):
 		# TODO: Reorganize this section to make more sense; add more info about inputs
 		# parameter for saving jpegs
 		self._jpeg_quality = 98
@@ -37,6 +37,7 @@ class _ImageAnalyzer(object):
 		self.hole_fill_area = hole_fill_area
 		self.cleanup = cleanup
 		self._create_pie_overlay = create_pie_overlay
+		self.write_col_props_file = write_col_props_file
 		self.max_proportion_exposed_edge = max_proportion_exposed_edge
 		# get name of image file without path or extension
 		self.image_name = image_name
@@ -206,21 +207,20 @@ class _ImageAnalyzer(object):
 
 	def _save_colony_properties(self):
 		'''
-		Measures and records area and centroid in every detected colony
+		Measures and, if needed, records area and centroid in every
+		detected colony
 		'''
 		# !!! NEEDS UNITTEST !!!
 		self.colony_property_finder = _ColonyPropertyFinder(self.colony_mask)
 		self.colony_property_finder.measure_and_record_colony_properties()
-		colony_property_path = \
-			os.path.join(
-				self._image_output_dir_dict['single_im_colony_properties'],
-				self.image_name + '.csv')
-		columns_to_save = \
-			self.colony_property_finder.property_df.columns.difference(
-				['PixelIdxList', 'Eroded_Colony_Mask', 'Eroded_Background_Mask'])
-		colony_property_df_to_save = \
-			self.colony_property_finder.property_df[columns_to_save]
-		colony_property_df_to_save.to_csv(colony_property_path, index = False)
+		if self.write_col_props_file:
+			colony_property_path = \
+				os.path.join(
+					self._image_output_dir_dict['single_im_colony_properties'],
+					self.image_name + '.csv')
+			colony_property_df_to_save = self.get_colony_property_df_to_save()
+			colony_property_df_to_save.to_csv(colony_property_path,
+				index = False)
 
 	def _save_post_edge_detection_files(self):
 		'''
@@ -236,6 +236,19 @@ class _ImageAnalyzer(object):
 		if self._save_extra_info:
 			self._save_boundary_im()
 			self._save_colony_center_overlay()
+
+	def get_colony_property_df_to_save(self):
+		'''
+		Returns csv-file-friendly self.colony_property_df (i.e. without
+		space-consuming PixelIdxList, Eroded_Colony_Mask,
+		Eroded_Background_Mask columns)
+		'''
+		columns_to_save = \
+			self.colony_property_finder.property_df.columns.difference(
+				['PixelIdxList', 'Eroded_Colony_Mask', 'Eroded_Background_Mask'])
+		colony_property_df_to_save = \
+			self.colony_property_finder.property_df[columns_to_save]
+		return(colony_property_df_to_save)
 
 	def process_image(self):
 		'''
