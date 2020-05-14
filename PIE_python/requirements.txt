@@ -1,6 +1,7 @@
 PIE
 numpy >= 1.16.0
 opencv-contrib-python > 4.0.0.0
+pandas >= 0.24.1 
 PIL > 0.0.0
 scipy >= 1.1.0
 plotnine
