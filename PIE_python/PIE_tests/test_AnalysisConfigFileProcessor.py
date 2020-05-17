@@ -27,7 +27,7 @@ class TestProcessAnalysisConfigFile(unittest.TestCase):
 				['channel', 'timepoint', 'position'], 12, 1, 10, 3600, 't',
 				'xy', np.nan,'brightfield', pd.DataFrame(columns = ['fluor_channel_label',
 					'fluor_channel_column_name', 'fluor_threshold']), 'individual',
-				[1, 4, 11], 1)
+				[1, 4, 11], 1, 1, 4, 7)
 		expected_analysis_config_obj_df = \
 			pd.DataFrame({'analysis_config': [expected_analysis_config],
 				'postphase_analysis_config': [None]}, index = ['growth'])

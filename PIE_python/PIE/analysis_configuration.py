@@ -58,22 +58,27 @@ class AnalysisConfig(object):
 	'''
 	Handles experimental configuration details
 	'''
-	def __init__(self, phase, hole_fill_area, cleanup, max_proportion_exposed_edge,
-				input_path, output_path,
-				im_file_extension, label_order_list, total_xy_position_num,
-				first_timepoint, total_timepoint_num, timepoint_spacing, timepoint_label_prefix,
-				position_label_prefix, main_channel_label,
-				main_channel_imagetype, fluor_channel_df, im_format,
-				chosen_for_extended_display_list, first_xy_position):
+	def __init__(self, phase, hole_fill_area, cleanup,
+		max_proportion_exposed_edge, input_path, output_path, im_file_extension,
+		label_order_list, total_xy_position_num, first_timepoint,
+		total_timepoint_num, timepoint_spacing, timepoint_label_prefix,
+		position_label_prefix, main_channel_label, main_channel_imagetype,
+		fluor_channel_df, im_format, chosen_for_extended_display_list,
+		first_xy_position, settle_frames, minimum_growth_time,
+		minimum_timepoint_number):
 		'''
 		Reads setup_file and creates analysis configuration
 		'''
 		# specify phase
 		self.phase = phase
-		# specify image analysis properties
+		# specify image analysis parameters
 		self.hole_fill_area = hole_fill_area
 		self.cleanup = cleanup
 		self.max_proportion_exposed_edge = max_proportion_exposed_edge
+		# specify growth rate analysis parameters
+		self.settle_frames = settle_frames
+		self.minimum_growth_time = minimum_growth_time
+		self.minimum_timepoint_number = minimum_timepoint_number
 		# path of input images
 		self.input_path = input_path
 		# path of output image folder
@@ -379,7 +384,10 @@ class AnalysisConfigFileProcessor(object):
 			fluor_channel_df,
 			phase_conf_ser.im_format,
 			self.chosen_for_extended_display_list,
-			phase_conf_ser.first_xy_position)
+			phase_conf_ser.first_xy_position,
+			phase_conf_ser.settle_frames,
+			phase_conf_ser.minimum_growth_time,
+			phase_conf_ser.minimum_timepoint_number)
 		return(current_analysis_config)
 
 	def _get_phase_data(self, phase):
@@ -420,7 +428,8 @@ class AnalysisConfigFileProcessor(object):
 			'total_xy_position_num', 'first_timepoint', 'total_timepoint_num',
 			'timepoint_label_prefix', 'position_label_prefix',
 			'main_channel_label', 'main_channel_imagetype', 'im_format',
-			'parent_phase', 'first_xy_position']
+			'parent_phase', 'first_xy_position', 'settle_frames',
+			'minimum_growth_time', 'minimum_timepoint_number']
 		# take all possible fields from current_setup_ser, get missing
 		# ones from parent_setup_ser
 		reqd_parents_fields = \
