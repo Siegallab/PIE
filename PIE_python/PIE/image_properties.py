@@ -310,7 +310,7 @@ class _ColonyPropertyFinder(object):
 		'''
 		areas = self._stat_matrix[:,4]
 		# remove background
-		self.property_df['Area'] = areas[1:]
+		self.property_df['area'] = areas[1:]
 
 	def _find_centroids(self):
 		'''
