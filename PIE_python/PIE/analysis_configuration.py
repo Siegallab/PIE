@@ -54,7 +54,7 @@ class _StackImageRetriever(_ImageRetriever):
 		'''
 		pass
 
-class _AnalysisConfig(object):
+class AnalysisConfig(object):
 	'''
 	Handles experimental configuration details
 	'''
@@ -64,7 +64,7 @@ class _AnalysisConfig(object):
 				first_timepoint, total_timepoint_num, timepoint_spacing, timepoint_label_prefix,
 				position_label_prefix, main_channel_label,
 				main_channel_imagetype, fluor_channel_df, im_format,
-				chosen_for_extended_display_list):
+				chosen_for_extended_display_list, first_xy_position):
 		'''
 		Reads setup_file and creates analysis configuration
 		'''
@@ -95,6 +95,9 @@ class _AnalysisConfig(object):
 		self.total_timepoint_num = total_timepoint_num
 		# set up dictionary of timepoint times
 		self._set_up_timevector(timepoint_spacing, first_timepoint)
+		# set up list of possible xy positions
+		self.xy_position_vector = \
+			range(first_xy_position, (self.total_xy_position_num + 1))
 		# labels used for timepoint number and xy position
 		self.timepoint_label_prefix = timepoint_label_prefix
 		self.position_label_prefix = position_label_prefix
@@ -117,7 +120,7 @@ class _AnalysisConfig(object):
 		Creates folder for results of colony properties across phases,
 		as well as within-phase results, if they don't already exist
 		'''
-		### NEEDS UNITTEST !!!
+		# NEED UNITTEST FOR JUST THIS METHOD?
 		self.phase_col_properties_output_folder = \
 			os.path.join(self.output_path, 'positionwise_colony_properties')
 		self.phase_output_path = os.path.join(self.output_path,
@@ -138,7 +141,7 @@ class _AnalysisConfig(object):
 			modification time
 		Also creates a list of timepoints
 		'''
-		# NEED UNITTEST FOR JUST THIS METHOD?
+		### !!! NEEDS UNITTEST
 		self.timepoint_list = \
 			range(first_timepoint, (self.total_timepoint_num + 1))
 		if type(timepoint_spacing) is list:
@@ -251,6 +254,9 @@ class _AnalysisConfig(object):
 		Sets the xy position to be used by the analysis config
 		'''
 		### !!! NEEDS UNITTEST
+		if xy_position_idx not in self.xy_position_vector:
+			raise IndexError('Unexpected xy position index ' + xy_position_idx +
+				' in phase ' + self.phase)
 		# current position being imaged
 		self.xy_position_idx = xy_position_idx
 		# determine wether non-essential info (threshold plot outputs,
@@ -264,10 +270,10 @@ class _AnalysisConfig(object):
 			os.path.join(self.phase_col_properties_output_folder, output_filename)
 
 
-class _AnalysisConfigFileProcessor(object):
+class AnalysisConfigFileProcessor(object):
 	'''
 	Reads an analysis config csv file and creates a dictionary with an
-	_AnalysisConfig object for each phase of the experiment; for each
+	AnalysisConfig object for each phase of the experiment; for each
 	phase, the 0 position in the list stored in the dictionary is the
 	phase analysis config, and the 1 position is the postphase analysis
 	config
@@ -325,7 +331,7 @@ class _AnalysisConfigFileProcessor(object):
 
 	def _create_analysis_config(self, phase, phase_conf_ser):
 		'''
-		Creates _AnalysisConfig object based on phase_conf_ser, the
+		Creates AnalysisConfig object based on phase_conf_ser, the
 		series corresponding to the Value column of the subset of
 		self.analysis_config_df that applies to the current phase
 		'''
@@ -352,8 +358,8 @@ class _AnalysisConfigFileProcessor(object):
 			timepoint_spacing = None
 		else:
 			timepoint_spacing = phase_conf_ser.timepoint_spacing
-		# create _AnalysisConfig object
-		current_analysis_config = _AnalysisConfig(
+		# create AnalysisConfig object
+		current_analysis_config = AnalysisConfig(
 			phase,
 			phase_conf_ser.hole_fill_area,
 			phase_conf_ser.cleanup,
@@ -372,7 +378,8 @@ class _AnalysisConfigFileProcessor(object):
 			phase_conf_ser.main_channel_imagetype,
 			fluor_channel_df,
 			phase_conf_ser.im_format,
-			self.chosen_for_extended_display_list)
+			self.chosen_for_extended_display_list,
+			phase_conf_ser.first_xy_position)
 		return(current_analysis_config)
 
 	def _get_phase_data(self, phase):
@@ -413,7 +420,7 @@ class _AnalysisConfigFileProcessor(object):
 			'total_xy_position_num', 'first_timepoint', 'total_timepoint_num',
 			'timepoint_label_prefix', 'position_label_prefix',
 			'main_channel_label', 'main_channel_imagetype', 'im_format',
-			'parent_phase']
+			'parent_phase', 'first_xy_position']
 		# take all possible fields from current_setup_ser, get missing
 		# ones from parent_setup_ser
 		reqd_parents_fields = \
@@ -434,11 +441,11 @@ class _AnalysisConfigFileProcessor(object):
 
 	def _create_analysis_config_df(self):
 		'''
-		Loops through phases and creates a pandas df of _AnalysisConfig
+		Loops through phases and creates a pandas df of AnalysisConfig
 		objects
 		'''
 		# NEED UNITTEST FOR JUST THIS METHOD?
-		# create a pandas df for storing _AnalysisConfig objects
+		# create a pandas df for storing AnalysisConfig objects
 		analysis_config_obj_df = \
 			pd.DataFrame({'analysis_config': None,
 				'postphase_analysis_config': None}, index = self.phases)
@@ -472,10 +479,10 @@ class _AnalysisConfigFileProcessor(object):
 			current_phase_combined_setup = \
 				self._create_phase_conf_ser(combined_parent_setup,
 					current_phase_setup)
-			# create _AnalysisConfig object from current phase setup ser
+			# create AnalysisConfig object from current phase setup ser
 			current_analysis_config = self._create_analysis_config(phase,
 				current_phase_combined_setup)
-			# store _AnalysisConfig object in pandas df
+			# store AnalysisConfig object in pandas df
 			analysis_config_obj_df.at[storage_phase, config_type] = \
 				current_analysis_config
 		return(analysis_config_obj_df)
@@ -483,7 +490,7 @@ class _AnalysisConfigFileProcessor(object):
 	def process_analysis_config_file(self, analysis_config_path):
 		'''
 		Reads csv file in analysis_config_path and creates pandas df of
-		_AnalysisConfig objects for each phase
+		AnalysisConfig objects for each phase
 		'''
 		# read in config file
 		# convert strings to int where possible, and convert values
@@ -509,10 +516,11 @@ class _AnalysisConfigFileProcessor(object):
 
 def set_up_analysis_config(analysis_config_file):
 	'''
-	Creates a dataframe of phases containing _AnalysisConfig objects for
+	Creates a dataframe of phases containing AnalysisConfig objects for
 	each phase
 	'''
-	analysis_config_file_processor = _AnalysisConfigFileProcessor()
+	analysis_config_file_processor = AnalysisConfigFileProcessor()
 	analysis_config_obj_df = \
 		analysis_config_file_processor.process_analysis_config_file(
 			analysis_config_file)
+	return(analysis_config_obj_df)
