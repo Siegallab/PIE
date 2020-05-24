@@ -84,7 +84,7 @@ During growth rate analysis, growth rates will be calculated independently for a
 ##### Setup file Examples
 
 Here are some examples of setup files for experiments commonly done in the Siegal Lab:
- * [setup file for an experiment consisting of only growth rate measurements](https://github.com/Siegallab/PIE/tree/master/sample_PIE_setup_files/growth_phase_setup.csv)
+ * [setup file for an experiment consisting of only growth rate measurements](https://github.com/Siegallab/PIE/tree/master/sample_PIE_setup_files/gr_phase_setup.csv)
 
 #### Running the experiment
 
