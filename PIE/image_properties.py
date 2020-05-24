@@ -591,7 +591,7 @@ def create_color_overlay(image, mask, mask_color, mask_alpha):
 			mask_color_adjusted_tuple).astype(int)
 	return(color_image)
 
-def read_and_run_analysis(input_im_path, output_path,
+def analyze_single_image(input_im_path, output_path,
 	image_type, hole_fill_area, cleanup, max_proportion_exposed_edge,
 	save_extra_info = True):
 	'''

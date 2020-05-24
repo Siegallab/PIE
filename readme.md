@@ -13,7 +13,7 @@ To install PIE, download the directory using the button near the top right of th
 
 ## Calling PIE within other python code
 
-For now, there's no way to actually install PIE properly (currently working on this). To import PIE, you need to run the following in python at runtime (changing '/local/path/to/PIE' to whatever the path is to the PIE repository on your computer; it should end with 'PIE'):
+For now, there's no way to actually install PIE properly (currently working on this). To import PIE, you need to run the following in python at runtime (changing `/local/path/to/PIE` to whatever the path is to the PIE repository on your computer; it should end with 'PIE'):
    ```python
    import sys
    sys.path.append('/local/path/to/PIE')
@@ -24,12 +24,12 @@ For now, there's no way to actually install PIE properly (currently working on t
 
 ### Running PIE single-image analysis
 
-To analyze a single image using PIE, you can use the `read_and_run_analysis` function, which takes an image filename (and some analysis parameters) as inputs:
+To analyze a single image using PIE, you can use the `analyze_single_image` function, which takes an image filename (and some analysis parameters) as inputs:
 
  ```python
  import PIE
  colony_mask, colony_property_df = \
-     PIE.read_and_run_analysis(input_im_path, output_path, image_type,
+     PIE.analyze_single_image(input_im_path, output_path, image_type,
          hole_fill_area, cleanup, max_proportion_exposed_edge,
          save_extra_info)
  ```
@@ -95,14 +95,14 @@ To run a full image analysis experiment using PIE, you can use the `run_growth_r
  PIE.run_growth_rate_analysis('/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv')
  ```
 
-#### Experiment Outputs
+#### Analysis Outputs
 
 Outputs of the PIE experiment can be found in the directory provided by the `output_folder` path in the setup file.
 
-Each output folder includes one or multiple folders corresponding to phases of the experiment, and named __phase_*[phase_name]*__. This folder contains:
+Each output folder includes one or multiple folders corresponding to phases of the experiment, and named **phase_[*phase_name*]**. This folder contains:
 
- * A **growth_rates.csv** file, containing all the colony growth rates for this experiment that pass the filtration steps
- * A **col_props_with_tracking_pos.csv**, containing the (unfiltered) properties of every colony identified in every timepoint during analysis, and the colony tracking data
+ * **growth_rates.csv**, containing all the colony growth rates for this experiment that pass the filtration steps
+ * **col_props_with_tracking_pos.csv**, containing the (unfiltered) properties of every colony identified in every timepoint during analysis, and the colony tracking data
  * Phase-specific image analysis outputs (see [*Running PIE single-image analysis*](#Running-PIE-single-image-analysis), although without a **single_image_colony_centers** folder, as this data is saved in the colony properties file)
 
 In addition, the file containing the growth rates of all colonies tracked across all phases can be found directly in the output folder (**UNDER CONSTRUCTION**)
