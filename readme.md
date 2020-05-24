@@ -5,11 +5,11 @@
 
 PIE runs in python, and is compatible with Python 2.7+
 
-The full list of required python packages is listed in the [requirements.txt](https://github.com/Siegallab/PIE/tree/master/PIE_python/requirements.txt) file; for now, to run PIE, you have to manually install all these packages (however, most can easily be installed using [pip](https://pip.pypa.io/en/stable/))
+The full list of required python packages is listed in the [requirements.txt](https://github.com/Siegallab/PIE/tree/master/requirements.txt) file; for now, to run PIE, you have to manually install all these packages (however, most can easily be installed using [pip](https://pip.pypa.io/en/stable/))
 
 ## Installing PIE
 
-To install PIE, download the directory using the button near the top right of this screen. Then install all the python packages listed in the [requirements.txt](https://github.com/Siegallab/PIE/tree/master/PIE_python/requirements.txt) file.
+To install PIE, download the directory using the button near the top right of this screen. Then install all the python packages listed in the [requirements.txt](https://github.com/Siegallab/PIE/tree/master/requirements.txt) file.
 
 ## Running PIE single-image analysis
 
