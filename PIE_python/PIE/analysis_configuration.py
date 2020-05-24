@@ -34,8 +34,9 @@ class _IndivImageRetriever(_ImageRetriever):
 		(Doesn't use timepoint or channel information passed to it)
 		'''
 		### !!! NEEDS UNITTEST
-		image = cv2.imread(im_filepath, cv2.IMREAD_ANYDEPTH)
+		image = cv2.imread(kwargs['im_filepath'], cv2.IMREAD_ANYDEPTH)
 			# cv2.imread returns none if im_filepath doesn't exist
+		return(image)
 		
 
 class _StackImageRetriever(_ImageRetriever):
@@ -65,20 +66,30 @@ class AnalysisConfig(object):
 		position_label_prefix, main_channel_label, main_channel_imagetype,
 		fluor_channel_df, im_format, chosen_for_extended_display_list,
 		first_xy_position, settle_frames, minimum_growth_time,
-		minimum_timepoint_number):
+		growth_window_timepoints, max_area_pixel_decrease,
+		max_area_fold_decrease, max_area_fold_increase, min_colony_area,
+		max_colony_area, min_correlation, min_foldX, min_neighbor_dist):
 		'''
 		Reads setup_file and creates analysis configuration
 		'''
 		# specify phase
 		self.phase = phase
 		# specify image analysis parameters
-		self.hole_fill_area = hole_fill_area
-		self.cleanup = cleanup
-		self.max_proportion_exposed_edge = max_proportion_exposed_edge
+		self.hole_fill_area = float(hole_fill_area)
+		self.cleanup = bool(cleanup)
+		self.max_proportion_exposed_edge = float(max_proportion_exposed_edge)
 		# specify growth rate analysis parameters
-		self.settle_frames = settle_frames
-		self.minimum_growth_time = minimum_growth_time
-		self.minimum_timepoint_number = minimum_timepoint_number
+		self.settle_frames = int(settle_frames)
+		self.minimum_growth_time = int(minimum_growth_time)
+		self.growth_window_timepoints = int(growth_window_timepoints)
+		self.max_area_pixel_decrease = float(max_area_pixel_decrease)
+		self.max_area_fold_decrease = float(max_area_fold_decrease)
+		self.max_area_fold_increase = float(max_area_fold_increase)
+		self.min_colony_area = float(min_colony_area)
+		self.max_colony_area = float(max_colony_area)
+		self.min_correlation = float(min_correlation)
+		self.min_foldX = float(min_foldX)
+		self.min_neighbor_dist = float(min_neighbor_dist)
 		# path of input images
 		self.input_path = input_path
 		# path of output image folder
@@ -119,6 +130,8 @@ class AnalysisConfig(object):
 			self.image_retriever = _IndivImageRetriever()
 		else:
 			raise ValueError('image format ' + im_format + ' not recognized')
+		self.chosen_for_extended_display_list = chosen_for_extended_display_list
+		self._run_parameter_tests()
 
 	def _create_phase_output(self):
 		'''
@@ -126,14 +139,23 @@ class AnalysisConfig(object):
 		as well as within-phase results, if they don't already exist
 		'''
 		# NEED UNITTEST FOR JUST THIS METHOD?
-		self.phase_col_properties_output_folder = \
-			os.path.join(self.output_path, 'positionwise_colony_properties')
 		self.phase_output_path = os.path.join(self.output_path,
 			('phase_' + self.phase))
+		self.phase_col_properties_output_folder = \
+			os.path.join(self.phase_output_path, 'positionwise_colony_properties')
 		if not os.path.exists(self.phase_col_properties_output_folder):
 			os.makedirs(self.phase_col_properties_output_folder)
 		if not os.path.exists(self.phase_output_path):
 			os.makedirs(self.phase_output_path)
+		# create filename for tracked colony properties output file for
+		# current position
+		self.phase_tracked_properties_write_path = \
+			os.path.join(self.phase_output_path,
+				'col_props_with_tracking_pos.csv')
+		# create filename for growth rate output file for current
+		# position
+		self.phase_gr_write_path = \
+			os.path.join(self.phase_output_path, 'growth_rates.csv')
 
 	def _set_up_timevector(self, timepoint_spacing, first_timepoint):
 		'''
@@ -179,45 +201,12 @@ class AnalysisConfig(object):
 			formatted_string = '{:0>{}d}'.format(int_to_format, digit_num)
 		return(formatted_string)
 
-#	def _reformat_consecutive_value_list(self, start_point,
-#		total_point_num):
-#		'''
-#		Creates strings of consecutive integers from start_point to 
-#		total_point_num formatted based on the number of digits in
-#		total_point_num
-#		Returns dictionary with integers as keys and strings as values
-#		'''
-#		### NEEDS UNITTEST!
-#		point_int_list = range(start_point, (total_point_num + 1))
-#		point_dict = \
-#			{p: self._reformat_values(p, total_point_num) for p in 
-#				point_int_list}
-#		return(point_dict)
-
-	def create_file_label(self, timepoint, position, channel_label):
+	def _run_parameter_tests(self):
 		'''
-		Creates label for image filename, concatenating formatted
-		timepoint, xy position, and provided channel label in the
-		correct order
+		Runs tests to ensure certain parameters have correct values
 		'''
-		### !!! NEEDS UNITTEST
-		current_timepoint_str = \
-			self._reformat_values(timepoint, self.total_timepoint_num)
-		current_position_str = \
-			self._reformat_values(position, self.total_xy_position_num)
-		current_point_label_dict = \
-			{'timepoint': current_timepoint_str,
-			'channel': channel_label,
-			'position': current_position_str}
-		file_label = ''
-		# loop through ordered list of labels and append correct info to
-		# filename one-by-one
-		for label_key in label_order_list:
-			current_label = current_point_label_dict[label_key]
-			if not np.isnan(current_label) and current_label != None and \
-				current_label != '':
-				file_label = file_label + current_point_label_dict[label_key]
-		return(file_label)
+		if self.min_colony_area < 0:
+			raise ValueError('min_colony_area must be 0 or more')
 
 	def _generate_filename(self, timepoint, position, channel_label):
 		'''
@@ -229,7 +218,48 @@ class AnalysisConfig(object):
 		im_label = self.create_file_label(timepoint, position, channel_label)
 		im_filepath = os.path.join(self.input_path, im_label + '.' + 
 			self.im_file_extension)
-		return(im_filepath, im_name)
+		return(im_filepath, im_label)
+
+	def create_file_label(self, timepoint, position, channel_label):
+		'''
+		Creates label for image filename, concatenating formatted
+		timepoint, xy position, and provided channel label in the
+		correct order
+		'''
+		### !!! NEEDS UNITTEST
+		current_timepoint_str = self.timepoint_label_prefix + \
+			self._reformat_values(timepoint, self.total_timepoint_num)
+		current_position_str = self.position_label_prefix + \
+			self._reformat_values(position, self.total_xy_position_num)
+		current_point_label_dict = \
+			{'timepoint': current_timepoint_str,
+			'channel': channel_label,
+			'position': current_position_str}
+		file_label = ''
+		# loop through ordered list of labels and append correct info to
+		# filename one-by-one
+		for label_key in self.label_order_list:
+			current_label = current_point_label_dict[label_key]
+			# current label may be np.nan if channel not specified
+			if isinstance(current_label, str) and current_label != '':
+				file_label = file_label + current_point_label_dict[label_key]
+		return(file_label)
+
+	def get_colony_data_tracked_df(self):
+		'''
+		Reads and returns dataframe of tracked phase colony properties
+		output
+		Removes any rows with missing unique_tracking_id (corresponding
+		to colonies that weren't tracked because e.g. they are a minor
+		piece of a broken-up colony)
+		'''
+		colony_properties_df = \
+			pd.read_csv(self.phase_tracked_properties_write_path,
+				index_col = 0)
+		colony_properties_tracked_only = \
+			colony_properties_df[
+				colony_properties_df.unique_tracking_id.notna()]
+		return(colony_properties_tracked_only)
 
 	def get_image(self, timepoint, channel):
 		'''
@@ -249,7 +279,7 @@ class AnalysisConfig(object):
 			# if timepoint dict exists, get time value from there;
 			# otherwise, get it from the file modification date
 			if self.timepoint_dict:
-				image_time = timepoint_dict[timepoint]
+				image_time = self.timepoint_dict[timepoint]
 			else:
 				image_time = os.path.getmtime(im_filepath)
 		return(image, im_label, image_time)
@@ -267,13 +297,7 @@ class AnalysisConfig(object):
 		# determine wether non-essential info (threshold plot outputs,
 		# boundary images, etc) need to be saved for this experiment
 		self.save_extra_info = \
-			xy_position_idx in chosen_for_extended_display_list
-		# create filename for output file for current position
-		output_filename = 'phase_' + str(self.phase) + \
-			'_col_props_with_tracking_pos_' + str(self.xy_position_idx) + '.csv'
-		self.phase_output_path_curr_pos = \
-			os.path.join(self.phase_col_properties_output_folder, output_filename)
-
+			xy_position_idx in self.chosen_for_extended_display_list
 
 class AnalysisConfigFileProcessor(object):
 	'''
@@ -387,7 +411,15 @@ class AnalysisConfigFileProcessor(object):
 			phase_conf_ser.first_xy_position,
 			phase_conf_ser.settle_frames,
 			phase_conf_ser.minimum_growth_time,
-			phase_conf_ser.minimum_timepoint_number)
+			phase_conf_ser.growth_window_timepoints,
+			phase_conf_ser.max_area_pixel_decrease,
+			phase_conf_ser.max_area_fold_decrease,
+			phase_conf_ser.max_area_fold_increase,
+			phase_conf_ser.min_colony_area,
+			phase_conf_ser.max_colony_area,
+			phase_conf_ser.min_correlation,
+			phase_conf_ser.min_foldX,
+			phase_conf_ser.min_neighbor_dist)
 		return(current_analysis_config)
 
 	def _get_phase_data(self, phase):
@@ -429,7 +461,7 @@ class AnalysisConfigFileProcessor(object):
 			'timepoint_label_prefix', 'position_label_prefix',
 			'main_channel_label', 'main_channel_imagetype', 'im_format',
 			'parent_phase', 'first_xy_position', 'settle_frames',
-			'minimum_growth_time', 'minimum_timepoint_number']
+			'minimum_growth_time', 'growth_window_timepoints']
 		# take all possible fields from current_setup_ser, get missing
 		# ones from parent_setup_ser
 		reqd_parents_fields = \

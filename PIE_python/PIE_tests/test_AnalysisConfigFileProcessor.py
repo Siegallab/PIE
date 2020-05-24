@@ -24,10 +24,10 @@ class TestProcessAnalysisConfigFile(unittest.TestCase):
 			AnalysisConfig(
 				'growth', float('Inf'), False, 0.25,
 				'PIE_test_data/IN/SL_170619_2_GR_small', 'PIE_test_data/out/SL_170619_2_GR_small', 'tif',
-				['channel', 'timepoint', 'position'], 12, 1, 10, 3600, 't',
+				['channel', 'timepoint', 'position'], 1000, 1, 10, 3600, 't',
 				'xy', np.nan,'brightfield', pd.DataFrame(columns = ['fluor_channel_label',
 					'fluor_channel_column_name', 'fluor_threshold']), 'individual',
-				[1, 4, 11], 1, 1, 4, 7)
+				[1, 4, 11], 1, 3, 4, 7, 500.0, 2.0, 6.0, 30, np.inf, 0.9, 0.0, 100.0)
 		expected_analysis_config_obj_df = \
 			pd.DataFrame({'analysis_config': [expected_analysis_config],
 				'postphase_analysis_config': [None]}, index = ['growth'])
