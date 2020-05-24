@@ -13,8 +13,8 @@ colony_mask = np.array([
 	[0, 0, 0, 0, 0, 0, 0, 0],
 	[0, 0, 0, 0, 1, 1, 1, 0],
 	[0, 0, 0, 0, 1, 1, 1, 0],
-	[0, 1, 1, 1, 0, 1, 1, 0],
-	[0, 1, 0, 1, 0, 1, 0, 0],
+	[0, 1, 1, 0, 0, 1, 1, 0],
+	[0, 1, 1, 1, 0, 1, 0, 0],
 	[0, 1, 0, 1, 0, 0, 0, 0],
 	[0, 1, 1, 1, 0, 0, 0, 0],
 	[0, 0, 0, 0, 0, 0, 0, 0]], dtype = bool)
@@ -43,8 +43,8 @@ class TestFindConnectedComponents(unittest.TestCase):
 			[0, 0, 0, 0, 0, 0, 0, 0],
 			[0, 0, 0, 0, 1, 1, 1, 0],
 			[0, 0, 0, 0, 1, 1, 1, 0],
-			[0, 2, 2, 2, 0, 1, 1, 0],
-			[0, 2, 0, 2, 0, 1, 0, 0],
+			[0, 2, 2, 0, 0, 1, 1, 0],
+			[0, 2, 2, 2, 0, 1, 0, 0],
 			[0, 2, 0, 2, 0, 0, 0, 0],
 			[0, 2, 2, 2, 0, 0, 0, 0],
 			[0, 0, 0, 0, 0, 0, 0, 0]])
@@ -55,9 +55,9 @@ class TestFindConnectedComponents(unittest.TestCase):
 			[1, 3, 3, 4, 10]])
 		# centroids are mean of pixel indices
 		expected_centroids = np.array([
-			[158.0/45, 160.0/45],
+			[159.0/45, 159.0/45],
 			[5+1.0/9, 2+1.0/9],
-			[2, 4.5]])
+			[1.9, 4.6]])
 		# run connected component finder
 		self.col_prop_finder._find_connected_components()
 		# check properties
@@ -107,7 +107,7 @@ class TestFindCentroids(unittest.TestCase):
 		self.col_prop_finder._find_connected_components()
 		self.col_prop_finder._find_centroids()
 		expected_property_df = \
-			pd.DataFrame({'cX': [5+1.0/9, 2], 'cY': [2+1.0/9, 4.5]})
+			pd.DataFrame({'cX': [5+1.0/9, 1.9], 'cY': [2+1.0/9, 4.6]})
 		assert_frame_equal(expected_property_df,
 			self.col_prop_finder.property_df)
 
@@ -199,9 +199,11 @@ class TestFindColonyWiseProperties(unittest.TestCase):
 		# perimeter value is counterintuitive here but makes sense when
 		# you realize contour tracks left to right first
 		expected_property_df = \
-			pd.DataFrame({'Perimeter': [6+np.sqrt(2)+np.sqrt(2), 10.0],
-				'PixelIdxList': ['12 13 14 20 21 22 29 30 37',
-					'25 26 27 33 35 41 43 49 50 51']})
+			pd.DataFrame({
+				'perimeter': [6+np.sqrt(2)+np.sqrt(2), 8+np.sqrt(2)],
+				'pixel_idx_list': ['12 13 14 20 21 22 29 30 37',
+					'25 26 33 34 35 41 43 49 50 51']
+				})
 		assert_frame_equal(expected_property_df,
 			self.col_prop_finder.property_df)
 
@@ -363,8 +365,8 @@ class TestSubsetImbyBoundingBox(unittest.TestCase):
 			[0, 0, 0, 0, 0],
 			[0, 0, 0, 1, 1],
 			[0, 0, 0, 1, 1],
+			[1, 1, 0, 0, 1],
 			[1, 1, 1, 0, 1],
-			[1, 0, 1, 0, 1],
 			[1, 0, 1, 0, 0],
 			[1, 1, 1, 0, 0]])
 		test_im = \

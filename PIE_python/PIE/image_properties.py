@@ -240,12 +240,12 @@ class _ImageAnalyzer(object):
 	def get_colony_property_df_to_save(self):
 		'''
 		Returns csv-file-friendly self.colony_property_df (i.e. without
-		space-consuming PixelIdxList, Eroded_Colony_Mask,
+		space-consuming pixel_idx_list, Eroded_Colony_Mask,
 		Eroded_Background_Mask columns)
 		'''
 		columns_to_save = \
 			self.colony_property_finder.property_df.columns.difference(
-				['PixelIdxList', 'Eroded_Colony_Mask', 'Eroded_Background_Mask'])
+				['pixel_idx_list', 'Eroded_Colony_Mask', 'Eroded_Background_Mask'])
 		colony_property_df_to_save = \
 			self.colony_property_finder.property_df[columns_to_save]
 		return(colony_property_df_to_save)
@@ -298,11 +298,14 @@ class _ColonyPropertyFinder(object):
 
 	def _find_connected_components(self):
 		'''
-		Finds connected components in a colony
+		Finds connected components in an image (i.e. colonies)
+		Note that although connectivity = 4 is used at other steps, connectivity
+		is set to 8 for the colony identification step
+		(This is consistent with previous versions of PIE)
 		'''
 		[self._label_num, self._labeled_mask, self._stat_matrix, self._centroids] = \
 			cv2.connectedComponentsWithStats(np.uint8(self.colony_mask),
-				True, True, True, 4, cv2.CV_32S)
+				True, True, True, 8, cv2.CV_32S)
 
 	def _find_areas(self):
 		'''
@@ -361,14 +364,14 @@ class _ColonyPropertyFinder(object):
 		Loops through detected colonies and measures the properties that
 		need to be measured one at a time
 		'''
-		self.property_df['Perimeter'] = np.nan
-		self.property_df['PixelIdxList'] = None
+		self.property_df['perimeter'] = np.nan
+		self.property_df['pixel_idx_list'] = None
 		# don't loop through background
 		for colony in range(1, self._label_num):
 			current_colony_mask = self._labeled_mask == colony
-			self.property_df.at[colony-1, 'Perimeter'] = \
+			self.property_df.at[colony-1, 'perimeter'] = \
 				self._find_perimeter(current_colony_mask)
-			self.property_df.at[colony-1, 'PixelIdxList'] = \
+			self.property_df.at[colony-1, 'pixel_idx_list'] = \
 				self._find_flat_coordinates(current_colony_mask)
 
 	def _pixel_idx_list_to_mask(self, pixel_idx_list, mask_shape):
@@ -515,7 +518,7 @@ class _ColonyPropertyFinder(object):
 		# create mask of background, excluding colonies
 		background_mask = np.invert(self.colony_mask)
 		for idx, row in self.property_df.iterrows():
-			colony_pixel_idx_list = row['PixelIdxList']
+			colony_pixel_idx_list = row['pixel_idx_list']
 			colony_bounding_box_series = \
 				row[['bb_x_left','bb_y_top','bb_width','bb_height']]
 			# create a mask of the current colony
@@ -579,7 +582,7 @@ def create_color_overlay(image, mask, mask_color, mask_alpha):
 	# check whether image is grayscale; if so, convert to rgb
 	color_image = np.copy(image)
 	if len(np.shape(color_image)) == 2:
-		color_image = cv2.cvtColor(color_image, cv2.COLOR_GRAY2RGB)
+		color_image = cv2.cvtColor(np.float32(color_image), cv2.COLOR_GRAY2RGB)
 	# adjust mask_color by alpha, inverse, scale to image bitdepth
 	mask_color_adjusted_tuple = \
 		tuple(float(k)/255*np.max(color_image)*mask_alpha for k in mask_color[::-1])
