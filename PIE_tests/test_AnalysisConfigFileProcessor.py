@@ -15,7 +15,7 @@ class TestProcessAnalysisConfigFile(unittest.TestCase):
 		'''
 		Tests input with single growth rate phase
 		'''
-		analysis_config_file = 'PIE/gr_phase_setup.csv'
+		analysis_config_file = 'sample_PIE_setup_files/gr_phase_setup.csv'
 		analysis_config_file_processor = AnalysisConfigFileProcessor()
 		test_analysis_config_obj_df = \
 			analysis_config_file_processor.process_analysis_config_file(
