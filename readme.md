@@ -17,15 +17,6 @@ cd PIE/
 pip install -e .
 ```
 
-## Calling PIE within other python code
-
-For now, there's no way to actually install PIE properly (currently working on this). To import PIE, you need to run the following in python at runtime (changing `/local/path/to/PIE` to whatever the path is to the PIE repository on your computer; it should end with 'PIE'):
-   ```python
-   import sys
-   sys.path.append('/local/path/to/PIE')
-   import PIE
-   ```
-
 ## Running PIE
 
 ### Running PIE single-image analysis
@@ -96,10 +87,15 @@ Here are some examples of setup files for experiments commonly done in the Siega
 
 To run a full image analysis experiment using PIE, you can use the `run_growth_rate_analysis` function, which takes a setup file path as input:
 
- ```python
- import PIE
- PIE.run_growth_rate_analysis('/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv')
- ```
+```python
+import PIE
+PIE.run_growth_rate_analysis('/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv')
+```
+You can also use the `pie` command-line interface:
+
+```
+pie run /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv
+```
 
 #### Analysis Outputs
 

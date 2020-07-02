@@ -12,7 +12,8 @@ install_requires = [
     'pandas>=0.24.1',
     'Pillow>=7.2.0',
     'scipy>=1.1.0',
-    'plotnine'
+    'plotnine',
+    'Click>=7.0'
 ]
 
 
@@ -55,6 +56,11 @@ setup(
     test_suite='nose.collector',
     tests_require=tests_require,
     install_requires=install_requires,
+    entry_points={
+        'console_scripts': [
+            'pie = PIE.command_line_interface:cli',
+        ]
+    },
     classifiers=[
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',

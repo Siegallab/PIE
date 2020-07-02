@@ -48,3 +48,4 @@ coverage.xml
 .DS_Store
 *.pdf
 PIE_untracked
+PIE_test_data/out/
