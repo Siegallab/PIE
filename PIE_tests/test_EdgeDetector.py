@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import os
 from PIE.colony_edge_detect import _EdgeDetector, _PiePiece
-import general_pie_testing_functions
+import PIE.general_testing_functions as general_pie_testing_functions
 from numpy.testing import assert_array_equal
 
 def _set_up_edge_detector(im_name, cleanup, max_proportion_exposed_edge):

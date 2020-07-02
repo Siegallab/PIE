@@ -1,0 +1,7 @@
+
+# Add and remove files to and from the source distribution.
+
+include LICENSE
+include *.md
+recursive-include PIE *.py
+global-exclude *.py[co]

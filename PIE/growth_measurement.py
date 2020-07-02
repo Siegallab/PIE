@@ -96,7 +96,7 @@ class _CompileColonyData(object):
 		properties_to_return = ['area', 'time_in_seconds', 'cX', 'cY']
 		dict_for_gr = dict.fromkeys(properties_to_return)
 		# loop through colony properties and create and save a matrix
-		# (df) of properties over time for each 
+		# (df) of properties over time for each
 		for col_property in self.cols_to_include:
 			# create colony property matrix in pandas format
 			col_property_df = self._create_property_mat(col_property)
@@ -129,7 +129,7 @@ class _DistanceCalculator(object):
 		else:
 			raise ValueError("Indexes of cX and cY should be the same, " +
 				"in the same order")
-		# find mean values of cX and cY 
+		# find mean values of cX and cY
 		self._find_mean_centers(cX_filt_df, cY_filt_df)
 
 	def _find_mean_centers(self, cX, cY):
@@ -172,7 +172,7 @@ class _DistanceCalculator(object):
 			# fill diagonal of self.dist_mat with Inf to avoid detection of
 			# self as closest match
 			np.fill_diagonal(dist_mat, np.inf)
-			nearest_neighbor_dist = np.min(dist_mat, axis = 1)			
+			nearest_neighbor_dist = np.min(dist_mat, axis = 1)
 		curr_mindist_df = pd.DataFrame({'mindist': nearest_neighbor_dist},
 			index = self.centroid_index[position_bool])
 		return(curr_mindist_df)
@@ -252,7 +252,7 @@ class _GrowthMeasurer(object):
 			non_null_start_col + non_null_row*non_null_bool.shape[1]
 		flat_cum_run_lengths = colony_filters.cum_sum_since_subarray_start(
 			non_null_bool.size, subarray_flat_start_positions, subarray_lengths)
-		# reshape back into original shape 
+		# reshape back into original shape
 		cum_run_lengths = flat_cum_run_lengths.reshape(non_null_bool.shape)
 		# set values that are False in non_null_bool to 0, since
 		# cumulative sum values returned accumulate in-between subarrays
@@ -456,7 +456,7 @@ def run_growth_rate_analysis(analysis_config_file,
 			track_colonies.track_single_phase_all_positions(analysis_config,
 				postphase_analysis_config)
 		measure_growth_rate(analysis_config)
-			
+
 def measure_growth_rate(analysis_config):
 	'''
 	Compiles data from individual timepoints into a single dataframe of

@@ -2,9 +2,7 @@
 
 import unittest
 import cv2
-import general_pie_testing_functions
 import numpy as np
-import os
 from numpy.testing import assert_array_equal
 from PIE.colony_edge_detect import _PiePiece, _EdgeDetector
 

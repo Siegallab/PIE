@@ -10,6 +10,7 @@ import os
 from PIE.image_properties import create_color_overlay
 from PIE.ported_matlab import bwperim
 
+
 def show_mask_diffs(green_mask, mag_mask, im, im_name):
 	'''
 	Displays im with pixels unique to green_mask as green and pixels
