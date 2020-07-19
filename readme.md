@@ -105,6 +105,23 @@ PIE.run_default_growth_rate_analysis(input_path, output_path,
 	total_timepoint_num)
 ```
 
+To achieve the same results as using the provided setup file, some options need to be changed when using the default analysis; for example, the sample data can be analyzed as follows:
+
+```python
+import PIE
+import numpy as np
+PIE.run_default_growth_rate_analysis(
+	input_path = '/local/path/to/PIE/PIE_test_data/IN/SL_170619_2_GR_small',
+	output_path = '/local/path/to/PIE/PIE_test_data/out/SL_170619_2_GR_small',
+	total_timepoint_num = 10, total_xy_position_num = 1000,
+	timepoint_spacing = 3600, chosen_for_extended_display_list = [1, 4, 11],
+	settle_frames = 4, growth_window_timepoints = 7,
+	max_area_pixel_decrease = 500, min_colony_area = 30,
+	max_colony_area = np.inf, min_correlation = 0.9, min_neighbor_dist = 100,
+	repeat_image_analysis_and_tracking = False)
+
+```
+
 #### Analysis Outputs
 
 Outputs of the PIE experiment can be found in the directory provided by the `output_folder` path in the setup file.
