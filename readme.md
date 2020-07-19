@@ -97,6 +97,14 @@ You can also use the `pie` command-line interface:
 pie run /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv
 ```
 
+Finally, running a single-phase, brightfield-only analysis with all-default inputs, or modifying just a couple of options at a time, can be achieved without a setup file:
+
+```python
+import PIE
+PIE.run_default_growth_rate_analysis(input_path, output_path,
+	total_timepoint_num)
+```
+
 #### Analysis Outputs
 
 Outputs of the PIE experiment can be found in the directory provided by the `output_folder` path in the setup file.

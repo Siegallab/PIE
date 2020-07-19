@@ -262,6 +262,7 @@ class _GrowthMeasurer(object):
 		colony_filters._FilterByGrowthWindowTimepoints (i.e. any
 		colonies not part of runs at least
 		self.analysis_config.growth_window_timepoints have been removed)
+		and is not empty
 		'''
 		### NEEDS UNITTEST!!!
 		# identify position when a consecutive run starts and ends
@@ -321,7 +322,14 @@ class _GrowthMeasurer(object):
 		self.log_filt_areas_mat = self.log_filt_areas.to_numpy()
 		self.filt_times_mat = self.filt_times.to_numpy()
 		# set up dataframe of positions to run growth rate calculation
-		self._identify_regr_window_start_and_ends()
+		if self.log_filt_areas.empty:
+			# create empty gr dataframe
+			self.positions_for_regression = \
+				pd.DataFrame(columns = ['t0', 'start_col', 'range_stop_col',
+					'row', 'intercept', 'gr', 'lag', 'rsq', 'foldX'],
+					index = [])
+		else:
+			self._identify_regr_window_start_and_ends()
 
 	def _run_regression(self, y, x):
 		'''
@@ -404,7 +412,7 @@ class _GrowthMeasurer(object):
 		# colonies
 		prefilt_growth_rate_data = self.positions_for_regression.copy()
 		prefilt_growth_rate_data.index = \
-			self.log_filt_areas.index[prefilt_growth_rate_data.row]
+			self.log_filt_areas.index[prefilt_growth_rate_data.row.to_list()]
 		# add vals for distance to closest neighboring colony to the df
 		prefilt_growth_rate_data = self._apply_mindist(prefilt_growth_rate_data)
 		# create filtration object
@@ -462,6 +470,22 @@ class _GrowthMeasurer(object):
 		self._select_colony_gr()
 		return(self.final_gr)
 
+def measure_growth_rate(analysis_config):
+	'''
+	Compiles data from individual timepoints into a single dataframe of
+	tracked colonies, saves property matrices for each tracked colony,
+	performs filtering and measures growth rates for all colonies that
+	pass filtration
+	'''
+	colony_data_compiler = _CompileColonyData(analysis_config)
+	area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df = \
+		colony_data_compiler.generate_property_matrices()
+	imaging_info_df = colony_data_compiler.generate_imaging_info_df()
+	growth_measurer = \
+		_GrowthMeasurer(area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df,
+			analysis_config, imaging_info_df)
+	gr_df = growth_measurer.find_growth_rates()
+
 def run_growth_rate_analysis(analysis_config_file,
 		repeat_image_analysis_and_tracking = True):
 	'''
@@ -486,18 +510,54 @@ def run_growth_rate_analysis(analysis_config_file,
 				postphase_analysis_config)
 		measure_growth_rate(analysis_config)
 
-def measure_growth_rate(analysis_config):
+def run_default_growth_rate_analysis(input_path, output_path,
+	total_timepoint_num, phase = 'growth', hole_fill_area = np.inf,
+	cleanup = False, max_proportion_exposed_edge = 0.25,
+	im_file_extension = 'tif', minimum_growth_time = 4,
+	label_order_list = ['channel', 'timepoint', 'position'],
+	total_xy_position_num = 1, first_timepoint = 1,
+	timepoint_spacing = 3600, timepoint_label_prefix = 't',
+	position_label_prefix = 'xy', main_channel_label = '',
+	main_channel_imagetype = 'brightfield', im_format = 'individual',
+	chosen_for_extended_display_list = [1], first_xy_position = 1,
+	settle_frames = 1, growth_window_timepoints = 0,
+	max_area_pixel_decrease = np.inf, max_area_fold_decrease = 2,
+	max_area_fold_increase = 6, min_colony_area = 10,
+	max_colony_area = np.inf, min_correlation = 0.9, min_foldX = 0,
+	min_neighbor_dist = 5, repeat_image_analysis_and_tracking = True):
 	'''
-	Compiles data from individual timepoints into a single dataframe of
-	tracked colonies, saves property matrices for each tracked colony,
-	performs filtering and measures growth rates for all colonies that
-	pass filtration
+	Runs growth rate analysis on a single phase of brightfield-only
+	imaging from scratch (including image analysis steps) based on
+	options, not analysis_config_file
+	User needs to provide input and output paths, as well as
+	the number of total timepoints
+	If repeat_image_analysis_and_tracking is False, and phase colony
+	properties file already exists, skip image analysis and tracking
+	and go straight to growth rate assay
 	'''
-	colony_data_compiler = _CompileColonyData(analysis_config)
-	area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df = \
-		colony_data_compiler.generate_property_matrices()
-	imaging_info_df = colony_data_compiler.generate_imaging_info_df()
-	growth_measurer = \
-		_GrowthMeasurer(area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df,
-			analysis_config, imaging_info_df)
-	gr_df = growth_measurer.find_growth_rates()
+	# This analysis type doesn't allow for fluorescent images
+	fluor_channel_df = pd.DataFrame(columns = ['fluor_channel_label',
+		'fluor_channel_column_name', 'fluor_threshold'])
+	postphase_analysis_config = None
+	# set up analysis_config object
+	analysis_config = analysis_configuration.AnalysisConfig(phase,
+		hole_fill_area,
+		cleanup, max_proportion_exposed_edge, input_path,
+		output_path, im_file_extension, label_order_list,
+		total_xy_position_num, first_timepoint,
+		total_timepoint_num, timepoint_spacing,
+		timepoint_label_prefix, position_label_prefix,
+		main_channel_label, main_channel_imagetype,
+		fluor_channel_df, im_format,
+		chosen_for_extended_display_list, first_xy_position,
+		settle_frames, minimum_growth_time,
+		growth_window_timepoints, max_area_pixel_decrease,
+		max_area_fold_decrease, max_area_fold_increase,
+		min_colony_area, max_colony_area, min_correlation,
+		min_foldX, min_neighbor_dist)
+	if repeat_image_analysis_and_tracking or not \
+		os.path.exists(analysis_config.phase_tracked_properties_write_path):
+		track_colonies.track_single_phase_all_positions(analysis_config,
+			postphase_analysis_config)
+	measure_growth_rate(analysis_config)
+

@@ -279,21 +279,24 @@ class _FilterByGrowthWindowTimepoints(_FilterBaseClass):
 		non_null_stretch_length = non_null_stop_col - non_null_start_col
 		window_filter_pass_idx = non_null_stretch_length >= \
 			self.analysis_config.growth_window_timepoints
-		# Subset only start and stop columns, as well as row numbers,
-		# that correspond to large enough windows for growth rate
-		# calculation
-		allowed_start_cols = non_null_start_col[window_filter_pass_idx]
-		allowed_stop_cols = non_null_stop_col[window_filter_pass_idx]
-		allowed_rows = non_null_row[window_filter_pass_idx]
-		# create 1-D vectors of column and row positions of each colony
-		# that is part of a consecutive window of at least
-		# growth_window_timepoints non-NaN areas
-		allowed_col_positions = \
-			vectorized_arange(allowed_start_cols, allowed_stop_cols).astype(int)
-		allowed_row_positions = \
-			np.repeat(allowed_rows, (allowed_stop_cols - allowed_start_cols))
-		# set positions of passing colonies to true
-		filter_pass[allowed_row_positions, allowed_col_positions] = True
+		if any(window_filter_pass_idx):
+			# Subset only start and stop columns, as well as row numbers,
+			# that correspond to large enough windows for growth rate
+			# calculation
+			allowed_start_cols = non_null_start_col[window_filter_pass_idx]
+			allowed_stop_cols = non_null_stop_col[window_filter_pass_idx]
+			allowed_rows = non_null_row[window_filter_pass_idx]
+			# create 1-D vectors of column and row positions of each
+			# colony that is part of a consecutive window of at least
+			# growth_window_timepoints non-NaN areas
+			allowed_col_positions = \
+				vectorized_arange(allowed_start_cols,
+					allowed_stop_cols).astype(int)
+			allowed_row_positions = \
+				np.repeat(allowed_rows,
+					(allowed_stop_cols - allowed_start_cols))
+			# set positions of passing colonies to true
+			filter_pass[allowed_row_positions, allowed_col_positions] = True
 		return(filter_pass)
 
 class _FilterByMinFoldX(_FilterBaseClass):

@@ -74,6 +74,9 @@ class AnalysisConfig(object):
 		'''
 		# specify phase
 		self.phase = phase
+		# max xy position label and timepoint number
+		self.total_xy_position_num = int(total_xy_position_num)
+		self.total_timepoint_num = int(total_timepoint_num)
 		# specify image analysis parameters
 		self.hole_fill_area = float(hole_fill_area)
 		self.cleanup = bool(cleanup)
@@ -81,7 +84,11 @@ class AnalysisConfig(object):
 		# specify growth rate analysis parameters
 		self.settle_frames = int(settle_frames)
 		self.minimum_growth_time = int(minimum_growth_time)
-		self.growth_window_timepoints = int(growth_window_timepoints)
+		growth_window_timepoint_int = int(growth_window_timepoints)
+		if growth_window_timepoint_int == 0:
+			self.growth_window_timepoints = self.total_timepoint_num
+		else:
+			self.growth_window_timepoints = growth_window_timepoint_int
 		self.max_area_pixel_decrease = float(max_area_pixel_decrease)
 		self.max_area_fold_decrease = float(max_area_fold_decrease)
 		self.max_area_fold_increase = float(max_area_fold_increase)
@@ -106,9 +113,6 @@ class AnalysisConfig(object):
 				'position, even if not all these are used')
 		# set up folder to save output of positionwise phase results
 		self._create_phase_output()
-		# max xy position label and timepoint number
-		self.total_xy_position_num = total_xy_position_num
-		self.total_timepoint_num = total_timepoint_num
 		# set up dictionary of timepoint times
 		self._set_up_timevector(timepoint_spacing, first_timepoint)
 		# set up list of possible xy positions
