@@ -4,6 +4,7 @@ import unittest
 import os
 import numpy as np
 import pandas as pd
+import shutil
 #import pandas.testing.assert_frame_equal
 #import numpy.testing.assert_equal
 from PIE.analysis_configuration import AnalysisConfig, _IndivImageRetriever
@@ -66,7 +67,6 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.settle_frames = self.settle_frames
 		expected_analysis_config.minimum_growth_time = self.minimum_growth_time
 		expected_analysis_config.growth_window_timepoints = self.growth_window_timepoints
-		expected_analysis_config.chosen_for_extended_display_list = [1,4,11]
 		expected_analysis_config.max_area_pixel_decrease = self.max_area_pixel_decrease
 		expected_analysis_config.max_area_fold_decrease = self.max_area_fold_decrease
 		expected_analysis_config.max_area_fold_increase = self.max_area_fold_increase
@@ -80,9 +80,9 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.im_file_extension = self.im_file_extension
 		expected_analysis_config.label_order_list = self.label_order_list
 			# TODO: test supplying incomplete list of labels
+		expected_analysis_config.phase_output_path = self.phase_output_path
 		expected_analysis_config.phase_col_properties_output_folder = \
 			self.phase_col_properties_output_folder
-		expected_analysis_config.phase_output_path = self.phase_output_path
 		expected_analysis_config.phase_tracked_properties_write_path = self.phase_tracked_properties_write_path
 		expected_analysis_config.phase_gr_write_path = self.phase_gr_write_path
 		expected_analysis_config.total_xy_position_num = self.total_xy_position_num
@@ -93,10 +93,12 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.xy_position_vector = range(1,1001)
 		expected_analysis_config.timepoint_label_prefix = self.timepoint_label_prefix
 		expected_analysis_config.position_label_prefix = self.position_label_prefix
+		expected_analysis_config.first_timepoint = 3600.0
 		expected_analysis_config.main_channel_imagetype = self.main_channel_imagetype
 		expected_analysis_config.main_channel_label = self.main_channel_label
-		expected_analysis_config.fluor_channel_df = self.fluor_channel_df	
+		expected_analysis_config.fluor_channel_df = self.fluor_channel_df
 		expected_analysis_config.image_retriever = _IndivImageRetriever()
+		expected_analysis_config.chosen_for_extended_display_list = [1,4,11]
 		# create analysis config
 		test_analysis_config = AnalysisConfig(self.phase, self.hole_fill_area,
 			self.cleanup, self.max_proportion_exposed_edge, self.input_path,
@@ -137,9 +139,9 @@ class TestAnalysisConfigInit(unittest.TestCase):
 # CHECK DIR EXISTANCE!
 
 	def tearDown(self):
-		os.rmdir(self.phase_col_properties_output_folder)
-		os.rmdir(self.phase_output_path)
-		os.rmdir(self.output_path)
+		shutil.rmtree(self.phase_col_properties_output_folder)
+		shutil.rmtree(self.phase_output_path)
+		shutil.rmtree(self.output_path)
 
 
 if __name__ == '__main__':

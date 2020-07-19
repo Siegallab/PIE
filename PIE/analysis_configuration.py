@@ -117,6 +117,8 @@ class AnalysisConfig(object):
 		# labels used for timepoint number and xy position
 		self.timepoint_label_prefix = timepoint_label_prefix
 		self.position_label_prefix = position_label_prefix
+		# find time of first existing file
+		self._find_first_timepoint()
 		# specify type of image (brightfield or phase_contrast) is in
 		# the main channel
 		self.main_channel_imagetype = main_channel_imagetype
@@ -186,6 +188,35 @@ class AnalysisConfig(object):
 			raise TypeError('timepoint_spacing must be either a list of ' +
 				'numbers of same length as the number of timepoints in the ' +
 				'experiment, a single integer/float, or None')
+
+	def _find_first_timepoint(self):
+		'''
+		Finds and writes the time of the first timepoint of this imaging phase
+		'''
+		### !!! NEEDS UNITTEST
+		first_timepoint_file = \
+			os.path.join(self.phase_output_path, 'first_timepoint_time.txt')
+		if os.path.exists(first_timepoint_file):
+			with open(first_timepoint_file) as f:
+				self.first_timepoint = int(f.readline())
+		else:
+			if self.timepoint_dict is None:
+				# if no timepoint dict, find the modification time of
+				# the first image captured in this phase
+				self.first_timepoint = np.inf
+				for current_file in os.listdir(self.input_path):
+					if current_file.endswith(self.im_file_extension):
+						current_time = \
+							os.path.getmtime(os.path.join(self.input_path,
+								current_file))
+						self.first_timepoint = \
+							np.min([self.first_timepoint, current_time])
+			else:
+				self.first_timepoint = \
+					self.timepoint_dict[self.timepoint_list[0]]
+			# write to text file
+			with open(first_timepoint_file, 'w') as f:
+  				f.write('%d' % self.first_timepoint)
 
 	def _reformat_values(self, int_to_format, max_val_num):
 		'''
@@ -282,6 +313,7 @@ class AnalysisConfig(object):
 				image_time = self.timepoint_dict[timepoint]
 			else:
 				image_time = os.path.getmtime(im_filepath)
+			# update minimum image_time of phase
 		return(image, im_label, image_time)
 
 	def set_xy_position(self, xy_position_idx):

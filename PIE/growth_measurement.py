@@ -85,12 +85,23 @@ class _CompileColonyData(object):
 			(col_property + '_property_mat.csv'))
 		col_property_df.to_csv(write_path)
 
+	def generate_imaging_info_df(self):
+		'''
+		Returns a dataframe of imaging info (e.g. xy position, phase)
+		'''
+		imaging_info_cols = ['unique_tracking_id', 'xy_pos_idx', 'phase']
+		imaging_info_df = \
+			self.colony_data_tracked_df[imaging_info_cols].drop_duplicates()
+		# imaging_info_df should be indexed by unique_tracking_id
+		imaging_info_df.set_index('unique_tracking_id', inplace = True)
+		return(imaging_info_df)
+
 	def generate_property_matrices(self):
 		'''
-		Generates and saved property matrices for every colony property
+		Generates and saves property matrices for every colony property
 		among self.columns_to_include
-		Returns dictionary containing matrices for timepoint and Area,
-		which can be used in growth rate calculation
+		Returns matrices for timepoint, area, cX, and cY, which can be
+		used in growth rate calculation
 		'''
 		# set up dictionary that will be returned for growth rate calc
 		properties_to_return = ['area', 'time_in_seconds', 'cX', 'cY']
@@ -187,7 +198,6 @@ class _DistanceCalculator(object):
 			curr_mindist_df = self._find_min_distances(xy_pos)
 			mindist_df_list.append(curr_mindist_df)
 		mindist_df_combined = pd.concat(mindist_df_list, sort = False)
-#		print(mindist_df_combined)
 		return(mindist_df_combined)
 
 class _GrowthMeasurer(object):
@@ -202,13 +212,28 @@ class _GrowthMeasurer(object):
 	#		In the current implementation, we are only calculating
 	#		growth rate for those windows that don't contain any missing
 	#		areas
-	def __init__(self, areas, times_in_seconds, cX, cY, analysis_config):
+	def __init__(self, areas, times_in_seconds, cX, cY, analysis_config,
+				 imaging_info_df):
 		self.analysis_config = analysis_config
+		self.imaging_info_df = imaging_info_df
 		self.unfilt_areas = areas
-		self.unfilt_times = times_in_seconds.astype(float)/3600
+		# times nee
+		self.unfilt_times = self._convert_times(times_in_seconds)
 		self.unfilt_cX = cX
 		self.unfilt_cY = cY
-		self.columns_to_return = ['t0', 'gr', 'lag', 'rsq','foldX','mindist']
+		self.columns_to_return = ['t0', 'gr', 'lag', 'rsq', 'foldX', 'mindist'] + \
+				imaging_info_df.columns.to_list()
+
+	def _convert_times(self, times_in_seconds):
+		'''
+		Converts times from absolute number of seconds to hours since
+		1st image captured
+		'''
+		### !!! NEEDS UNITTEST
+		rel_times_in_seconds = \
+			times_in_seconds - self.analysis_config.first_timepoint
+		rel_times_in_hrs = rel_times_in_seconds.astype(float)/3600
+		return(rel_times_in_hrs)
 
 	def _filter_pre_gr(self):
 		'''
@@ -347,6 +372,9 @@ class _GrowthMeasurer(object):
 		Lag duration is not calculated for colonies that are not tracked
 		in the first time point
 		(Ziv et al 2013)
+		NB: Unlike Ziv et al 2013, here lag is calculated relative to
+		the time the first image is collected, not the time the first
+		image of the current field is collected
 		'''
 		initial_log_areas = \
 			self.log_filt_areas_mat[self.positions_for_regression.row, 0]
@@ -403,10 +431,12 @@ class _GrowthMeasurer(object):
 		# identify locations of max growth rate for each colony id
 		max_gr_idx = \
 			self.filt_growth_rates.groupby('unique_tracking_id')['gr'].idxmax()
-		self.filtered_gr = self.filt_growth_rates.loc[max_gr_idx]
+		filtered_gr = self.filt_growth_rates.loc[max_gr_idx]
 		# re-index with unique_tracking_id
-		self.filtered_gr.set_index('unique_tracking_id', inplace = True)
-		self.final_gr = self.filtered_gr[self.columns_to_return]
+		filtered_gr.set_index('unique_tracking_id', inplace = True)
+		# join filtered gr and imaging info gr by their indices
+		combined_filtered_gr = filtered_gr.join(self.imaging_info_df)
+		self.final_gr = combined_filtered_gr[self.columns_to_return]
 		self.final_gr.to_csv(self.analysis_config.phase_gr_write_path)
 
 	def find_growth_rates(self):
@@ -427,7 +457,6 @@ class _GrowthMeasurer(object):
 		# run filter to remove growth rates with problematic properties
 		# (e.g. poor correaltion, too little growth)
 		self._filter_post_gr()
-#		print(self.filt_growth_rates)
 		# select the highest growth rate for each colony to report, and
 		# save results
 		self._select_colony_gr()
@@ -467,7 +496,8 @@ def measure_growth_rate(analysis_config):
 	colony_data_compiler = _CompileColonyData(analysis_config)
 	area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df = \
 		colony_data_compiler.generate_property_matrices()
+	imaging_info_df = colony_data_compiler.generate_imaging_info_df()
 	growth_measurer = \
 		_GrowthMeasurer(area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df,
-			analysis_config)
+			analysis_config, imaging_info_df)
 	gr_df = growth_measurer.find_growth_rates()

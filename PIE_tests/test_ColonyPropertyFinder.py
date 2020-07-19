@@ -92,7 +92,7 @@ class TestFindAreas(unittest.TestCase):
 				dtype = colony_mask.dtype))
 		self.col_prop_finder._find_connected_components()
 		self.col_prop_finder._find_areas()
-		expected_property_df = pd.DataFrame({'area': []}, index=[], dtype = 'int32')
+		expected_property_df = pd.DataFrame({'area': []}, dtype = 'int32')
 		assert_frame_equal(expected_property_df,
 			self.col_prop_finder.property_df)
 
@@ -121,7 +121,7 @@ class TestFindCentroids(unittest.TestCase):
 		self.col_prop_finder._find_connected_components()
 		self.col_prop_finder._find_centroids()
 		expected_property_df = \
-			pd.DataFrame({'cX': [], 'cY': []}, index=[])
+			pd.DataFrame({'cX': [], 'cY': []})
 		assert_frame_equal(expected_property_df,
 			self.col_prop_finder.property_df)
 

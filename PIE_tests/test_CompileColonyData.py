@@ -11,9 +11,12 @@ from pandas.testing import assert_frame_equal
 phase_tracked_properties_df = pd.DataFrame({
 	'unique_tracking_id':
 		['growth_1_col2', 'growth_1_col1', 'growth_1_col1', 'growth_1_col2',
-			'growth_1_col1'],
-	'timepoint': [1, 1, 3, 4, 4],
-	'area': [100, 92, 150, 205, 140],
+			'growth_1_col1', 'growth_3_col1', 'growth_3_col1'],
+	'timepoint': [1, 1, 3, 4, 4, 3, 5],
+	'area': [100, 92, 150, 205, 140, 160, 180],
+	'xy_pos_idx': [1, 1, 1, 1, 1, 3, 3],
+	'phase': \
+		['growth', 'growth', 'growth', 'growth', 'growth', 'growth', 'growth']
 	})
 
 class Test_GetIndexLocations(unittest.TestCase):
@@ -24,15 +27,16 @@ class Test_GetIndexLocations(unittest.TestCase):
 			phase_tracked_properties_df
 
 	def test_get_index_locations(self):
-		expected_timepoint_list = np.array([1,3,4])
-		expected_timepoint_indices = np.array([0,0,1,2,2])
+		expected_timepoint_list = np.array([1,3,4,5])
+		expected_timepoint_indices = np.array([0,0,1,2,2,1,3])
 		expected_unique_tracking_id_list = \
-			np.array(['growth_1_col1', 'growth_1_col2'])
+			np.array(['growth_1_col1', 'growth_1_col2', 'growth_3_col1'])
 		expected_unique_tracking_id_indices = \
-			np.array([1, 0, 0, 1, 0])
+			np.array([1, 0, 0, 1, 0, 2, 2])
 		expected_empty_col_property_mat = np.array([
-			[np.nan, np.nan, np.nan],
-			[np.nan, np.nan, np.nan]])
+			[np.nan, np.nan, np.nan, np.nan],
+			[np.nan, np.nan, np.nan, np.nan],
+			[np.nan, np.nan, np.nan, np.nan]])
 		self.colony_data_compiler._get_index_locations()
 		assert_equal(expected_timepoint_list,
 			self.colony_data_compiler.timepoint_list)
@@ -58,11 +62,32 @@ class Test_CreatePropertyMat(unittest.TestCase):
 		Tests creation of an area colony property matrix
 		'''
 		expected_col_property_df = pd.DataFrame(np.array([
-				[92.0, 150.0, 140.0],
-				[100.0, np.nan, 205.0]]),
-			index = ['growth_1_col1', 'growth_1_col2'],
-			columns = [1,3,4])
+				[92.0, 150.0, 140.0, np.nan],
+				[100.0, np.nan, 205.0, np.nan],
+				[np.nan, 160.0, np.nan, 180.0]]),
+			index = ['growth_1_col1', 'growth_1_col2', 'growth_3_col1'],
+			columns = [1,3,4,5])
 		test_col_property_df = \
 			self.colony_data_compiler._create_property_mat('area')
 		assert_frame_equal(expected_col_property_df, test_col_property_df)
+
+class Test_GenerateImagingInfoDf(unittest.TestCase):
+
+	def setUp(self):
+		self.colony_data_compiler = object.__new__(_CompileColonyData)
+		self.colony_data_compiler.colony_data_tracked_df = \
+			phase_tracked_properties_df
+
+	def test_generate_imaging_info_df(self):
+		'''
+		Tests generation of imaging info df
+		'''
+		expected_imaging_info_df = pd.DataFrame({
+				'xy_pos_idx': [1, 1, 3],
+				'phase': ['growth', 'growth', 'growth']},
+			index = ['growth_1_col2', 'growth_1_col1', 'growth_3_col1'])
+		expected_imaging_info_df.index.name = 'unique_tracking_id'
+		test_imaging_info_df = \
+			self.colony_data_compiler.generate_imaging_info_df()
+		assert_frame_equal(expected_imaging_info_df, test_imaging_info_df)
 
