@@ -384,11 +384,13 @@ class _GrowthMeasurer(object):
 		the time the first image is collected, not the time the first
 		image of the current field is collected
 		'''
-		initial_log_areas = \
-			self.log_filt_areas_mat[self.positions_for_regression.row, 0]
-		self.positions_for_regression.lag = \
-			(initial_log_areas - self.positions_for_regression.intercept) / \
-				self.positions_for_regression.gr
+		if not self.log_filt_areas.empty:
+			initial_log_areas = \
+				self.log_filt_areas_mat[self.positions_for_regression.row, 0]
+			self.positions_for_regression.lag = \
+				(initial_log_areas -
+					self.positions_for_regression.intercept) / \
+					self.positions_for_regression.gr
 
 	def _apply_mindist(self, df):
 		'''

@@ -90,14 +90,18 @@ class _FilterBaseClass(object):
 		'''
 		# TODO: Consider returning the full list of columns filtered out in
 		# each row
-		filter_fail_bool = np.invert(filter_pass_bool)
-		filtered_rows = filter_fail_bool.any(1)
-		filter_fail_bool_filtered_rows = filter_fail_bool[filtered_rows]
-		first_true_col = np.argmax(filter_fail_bool_filtered_rows, axis = 1)
-		filtered_indices = self.df_to_filter.index[filtered_rows]
-		filtered_columns = self.df_to_filter.columns[first_true_col]
-		output_df = pd.DataFrame({'filtered_columns': filtered_columns},
-			index = filtered_indices)
+		if filter_pass_bool.size == 0:
+			output_df = pd.DataFrame(columns = ['filtered_columns'],
+				index = [])
+		else:
+			filter_fail_bool = np.invert(filter_pass_bool)
+			filtered_rows = filter_fail_bool.any(1)
+			filter_fail_bool_filtered_rows = filter_fail_bool[filtered_rows]
+			first_true_col = np.argmax(filter_fail_bool_filtered_rows, axis = 1)
+			filtered_indices = self.df_to_filter.index[filtered_rows]
+			filtered_columns = self.df_to_filter.columns[first_true_col]
+			output_df = pd.DataFrame({'filtered_columns': filtered_columns},
+				index = filtered_indices)
 		return(output_df)
 
 	def _filtration_method(self):
@@ -113,9 +117,15 @@ class _FilterBaseClass(object):
 		Returns boolean np array with True at positions that pass filter
 		and a list of index-column name tuples from self.df_to_filter
 		'''
-		filter_pass = self._filtration_method()
-		if not isinstance(filter_pass, np.ndarray):
-			raise TypeError('_filtration_method must return a numpy array')
+		if self.df_to_filter.empty:
+			filter_pass = self.df_to_filter.to_numpy().astype(bool)
+		else:
+			filter_pass = self._filtration_method()
+			if not isinstance(filter_pass, np.ndarray):
+				raise TypeError('_filtration_method must return a numpy array')
+			elif not filter_pass.dtype == 'bool':
+				raise TypeError(
+					'_filtration_method must return a bool-type numpy array')
 		removed_locations = self._id_removed_locations(filter_pass)
 		return(filter_pass, removed_locations)
 
