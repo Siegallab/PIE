@@ -514,7 +514,7 @@ def run_growth_rate_analysis(analysis_config_file,
 
 def run_default_growth_rate_analysis(input_path, output_path,
 	total_timepoint_num, phase = 'growth', hole_fill_area = np.inf,
-	cleanup = False, max_proportion_exposed_edge = 0.25,
+	cleanup = False, max_proportion_exposed_edge = 0.75,
 	im_file_extension = 'tif', minimum_growth_time = 4,
 	label_order_list = ['channel', 'timepoint', 'position'],
 	total_xy_position_num = 1, first_timepoint = 1,

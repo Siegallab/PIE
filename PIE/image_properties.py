@@ -18,7 +18,7 @@ class _ImageAnalyzer(object):
 	# TODO: save all jpegs as jpeg2000s instead?
 	def __init__(self, original_im, image_name, output_path, image_type = 'brightfield',
 				hole_fill_area = np.inf, cleanup = False,
-				max_proportion_exposed_edge = 0.25,
+				max_proportion_exposed_edge = 0.75,
 				save_extra_info = False, threshold_plot_width = 6,
 				threshold_plot_height = 4, threshold_plot_dpi = 200,
 				threshold_plot_filetype = 'png',

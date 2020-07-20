@@ -18,7 +18,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		self.phase = 'growth'
 		self.hole_fill_area = np.inf
 		self.cleanup = True
-		self.max_proportion_exposed_edge = 0.25
+		self.max_proportion_exposed_edge = 0.75
 		self.input_path = 'PIE_test_data/IN/SL_170619_2_GR_small'
 		self.output_path = 'PIE_tests/temp_out'
 		self.im_file_extension = 'tif'

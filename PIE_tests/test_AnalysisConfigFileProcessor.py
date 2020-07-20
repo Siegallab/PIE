@@ -22,7 +22,7 @@ class TestProcessAnalysisConfigFile(unittest.TestCase):
 				analysis_config_file)
 		expected_analysis_config = \
 			AnalysisConfig(
-				'growth', float('Inf'), False, 0.25,
+				'growth', float('Inf'), False, 0.75,
 				'PIE_test_data/IN/SL_170619_2_GR_small', 'PIE_test_data/out/SL_170619_2_GR_small', 'tif',
 				['channel', 'timepoint', 'position'], 1000, 1, 10, 3600, 't',
 				'xy', np.nan,'brightfield', pd.DataFrame(columns = ['fluor_channel_label',
