@@ -99,7 +99,7 @@ class TestIDStartingVals(unittest.TestCase):
 		'''
 		self.gaussian_method = \
 			_GaussianFitThresholdMethod('test', 0, self.array_data[0],
-				self.array_data[2], np.ones(6), np.ones(6))
+				self.array_data[2], np.ones(6), np.array([np.inf]*6))
 		expected_mu1 = 54.095238095238
 		expected_sigma1 = 90.1587301587302
 		expected_lambda1 = 10.4417048619897

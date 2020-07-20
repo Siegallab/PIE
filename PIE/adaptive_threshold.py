@@ -420,7 +420,6 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		Identifies starting values for parameters
 		Totally heuristic; will not reproduce matlab's behavior
 		'''
-		### !!! NEED TO ADD CHECKING THAT STARTING PARAMS BETWEEN BOUNDS
 		self.starting_param_vals = np.zeros(len(self.param_idx_dict))
 		max_y = np.max(self.y)
 		min_x = np.min(self.x)
@@ -442,6 +441,11 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		self.starting_param_vals[self.param_idx_dict['lambda_2']] = self.y[mu_2_closest_idx]
 		self.starting_param_vals[self.param_idx_dict['sigma_1']] = x_span/12
 		self.starting_param_vals[self.param_idx_dict['sigma_2']] = x_span/6
+		# check that starting parameters between bounds
+		lower_bound_fail = self.starting_param_vals < self.lower_bounds
+		upper_bound_fail = self.starting_param_vals > self.upper_bounds
+		self.starting_param_vals[lower_bound_fail] = self.lower_bounds[lower_bound_fail]
+		self.starting_param_vals[upper_bound_fail] = self.lower_bounds[upper_bound_fail]
 
 	def _single_gauss_calculator(self, x, l, mu, sigma):
 		'''
