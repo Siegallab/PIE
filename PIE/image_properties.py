@@ -78,7 +78,10 @@ class _ImageAnalyzer(object):
 		# white pixels in an otherwise dark brightfield image)
 		self.norm_im = \
 			cv2.normalize(self.original_im, None, alpha=0, beta=(2**16-1),
-				norm_type=cv2.NORM_MINMAX)
+				norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_16U)
+				# decrease bitdepth of norm_im to 8-bit while normalizing
+		self.norm_im_8_bit = cv2.normalize(self.original_im, None, alpha=0, beta=(2**8-1),
+			norm_type=cv2.NORM_MINMAX)
 		if self.image_type == 'brightfield':
 			# the image that was read in is the one that will be
 			# processed
@@ -155,16 +158,12 @@ class _ImageAnalyzer(object):
 
 	def _save_jpeg(self):
 		'''
-		Writes jpeg of original input image
+		Writes jpeg of normalized input image
 		'''
 		# !!! NEEDS UNITTEST
 		jpeg_path = os.path.join(self._image_output_dir_dict['jpgGRimages'],
 			self.image_name + '.jpg')
-		# check whether original_im is > 8-bit; if so, decrease bitdepth
-		jpeg_im = np.copy(self.original_im)
-		while np.max(jpeg_im) > 2**8:
-			jpeg_im = jpeg_im / 2**8
-		cv2.imwrite(jpeg_path, jpeg_im,
+		cv2.imwrite(jpeg_path, self.norm_im_8_bit,
 			[cv2.IMWRITE_JPEG_QUALITY, self._jpeg_quality])
 
 	def _save_colony_mask(self):
@@ -182,8 +181,7 @@ class _ImageAnalyzer(object):
 		overlaid with a boundary (contour) of the colony mask
 		'''
 		colony_boundary_mask = ported_matlab.bwperim(self.colony_mask)
-		norm_im_8_bit = self.norm_im/(2**8)
-		self.boundary_im = create_color_overlay(norm_im_8_bit,
+		self.boundary_im = create_color_overlay(self.norm_im_8_bit,
 			colony_boundary_mask, self._boundary_color, self._boundary_alpha)
 		boundary_im_path = \
 			os.path.join(self._image_output_dir_dict['boundary_ims'],
