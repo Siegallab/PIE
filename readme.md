@@ -40,7 +40,7 @@ To analyze a single image using PIE, you can use the `analyze_single_image` func
 
  The inputs into this functions are as follows:
 
- * `input_im_path`: the directory in which the image to be analyzed is saved
+ * `input_im_path`: the path to the image to be analyzed
 
  * `output_path`: the directory in which image analysis folders should be created
 
