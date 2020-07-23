@@ -4,6 +4,7 @@
 Tracks colonies through time in a single imaging field
 '''
 
+import cv2
 import numpy as np
 import pandas as pd
 from PIE import image_properties
@@ -116,7 +117,9 @@ class _TimeTracker(object):
 	Tracks colonies through time based on dataframe of colony properties
 	at each timepoint
 	The details of the tracking differ from the original matlab code
-	when it comes to colony splintering/merging
+	when it comes to colony splintering/merging, as well as the fact
+	that here, image registration occurs between every consecutive
+	timepoint
 	In addition, dealing with filters by min_growth_time, settle_frames,
 	etc is outsourced to growth rate functions
 	'''
@@ -133,6 +136,90 @@ class _TimeTracker(object):
 		self.timecourse_colony_prop_df = timecourse_colony_prop_df
 		self._timepoints = np.sort(np.unique(timecourse_colony_prop_df.timepoint))
 
+	def _find_centroid_transform(self, curr_tp_data, next_tp_data):
+		'''
+		Takes in dataframes of data for the current timepoint and the
+		following timepoint
+		Returns a rigid-body affine transformation matrix M that
+		transforms centroid positions in curr_tp_data to centroid
+		positions in next_tp_data
+		'''
+		# make matrices of centroids
+		curr_centroids = np.float32(curr_tp_data[['cX', 'cY']].to_numpy())
+		next_centroids = np.float32(next_tp_data[['cX', 'cY']].to_numpy())
+		# initialize brute force matcher
+		bf = cv2.BFMatcher()
+		# return top two matches for each point
+		matches = bf.knnMatch(curr_centroids, next_centroids, k=2)
+		# Apply ratio test from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_feature2d/py_matcher/py_matcher.html
+		# This ensures that only those matches are used for finding the
+		# transformation matrix which match their #1 match much closer
+		# than they match their #2 match; stringency of this requirement
+		# can be increased by decreasing match_ratio_cutoff, at the risk
+		# of ending up with too few match points
+		match_ratio_cutoff = 0.75
+		good = []
+		for m,n in matches:
+		    if m.distance < match_ratio_cutoff * n.distance:
+		        good.append(m)
+		if len(good) >= 3:
+			curr_centroids_matching = curr_centroids[[a.queryIdx for a in good]]
+			next_centroids_matching = next_centroids[[a.trainIdx for a in good]]
+			# estimateAffinePartial2D removes outliers in its default state
+			# and returns a mask showing which points it didn't remove, but
+			# we ignore this mask here
+			M, _ = cv2.estimateAffinePartial2D(curr_centroids_matching,
+				next_centroids_matching)
+		else:
+			# can't estimate affine matrix with this few points, assume
+			# no transformation
+			M = np.float64([[1, 0, 0], [0, 1, 0]])
+		return(M)
+
+	def _register_timepoints(self, curr_tp_data, next_tp_data):
+		'''
+		Finds the rigid affine transform between the centroids from
+		curr_tp_data to next_to_data, applies it to the centroids and
+		bounds of curr_tp_data, and returns the transformed curr_tp_data
+		NB: The bound transformation for rotations is not totally
+		correct, since the bounding box is rotated and a new bounding
+		box encompassing the old, transformed one is created; this is
+		larger than if a new bounding box were calculated on the
+		warped image, but with low levels of rotation expected in most
+		images, this should not be a big problem for tracking
+		'''
+		### !!! NEEDS UNITTEST
+		warp_mat = self._find_centroid_transform(curr_tp_data, next_tp_data)
+		# id bounding box and centroids
+		data_to_warp = curr_tp_data.copy()
+		data_to_warp['bb_x_right'] = \
+			data_to_warp['bb_width'] + data_to_warp['bb_x_left']
+		data_to_warp['bb_y_bottom'] = \
+			data_to_warp['bb_height'] + data_to_warp['bb_y_top']
+		curr_tp_bb_small = \
+			np.float32(data_to_warp[['bb_x_left', 'bb_y_top']].to_numpy())
+		curr_tp_bb_large = \
+			np.float32(data_to_warp[['bb_x_right', 'bb_y_bottom']].to_numpy())
+		curr_tp_centroids = np.float32(data_to_warp[['cX', 'cY']].to_numpy())
+		# warp centroids and bb
+		warped_centroids = \
+			np.squeeze(np.float32(cv2.transform(curr_tp_centroids[np.newaxis],
+				warp_mat)))
+		warped_bb_small = np.squeeze(
+			np.float32(cv2.transform(curr_tp_bb_small[np.newaxis], warp_mat)))
+		warped_bb_large = np.squeeze(
+			np.float32(cv2.transform(curr_tp_bb_large[np.newaxis], warp_mat)))
+		# calculate and populate warped current timepoint df
+		warped_curr_tp_data = curr_tp_data.copy()
+		warped_curr_tp_data[['cX', 'cY']] = warped_centroids
+		warped_curr_tp_data[['bb_x_left', 'bb_y_top']] = \
+			np.round(warped_bb_small).astype(int)
+		warped_curr_tp_data[['bb_width', 'bb_height']] = \
+			np.round(warped_bb_large- warped_bb_small).astype(int)
+	#	print(warp_mat)
+	#	print(curr_tp_data[['cX', 'cY', 'bb_x_left', 'bb_y_top', 'bb_width', 'bb_height']]-warped_curr_tp_data[['cX', 'cY', 'bb_x_left', 'bb_y_top', 'bb_width', 'bb_height']])
+		return(warped_curr_tp_data)
+
 	def _get_overlap(self, curr_timepoint, next_timepoint):
 		'''
 		Makes overlap df of colonies between two timepoints
@@ -147,20 +234,23 @@ class _TimeTracker(object):
 		next_timepoint_data = \
 			self.timecourse_colony_prop_df[
 				self.timecourse_colony_prop_df.timepoint == next_timepoint]
+		# perform image registration
+		curr_timepoint_data_reg = \
+			self._register_timepoints(curr_timepoint_data, next_timepoint_data)
 		# get matrices of absolute differences between x and y
 		# centroids of the colonies in the two timepoints
 		cX_diff_mat = np.abs(np.subtract.outer(
-			curr_timepoint_data['cX'].to_numpy(),
+			curr_timepoint_data_reg['cX'].to_numpy(),
 			next_timepoint_data['cX'].to_numpy()))
 		cY_diff_mat = np.abs(np.subtract.outer(
-			curr_timepoint_data['cY'].to_numpy(),
+			curr_timepoint_data_reg['cY'].to_numpy(),
 			next_timepoint_data['cY'].to_numpy()))
 		# calculate whether the other timepoint's centroid falls
 		# within each respective timepoint's bounding box bounds
 		curr_time_cX_bbox_overlap = (cX_diff_mat.T <
-			curr_timepoint_data['bb_width'].to_numpy()/2).T
+			curr_timepoint_data_reg['bb_width'].to_numpy()/2).T
 		curr_time_cY_bbox_overlap = (cY_diff_mat.T <
-			curr_timepoint_data['bb_height'].to_numpy()/2).T
+			curr_timepoint_data_reg['bb_height'].to_numpy()/2).T
 		next_time_cX_bbox_overlap = \
 			cX_diff_mat < next_timepoint_data['bb_width'].to_numpy()/2
 		next_time_cY_bbox_overlap = \
@@ -191,7 +281,7 @@ class _TimeTracker(object):
 		# labeled with indices of colony in
 		# self.timecourse_colony_prop_df
 		overlap_df = pd.DataFrame(overlap_mat,
-			index = curr_timepoint_data.index,
+			index = curr_timepoint_data_reg.index,
 			columns = next_timepoint_data.index)
 		return(overlap_df)
 
@@ -296,7 +386,7 @@ class _TimeTracker(object):
 		'''
 		Identifies matching colonies between subsequent timepoints
 		Performs equivalent role to ColonyAreas_mod in original matlab
-		code
+		code, but with image registration
 		'''
 		### !!! NEEDS UNITTEST
 		# reset indices in self.timecourse_colony_prop_df to be
