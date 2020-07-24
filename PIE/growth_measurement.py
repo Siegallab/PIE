@@ -20,11 +20,11 @@ class _CompileColonyData(object):
 		self.matrix_save_dir = \
 			analysis_config.phase_col_properties_output_folder
 		# identify indices of each unique timepoint and
-		# unique_tracking_id value in their respective columns
+		# time_tracking_id value in their respective columns
 		self._get_index_locations()
 		# colony properties for which to NOT make property matrices
 		cols_to_exclude = ['timepoint', 'phase', 'xy_pos_idx',
-			'unique_tracking_id', 'main_image_name', 'bb_height', 'bb_width',
+			'time_tracking_id', 'main_image_name', 'bb_height', 'bb_width',
 			'bb_x_left', 'bb_y_top']
 		# colony properties for which to make property matrices
 		self.cols_to_include = \
@@ -34,19 +34,19 @@ class _CompileColonyData(object):
 	def _get_index_locations(self):
 		'''
 		Identifies indices of every unique value of timepoint and
-		unique_tracking_id columns in self.colony_data_tracked_df, which
+		time_tracking_id columns in self.colony_data_tracked_df, which
 		can then be used to set those values in a numpy array with
-		unique_tracking_id rows and timepoint columns
+		time_tracking_id rows and timepoint columns
 		'''
 		self.timepoint_list, self.timepoint_indices = \
 			np.unique(self.colony_data_tracked_df.timepoint.to_numpy(),
 				return_inverse = True)
-		self.unique_tracking_id_list, self.unique_tracking_id_indices = \
-			np.unique(self.colony_data_tracked_df.unique_tracking_id.to_numpy(),
+		self.time_tracking_id_list, self.time_tracking_id_indices = \
+			np.unique(self.colony_data_tracked_df.time_tracking_id.to_numpy(),
 				return_inverse = True)
 		# create a blank matrix of the right dimensions
 		self.empty_col_property_mat = \
-			np.empty((self.unique_tracking_id_list.shape[0],
+			np.empty((self.time_tracking_id_list.shape[0],
 				self.timepoint_list.shape[0]))
 		self.empty_col_property_mat[:] = np.nan
 
@@ -55,7 +55,7 @@ class _CompileColonyData(object):
 		Reads in dataframe of colony properties with information and
 		organizes the data from the column corresponding to col_property
 		into a matrix (as a pandas df) with timepoints as column names
-		and unique_tracking_id as the row names
+		and time_tracking_id as the row names
 		'''
 		# Indexing is ridiculous in pandas so fill in values in a numpy
 		# array, then convert to pandas df and add column and row names
@@ -67,11 +67,11 @@ class _CompileColonyData(object):
 		# create and populate colony property matrix
 		col_property_mat = \
 			self.empty_col_property_mat.copy().astype(property_vals.dtype)
-		col_property_mat[self.unique_tracking_id_indices,
+		col_property_mat[self.time_tracking_id_indices,
 			self.timepoint_indices] = property_vals
 		# convert to pandas df
 		col_property_df = pd.DataFrame(col_property_mat,
-			columns = self.timepoint_list, index = self.unique_tracking_id_list)
+			columns = self.timepoint_list, index = self.time_tracking_id_list)
 		# sort by rows and columns
 		col_property_df.sort_index(inplace = True)
 		col_property_df.reindex(sorted(col_property_df.columns), axis=1)
@@ -89,11 +89,11 @@ class _CompileColonyData(object):
 		'''
 		Returns a dataframe of imaging info (e.g. xy position, phase)
 		'''
-		imaging_info_cols = ['unique_tracking_id', 'xy_pos_idx', 'phase']
+		imaging_info_cols = ['time_tracking_id', 'xy_pos_idx', 'phase']
 		imaging_info_df = \
 			self.colony_data_tracked_df[imaging_info_cols].drop_duplicates()
-		# imaging_info_df should be indexed by unique_tracking_id
-		imaging_info_df.set_index('unique_tracking_id', inplace = True)
+		# imaging_info_df should be indexed by time_tracking_id
+		imaging_info_df.set_index('time_tracking_id', inplace = True)
 		return(imaging_info_df)
 
 	def generate_property_matrices(self):
@@ -171,7 +171,7 @@ class _DistanceCalculator(object):
 		current_data = \
 			self.colony_data_tracked_df[
 				self.colony_data_tracked_df.xy_pos_idx == xy_pos]
-		current_colonies = np.unique(current_data.unique_tracking_id)
+		current_colonies = np.unique(current_data.time_tracking_id)
 		# identify index positions in self.mean_cX and self.mean_cY that
 		# correspond to current_colonies
 		position_bool = np.isin(self.centroid_index, current_colonies)
@@ -433,17 +433,17 @@ class _GrowthMeasurer(object):
 		'''
 		### NEEDS UNITTEST!!!
 		# re-index self.filt_growth_rates, renaming current index to
-		# 'unique_tracking_id', so that indices can be used below to
+		# 'time_tracking_id', so that indices can be used below to
 		# select maximal growth rates
-		self.filt_growth_rates.rename_axis('unique_tracking_id',
+		self.filt_growth_rates.rename_axis('time_tracking_id',
 			inplace = True )
 		self.filt_growth_rates.reset_index(inplace = True)
 		# identify locations of max growth rate for each colony id
 		max_gr_idx = \
-			self.filt_growth_rates.groupby('unique_tracking_id')['gr'].idxmax()
+			self.filt_growth_rates.groupby('time_tracking_id')['gr'].idxmax()
 		filtered_gr = self.filt_growth_rates.loc[max_gr_idx]
-		# re-index with unique_tracking_id
-		filtered_gr.set_index('unique_tracking_id', inplace = True)
+		# re-index with time_tracking_id
+		filtered_gr.set_index('time_tracking_id', inplace = True)
 		# join filtered gr and imaging info gr by their indices
 		combined_filtered_gr = filtered_gr.join(self.imaging_info_df)
 		self.final_gr = combined_filtered_gr[self.columns_to_return]

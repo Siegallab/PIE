@@ -154,12 +154,11 @@ class AnalysisConfig(object):
 		if not os.path.exists(self.phase_output_path):
 			os.makedirs(self.phase_output_path)
 		# create filename for tracked colony properties output file for
-		# current position
+		# current phase
 		self.phase_tracked_properties_write_path = \
 			os.path.join(self.phase_output_path,
 				'col_props_with_tracking_pos.csv')
-		# create filename for growth rate output file for current
-		# position
+		# create filename for growth rate output file for current phase
 		self.phase_gr_write_path = \
 			os.path.join(self.phase_output_path, 'growth_rates.csv')
 
@@ -284,7 +283,7 @@ class AnalysisConfig(object):
 		'''
 		Reads and returns dataframe of tracked phase colony properties
 		output
-		Removes any rows with missing unique_tracking_id (corresponding
+		Removes any rows with missing time_tracking_id (corresponding
 		to colonies that weren't tracked because e.g. they are a minor
 		piece of a broken-up colony)
 		'''
@@ -293,7 +292,7 @@ class AnalysisConfig(object):
 				index_col = 0)
 		colony_properties_tracked_only = \
 			colony_properties_df[
-				colony_properties_df.unique_tracking_id.notna()]
+				colony_properties_df.time_tracking_id.notna()]
 		return(colony_properties_tracked_only)
 
 	def get_image(self, timepoint, channel):

@@ -9,7 +9,7 @@ from numpy.testing import assert_equal
 from pandas.testing import assert_frame_equal
 
 phase_tracked_properties_df = pd.DataFrame({
-	'unique_tracking_id':
+	'time_tracking_id':
 		['growth_1_col2', 'growth_1_col1', 'growth_1_col1', 'growth_1_col2',
 			'growth_1_col1', 'growth_3_col1', 'growth_3_col1'],
 	'timepoint': [1, 1, 3, 4, 4, 3, 5],
@@ -29,9 +29,9 @@ class Test_GetIndexLocations(unittest.TestCase):
 	def test_get_index_locations(self):
 		expected_timepoint_list = np.array([1,3,4,5])
 		expected_timepoint_indices = np.array([0,0,1,2,2,1,3])
-		expected_unique_tracking_id_list = \
+		expected_time_tracking_id_list = \
 			np.array(['growth_1_col1', 'growth_1_col2', 'growth_3_col1'])
-		expected_unique_tracking_id_indices = \
+		expected_time_tracking_id_indices = \
 			np.array([1, 0, 0, 1, 0, 2, 2])
 		expected_empty_col_property_mat = np.array([
 			[np.nan, np.nan, np.nan, np.nan],
@@ -42,10 +42,10 @@ class Test_GetIndexLocations(unittest.TestCase):
 			self.colony_data_compiler.timepoint_list)
 		assert_equal(expected_timepoint_indices,
 			self.colony_data_compiler.timepoint_indices)
-		assert_equal(expected_unique_tracking_id_list,
-			self.colony_data_compiler.unique_tracking_id_list)
-		assert_equal(expected_unique_tracking_id_indices,
-			self.colony_data_compiler.unique_tracking_id_indices)
+		assert_equal(expected_time_tracking_id_list,
+			self.colony_data_compiler.time_tracking_id_list)
+		assert_equal(expected_time_tracking_id_indices,
+			self.colony_data_compiler.time_tracking_id_indices)
 		assert_equal(expected_empty_col_property_mat,
 			self.colony_data_compiler.empty_col_property_mat)
 
@@ -86,7 +86,7 @@ class Test_GenerateImagingInfoDf(unittest.TestCase):
 				'xy_pos_idx': [1, 1, 3],
 				'phase': ['growth', 'growth', 'growth']},
 			index = ['growth_1_col2', 'growth_1_col1', 'growth_3_col1'])
-		expected_imaging_info_df.index.name = 'unique_tracking_id'
+		expected_imaging_info_df.index.name = 'time_tracking_id'
 		test_imaging_info_df = \
 			self.colony_data_compiler.generate_imaging_info_df()
 		assert_frame_equal(expected_imaging_info_df, test_imaging_info_df)
