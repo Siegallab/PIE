@@ -49,3 +49,4 @@ coverage.xml
 *.pdf
 PIE_untracked
 PIE_test_data/out/
+PIE_test_data/OUT/
