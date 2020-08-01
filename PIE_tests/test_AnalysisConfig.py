@@ -15,7 +15,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 	'''
 
 	def setUp(self):
-		self.phase = 'growth'
+		self.phase_num = 1
 		self.hole_fill_area = np.inf
 		self.cleanup = True
 		self.max_proportion_exposed_edge = 0.75
@@ -36,14 +36,17 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		self.im_format = 'individual'
 		self.chosen_for_extended_display_list = [1, 4, 11]
 		self.first_xy_position = 1
-		self.phase_col_properties_output_folder = \
-			'PIE_tests/temp_out/phase_growth/positionwise_colony_properties'
-		self.phase_output_path = \
-			'PIE_tests/temp_out/phase_growth'
+		self.combined_gr_write_path = \
+			'PIE_tests/temp_out/growth_rates_combined.csv'
+		self.combined_tracked_properties_write_path = \
+			'PIE_tests/temp_out/colony_properties_combined.csv'
+		self.col_properties_output_folder = \
+			'PIE_tests/temp_out/positionwise_colony_properties'
+		self.phase_output_path = 'PIE_tests/temp_out/phase_1'
+		self.phase_col_property_mats_output_folder = \
+			'PIE_tests/temp_out/phase_1/positionwise_colony_property_matrices'
 		self.phase_gr_write_path = \
-			'PIE_tests/temp_out/phase_growth/growth_rates.csv'
-		self.phase_tracked_properties_write_path = \
-			'PIE_tests/temp_out/phase_growth/col_props_with_tracking_pos.csv'
+			'PIE_tests/temp_out/phase_1/growth_rates.csv'
 		self.settle_frames = 1
 		self.minimum_growth_time = 4
 		self.growth_window_timepoints = 7
@@ -60,16 +63,23 @@ class TestAnalysisConfigInit(unittest.TestCase):
 
 		expected_analysis_config = \
 			object.__new__(AnalysisConfig)
-		expected_analysis_config.phase = self.phase
+		expected_analysis_config.phase_num = self.phase_num
+		expected_analysis_config.total_xy_position_num = self.total_xy_position_num
+		expected_analysis_config.total_timepoint_num = self.total_timepoint_num
 		expected_analysis_config.hole_fill_area = self.hole_fill_area
 		expected_analysis_config.cleanup = self.cleanup
-		expected_analysis_config.max_proportion_exposed_edge = self.max_proportion_exposed_edge
+		expected_analysis_config.max_proportion_exposed_edge = \
+			self.max_proportion_exposed_edge
 		expected_analysis_config.settle_frames = self.settle_frames
 		expected_analysis_config.minimum_growth_time = self.minimum_growth_time
-		expected_analysis_config.growth_window_timepoints = self.growth_window_timepoints
-		expected_analysis_config.max_area_pixel_decrease = self.max_area_pixel_decrease
-		expected_analysis_config.max_area_fold_decrease = self.max_area_fold_decrease
-		expected_analysis_config.max_area_fold_increase = self.max_area_fold_increase
+		expected_analysis_config.growth_window_timepoints = \
+			self.growth_window_timepoints
+		expected_analysis_config.max_area_pixel_decrease = \
+			self.max_area_pixel_decrease
+		expected_analysis_config.max_area_fold_decrease = \
+			self.max_area_fold_decrease
+		expected_analysis_config.max_area_fold_increase = \
+			self.max_area_fold_increase
 		expected_analysis_config.min_colony_area = self.min_colony_area
 		expected_analysis_config.max_colony_area = self.max_colony_area
 		expected_analysis_config.min_correlation = self.min_correlation
@@ -81,26 +91,32 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.label_order_list = self.label_order_list
 			# TODO: test supplying incomplete list of labels
 		expected_analysis_config.phase_output_path = self.phase_output_path
-		expected_analysis_config.phase_col_properties_output_folder = \
-			self.phase_col_properties_output_folder
-		expected_analysis_config.phase_tracked_properties_write_path = self.phase_tracked_properties_write_path
+		expected_analysis_config.phase_col_property_mats_output_folder = \
+			self.phase_col_property_mats_output_folder
 		expected_analysis_config.phase_gr_write_path = self.phase_gr_write_path
-		expected_analysis_config.total_xy_position_num = self.total_xy_position_num
-		expected_analysis_config.total_timepoint_num = self.total_timepoint_num
+		expected_analysis_config.combined_gr_write_path = \
+			self.combined_gr_write_path
+		expected_analysis_config.combined_tracked_properties_write_path = \
+			self.combined_tracked_properties_write_path
+		expected_analysis_config.col_properties_output_folder = \
+			self.col_properties_output_folder
 		expected_analysis_config.timepoint_list = range(1,11)
 		expected_analysis_config.timepoint_dict = \
 			dict(zip(range(1,11), np.arange(1,11)*3600.0))
 		expected_analysis_config.xy_position_vector = range(1,1001)
-		expected_analysis_config.timepoint_label_prefix = self.timepoint_label_prefix
-		expected_analysis_config.position_label_prefix = self.position_label_prefix
+		expected_analysis_config.timepoint_label_prefix = \
+			self.timepoint_label_prefix
+		expected_analysis_config.position_label_prefix = \
+			self.position_label_prefix
 		expected_analysis_config.first_timepoint = 3600.0
-		expected_analysis_config.main_channel_imagetype = self.main_channel_imagetype
+		expected_analysis_config.main_channel_imagetype = \
+			self.main_channel_imagetype
 		expected_analysis_config.main_channel_label = self.main_channel_label
 		expected_analysis_config.fluor_channel_df = self.fluor_channel_df
 		expected_analysis_config.image_retriever = _IndivImageRetriever()
 		expected_analysis_config.chosen_for_extended_display_list = [1,4,11]
 		# create analysis config
-		test_analysis_config = AnalysisConfig(self.phase, self.hole_fill_area,
+		test_analysis_config = AnalysisConfig(self.phase_num, self.hole_fill_area,
 			self.cleanup, self.max_proportion_exposed_edge, self.input_path,
 			self.output_path, self.im_file_extension, self.label_order_list,
 			self.total_xy_position_num, self.first_timepoint,
@@ -133,13 +149,11 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		[test_attribute_dict.pop(k) for k in special_attributes]
 		self.assertEqual(expected_attribute_dict, test_attribute_dict)
 		# check for existance of phase-specific directories
-		self.assertTrue(os.path.exists(self.phase_col_properties_output_folder))
+		self.assertTrue(os.path.exists(self.phase_col_property_mats_output_folder))
 		self.assertTrue(os.path.exists(self.phase_output_path))
 
-# CHECK DIR EXISTANCE!
-
 	def tearDown(self):
-		shutil.rmtree(self.phase_col_properties_output_folder)
+		shutil.rmtree(self.col_properties_output_folder)
 		shutil.rmtree(self.phase_output_path)
 		shutil.rmtree(self.output_path)
 

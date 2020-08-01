@@ -21,8 +21,8 @@ class TestGetOverlap(unittest.TestCase):
 	'''
 
 	def setUp(self):
-		self.time_tracker = \
-			track_colonies._TimeTracker(timecourse_colony_prop_df)
+		self.colony_tracker = \
+			track_colonies.ColonyTracker()
 
 	def test_get_overlap_t5t6(self):
 		'''
@@ -32,12 +32,12 @@ class TestGetOverlap(unittest.TestCase):
 		confirmation of most rows)
 		'''
 		tp_5_data = \
-			self.time_tracker.colony_prop_df[
-				self.time_tracker.colony_prop_df.timepoint == 5]
+			timecourse_colony_prop_df[
+				timecourse_colony_prop_df.timepoint == 5]
 		# get colony properties at next timepoint
 		tp_6_data = \
-			self.time_tracker.colony_prop_df[
-				self.time_tracker.colony_prop_df.timepoint == 6]
+			timecourse_colony_prop_df[
+				timecourse_colony_prop_df.timepoint == 6]
 		expected_overlap_df = pd.DataFrame(
 			np.array([
 				[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -57,5 +57,5 @@ class TestGetOverlap(unittest.TestCase):
 				dtype = bool),
 			index = tp_5_data.index, columns = tp_6_data.index)
 		test_overlap_df = \
-			self.time_tracker._get_overlap(tp_5_data, tp_6_data)
+			self.colony_tracker._get_overlap(tp_5_data, tp_6_data)
 		assert_frame_equal(expected_overlap_df, test_overlap_df)

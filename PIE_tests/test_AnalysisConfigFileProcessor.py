@@ -22,7 +22,7 @@ class TestProcessAnalysisConfigFile(unittest.TestCase):
 				analysis_config_file)
 		expected_analysis_config = \
 			AnalysisConfig(
-				'growth', float('Inf'), False, 0.75,
+				1, float('Inf'), False, 0.75,
 				'PIE_test_data/IN/SL_170619_2_GR_small', 'PIE_test_data/out/SL_170619_2_GR_small', 'tif',
 				['channel', 'timepoint', 'position'], 1000, 1, 10, 3600, 't',
 				'xy', np.nan,'brightfield', pd.DataFrame(columns = ['fluor_channel_label',
@@ -30,17 +30,17 @@ class TestProcessAnalysisConfigFile(unittest.TestCase):
 				[1, 4, 11], 1, 3, 4, 7, 500.0, 2.0, 6.0, 30, np.inf, 0.9, 0.0, 100.0)
 		expected_analysis_config_obj_df = \
 			pd.DataFrame({'analysis_config': [expected_analysis_config],
-				'postphase_analysis_config': [None]}, index = ['growth'])
+				'postphase_analysis_config': [None]}, index = [1])
 		self.assertListEqual(expected_analysis_config_obj_df.index.tolist(),
 			test_analysis_config_obj_df.index.tolist())
 		self.assertListEqual(expected_analysis_config_obj_df.columns.tolist(),
 			test_analysis_config_obj_df.columns.tolist())
 		self.assertEqual(expected_analysis_config_obj_df.at[
-			'growth', 'postphase_analysis_config'],
+			1, 'postphase_analysis_config'],
 			test_analysis_config_obj_df.at[
-				'growth', 'postphase_analysis_config'])
+				1, 'postphase_analysis_config'])
 		test_analysis_config = \
-			test_analysis_config_obj_df.at['growth', 'analysis_config']
+			test_analysis_config_obj_df.at[1, 'analysis_config']
 		test_attribute_dict = vars(test_analysis_config)
 		expected_attribute_dict = vars(expected_analysis_config)
 		# check special attributes

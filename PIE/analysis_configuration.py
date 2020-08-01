@@ -59,7 +59,7 @@ class AnalysisConfig(object):
 	'''
 	Handles experimental configuration details
 	'''
-	def __init__(self, phase, hole_fill_area, cleanup,
+	def __init__(self, phase_num, hole_fill_area, cleanup,
 		max_proportion_exposed_edge, input_path, output_path, im_file_extension,
 		label_order_list, total_xy_position_num, first_timepoint,
 		total_timepoint_num, timepoint_spacing, timepoint_label_prefix,
@@ -73,7 +73,7 @@ class AnalysisConfig(object):
 		Reads setup_file and creates analysis configuration
 		'''
 		# specify phase
-		self.phase = phase
+		self.phase_num = phase_num
 		# max xy position label and timepoint number
 		self.total_xy_position_num = int(total_xy_position_num)
 		self.total_timepoint_num = int(total_timepoint_num)
@@ -111,8 +111,8 @@ class AnalysisConfig(object):
 			raise ValueError(
 				'Label order list must consist of timepoint, channel, and ' +
 				'position, even if not all these are used')
-		# set up folder to save output of positionwise phase results
-		self._create_phase_output()
+		# set up folder to save outputs
+		self._create_output_paths()
 		# set up dictionary of timepoint times
 		self._set_up_timevector(timepoint_spacing, first_timepoint)
 		# set up list of possible xy positions
@@ -139,6 +139,21 @@ class AnalysisConfig(object):
 		self.chosen_for_extended_display_list = chosen_for_extended_display_list
 		self._run_parameter_tests()
 
+	def _create_output_paths(self):
+		'''
+		Creates output paths for phase data, and sets output paths for
+		growth rate and colony property dataframes
+		'''
+		self._create_phase_output()
+		self.combined_gr_write_path = \
+			os.path.join(self.output_path, 'growth_rates_combined.csv')
+		self.combined_tracked_properties_write_path = \
+			os.path.join(self.output_path, 'colony_properties_combined.csv')
+		self.col_properties_output_folder = \
+			os.path.join(self.output_path, 'positionwise_colony_properties')
+		if not os.path.exists(self.col_properties_output_folder):
+			os.makedirs(self.col_properties_output_folder)
+
 	def _create_phase_output(self):
 		'''
 		Creates folder for results of colony properties across phases,
@@ -146,18 +161,14 @@ class AnalysisConfig(object):
 		'''
 		# NEED UNITTEST FOR JUST THIS METHOD?
 		self.phase_output_path = os.path.join(self.output_path,
-			('phase_' + self.phase))
-		self.phase_col_properties_output_folder = \
-			os.path.join(self.phase_output_path, 'positionwise_colony_properties')
-		if not os.path.exists(self.phase_col_properties_output_folder):
-			os.makedirs(self.phase_col_properties_output_folder)
+			('phase_' + str(self.phase_num)))
 		if not os.path.exists(self.phase_output_path):
 			os.makedirs(self.phase_output_path)
-		# create filename for tracked colony properties output file for
-		# current phase
-		self.phase_tracked_properties_write_path = \
+		self.phase_col_property_mats_output_folder = \
 			os.path.join(self.phase_output_path,
-				'col_props_with_tracking_pos.csv')
+				'positionwise_colony_property_matrices')
+		if not os.path.exists(self.phase_col_property_mats_output_folder):
+			os.makedirs(self.phase_col_property_mats_output_folder)
 		# create filename for growth rate output file for current phase
 		self.phase_gr_write_path = \
 			os.path.join(self.phase_output_path, 'growth_rates.csv')
@@ -194,7 +205,8 @@ class AnalysisConfig(object):
 
 	def _find_first_timepoint(self):
 		'''
-		Finds and writes the time of the first timepoint of this imaging phase
+		Finds and writes the time of the first timepoint of this imaging
+		phase
 		'''
 		### !!! NEEDS UNITTEST
 		first_timepoint_file = \
@@ -279,7 +291,23 @@ class AnalysisConfig(object):
 				file_label = file_label + current_point_label_dict[label_key]
 		return(file_label)
 
-	def get_colony_data_tracked_df(self):
+	def get_position_colony_data_tracked_df(self, remove_untracked = False):
+		'''
+		Reads and returns tracked colony properties for the current
+		xy position
+		If remove_untracked is true, removes any rows with missing
+		time_tracking_id (corresponding to colonies that weren't tracked
+		because e.g. they are a minor piece of a broken-up colony)
+		'''
+		pos_tracked_col_prop_df = \
+			pd.read_parquet(self.tracked_properties_write_path)
+		if remove_untracked:
+			pos_tracked_col_prop_df = \
+				pos_tracked_col_prop_df[
+					pos_tracked_col_prop_df.time_tracking_id.notna()]
+		return(pos_tracked_col_prop_df)
+
+	def get_colony_data_tracked_df(self, remove_untracked = False):
 		'''
 		Reads and returns dataframe of tracked phase colony properties
 		output
@@ -287,13 +315,16 @@ class AnalysisConfig(object):
 		to colonies that weren't tracked because e.g. they are a minor
 		piece of a broken-up colony)
 		'''
-		colony_properties_df = \
-			pd.read_csv(self.phase_tracked_properties_write_path,
+		colony_properties_df_total = \
+			pd.read_csv(self.combined_tracked_properties_write_path,
 				index_col = 0)
-		colony_properties_tracked_only = \
-			colony_properties_df[
-				colony_properties_df.time_tracking_id.notna()]
-		return(colony_properties_tracked_only)
+		colony_properties_df_phase = colony_properties_df_total[
+			colony_properties_df_total.phase_num == self.phase_num]
+		if remove_untracked:
+			colony_properties_df_phase = \
+				colony_properties_df_phase[
+					colony_properties_df_phase.time_tracking_id.notna()]
+		return(colony_properties_df_phase)
 
 	def get_image(self, timepoint, channel):
 		'''
@@ -316,7 +347,6 @@ class AnalysisConfig(object):
 				image_time = self.timepoint_dict[timepoint]
 			else:
 				image_time = os.path.getmtime(im_filepath)
-			# update minimum image_time of phase
 		return(image, im_label, image_time)
 
 	def set_xy_position(self, xy_position_idx):
@@ -326,13 +356,19 @@ class AnalysisConfig(object):
 		### !!! NEEDS UNITTEST
 		if xy_position_idx not in self.xy_position_vector:
 			raise IndexError('Unexpected xy position index ' + xy_position_idx +
-				' in phase ' + self.phase)
+				' in phase ' + str(self.phase_num))
 		# current position being imaged
 		self.xy_position_idx = xy_position_idx
 		# determine wether non-essential info (threshold plot outputs,
 		# boundary images, etc) need to be saved for this experiment
 		self.save_extra_info = \
 			xy_position_idx in self.chosen_for_extended_display_list
+		# create filename for tracked colony properties output file for
+		# current xy position
+		self.tracked_properties_write_path = \
+			os.path.join(self.col_properties_output_folder,
+				'xy_' + str(xy_position_idx) + 
+				'_col_props_with_tracking_pos.parquet')
 
 class AnalysisConfigFileProcessor(object):
 	'''
@@ -367,6 +403,25 @@ class AnalysisConfigFileProcessor(object):
 					output_val = val_str
 		return(output_val)
 
+	def _check_global_vals(self):
+		'''
+		Checks that parameters in config file related to number of
+		imaging positions, analysis output, and format in which input
+		images are saved apply across all phases (i.e. have PhaseNum
+		set to 'all')
+		'''
+		### !!! NEEDS UNITTEST!
+		required_global_params = \
+			['output_path', 'im_format', 'first_xy_position',
+			'total_xy_position_num', 'extended_display_positions']
+		global_parameters = \
+			self.analysis_config_df.Parameter[
+				self.analysis_config_df.PhaseNum == 'all']
+		if not set(required_global_params).issubset(set(global_parameters)):
+			raise ValueError(
+				'The following parameters must have PhaseNum set to "all": ' +
+				', '.join(required_global_params))
+
 	def _process_parameter_vals(self, val_str):
 		'''
 		Returns val_str split by semicolon into list only if semicolon
@@ -384,16 +439,16 @@ class AnalysisConfigFileProcessor(object):
 
 	def _define_phases(self):
 		'''
-		Identifies the phases in the experiment
-		Phases are treated as lower-case strings
+		Identifies the phase numbers in the experiment
+		Phases are treated as ints
 		'''
 		# NEED UNITTEST FOR JUST THIS METHOD?
-		unique_phases = self.analysis_config_df.Phase.astype(str).unique()
+		unique_phases = self.analysis_config_df.PhaseNum.astype(str).unique()
 		# only keep phases that are not "all"
-		self.phases = [phase.lower() for phase in unique_phases if
+		self.phases = [int(phase.lower()) for phase in unique_phases if
 			phase.lower() != 'all']
 
-	def _create_analysis_config(self, phase, phase_conf_ser):
+	def _create_analysis_config(self, phase_num, phase_conf_ser):
 		'''
 		Creates AnalysisConfig object based on phase_conf_ser, the
 		series corresponding to the Value column of the subset of
@@ -410,7 +465,7 @@ class AnalysisConfigFileProcessor(object):
 		elif any(np.isnan(list_of_fluor_properties)):
 			raise ValueError(
 				'fluor_channel_label, fluor_channel_column_nam, or ' +
-				'fluor_threshold is not set for phase ' + phase +
+				'fluor_threshold is not set for phase ' + phase_num +
 				'; these values must either all be left blank, or all filled')
 		else:
 			fluor_channel_df = \
@@ -424,7 +479,7 @@ class AnalysisConfigFileProcessor(object):
 			timepoint_spacing = phase_conf_ser.timepoint_spacing
 		# create AnalysisConfig object
 		current_analysis_config = AnalysisConfig(
-			phase,
+			phase_num,
 			phase_conf_ser.hole_fill_area,
 			phase_conf_ser.cleanup,
 			phase_conf_ser.max_proportion_exposed_edge,
@@ -457,21 +512,22 @@ class AnalysisConfigFileProcessor(object):
 			phase_conf_ser.min_neighbor_dist)
 		return(current_analysis_config)
 
-	def _get_phase_data(self, phase):
+	def _get_phase_data(self, phase_num):
 		'''
-		Extracts data corresponding to phase in Phase column from
+		Extracts data corresponding to phase_num in PhaseNum column from
 		self.analysis_config_df into a pandas series, changing index
 		to Parameter column
-		phase is a lower-case string
+		phase_num is an int or the string 'all'
 		'''
 		# NEED UNITTEST FOR JUST THIS METHOD?
 		# extract data
 		current_phase_data = \
-			self.analysis_config_df[self.analysis_config_df.Phase.str.lower() == phase]
+			self.analysis_config_df[
+				self.analysis_config_df.PhaseNum.str.lower() == str(phase_num)]
 		# check that each parameter is specified only once in this phase
 		if not current_phase_data.Parameter.is_unique:
 			raise ValueError('There is a Parameter value listed in phase ' +
-				phase + ' of the setup file that is not unique.')
+				phase_num + ' of the setup file that is not unique.')
 		# set index to parameter and extract series corresponding to values
 		current_phase_data.index = current_phase_data.Parameter
 		current_phase_series = current_phase_data.Value
@@ -510,7 +566,9 @@ class AnalysisConfigFileProcessor(object):
 			print(missing_fields)
 			print(parent_setup_ser)
 			print(current_setup_ser)
-			raise IndexError('Missing required fields in one of the previous phase setup series')
+			raise IndexError(
+				'Missing required fields in one of the previous ' + 
+				'phase setup series')
 		parent_subset_ser_to_use = parent_setup_ser[list(reqd_parents_fields)]
 		phase_conf_ser = pd.concat([parent_subset_ser_to_use, current_setup_ser])
 		return(phase_conf_ser)
@@ -528,10 +586,10 @@ class AnalysisConfigFileProcessor(object):
 		# create a phase setup series containing the parameters that
 		# apply to all phases
 		global_parent_setup = self._get_phase_data('all')
-		for phase in self.phases:
+		for phase_num in self.phases:
 			# get phase setup series containing the parameters that
-			# apply only to the current phase
-			current_phase_setup = self._get_phase_data(phase)
+			# apply only to the current phase_num
+			current_phase_setup = self._get_phase_data(phase_num)
 			if not np.isnan(current_phase_setup.parent_phase):
 				# if the current phase has a 'parent' phase, combine
 				# that parent phase with the global parent setup to
@@ -548,7 +606,7 @@ class AnalysisConfigFileProcessor(object):
 				# parent series (i.e. where phase is listed as 'all')
 				combined_parent_setup = global_parent_setup
 				# set where to store object
-				storage_phase = phase
+				storage_phase = phase_num
 				config_type = 'analysis_config'
 			# create setup series based on parent phase(s) and current
 			# phase
@@ -556,7 +614,7 @@ class AnalysisConfigFileProcessor(object):
 				self._create_phase_conf_ser(combined_parent_setup,
 					current_phase_setup)
 			# create AnalysisConfig object from current phase setup ser
-			current_analysis_config = self._create_analysis_config(phase,
+			current_analysis_config = self._create_analysis_config(phase_num,
 				current_phase_combined_setup)
 			# store AnalysisConfig object in pandas df
 			analysis_config_obj_df.at[storage_phase, config_type] = \
@@ -572,15 +630,18 @@ class AnalysisConfigFileProcessor(object):
 		# convert strings to int where possible, and convert values
 		# separated by semicolon to lists
 		self.analysis_config_df = pd.read_csv(analysis_config_path,
+			dtype = {'PhaseNum': str},
 			converters =
 				{'Value': self._process_parameter_vals})
 		self.analysis_config_df.dropna(how="all", inplace=True)
+		# check that phase for global parameters correctly specified
+		self._check_global_vals()
 		# get list of elements chosen for extended display
 		self.chosen_for_extended_display_list = \
 			self.analysis_config_df[
 				(self.analysis_config_df['Parameter'] == 
 					'extended_display_positions') &
-					(self.analysis_config_df['Phase'].str.lower() ==
+					(self.analysis_config_df['PhaseNum'].str.lower() ==
 						'all')].Value.iloc[0]
 		if not self.chosen_for_extended_display_list:
 			self.chosen_for_extended_display_list = []

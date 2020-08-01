@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from PIE import image_properties
 
-class _SinglePhaseSinglePosCompiler(object):
+class SinglePhaseSinglePosCompiler(object):
 	'''
 	Compiles and analyzes results for a single experimental phase at a
 	single position
@@ -40,7 +40,7 @@ class _SinglePhaseSinglePosCompiler(object):
 				fluor_row.fluor_channel_column_name,
 				fluor_row.fluor_threshold)
 
-	def _analyze_timepoints(self):
+	def analyze_timepoint_ims(self):
 		'''
 		Runs colony edge detection on main (brightfield/phase contrast)
 		images from each timepoint, measures any fluorescent data
@@ -85,47 +85,17 @@ class _SinglePhaseSinglePosCompiler(object):
 					self.analysis_config.xy_position_idx
 				colony_property_df['timepoint'] = timepoint
 				colony_property_df['time_in_seconds'] = image_time
-				colony_property_df['phase'] = self.analysis_config.phase
+				colony_property_df['phase_num'] = self.analysis_config.phase_num
 				# append current timepoint to combined info
 				colony_prop_across_time_list.append(colony_property_df)
 		# concatenate all colony property dataframes to single list
 		if colony_prop_across_time_list:
 			phase_colony_data_untracked = pd.concat(colony_prop_across_time_list)
 		else:
-			phase_colony_data_untracked = None
+			phase_colony_data_untracked = pd.DataFrame()
 		return(phase_colony_data_untracked)
 
-	def _write_position_phase_data_binary(self, phase_colony_data_tracked):
-		'''
-		Writes positions phase data to parquet file
-		'''
-		output_file = \
-			os.path.join(
-				self.analysis_config.phase_col_properties_output_folder,
-				('xy_' + str(self.analysis_config.xy_position_idx) + 
-					'_tracked_phase_data.parquet'))
-		phase_colony_data_tracked.to_parquet(output_file)
-
-	def analyze_phase_data(self, write_phase_data = False):
-		'''
-		Performs analysis on current phase, and returns phase colony
-		data with tracking info
-		'''
-		# process all images and collect colony properties, including
-		# fluorescence if applicable
-		phase_colony_data_untracked = self._analyze_timepoints()
-		if phase_colony_data_untracked is None:
-			phase_colony_data_tracked = None
-		else:
-			# identify colony matches through time
-			time_tracker = _TimeTracker(phase_colony_data_untracked)
-			phase_colony_data_tracked = time_tracker.match_and_track()
-			if write_phase_data:
-				self._write_position_phase_data_binary(
-					phase_colony_data_tracked)
-		return(phase_colony_data_tracked)
-
-class _ColonyTracker(object):
+class ColonyTracker(object):
 	'''
 	Generic class for tracking colonies based on dataframe of colony
 	properties in an image and the subsequent image
@@ -133,30 +103,19 @@ class _ColonyTracker(object):
 	when it comes to colony splitting/merging
 	In addition, dealing with filters by min_growth_time, settle_frames,
 	etc is outsourced to growth rate functions
+	IMPORTANT:
+	tracking IDs created within this class are only unique
+	for the colony property dataframes being passed to it (which may
+	be only for a single xy position, etc), NOT across the whole
+	experiment
 	'''
 	# TODO: CURRENTLY DOESN'T HANDLE SATELLITES!
 	#	need to check how those are *really* dealt with in original code
 	#	it kind of seems like if they merge with main colony, it counts
 	#	as a merge?
-	def __init__(self, colony_prop_df):
-		self.colony_prop_df = colony_prop_df
-		# reset indices in self.colony_prop_df to be consecutive
-		# integers, to make sure each row has a unique index that can be
-		# used as an identifier
-		self.colony_prop_df.reset_index(inplace = True, drop=True)
-		self._init_tracking_col()
-		# check that tracking column correctly initalized
-		if not self.tracking_col_name in self.colony_prop_df or \
-			self.colony_prop_df[self.tracking_col_name].isnull().values.all():
-			raise ValueError('Tracking column ' + self.tracking_col_name + \
-				' not correctly initalized')
-
-	def _init_tracking_col(self):
-		'''
-		Initializes the tracking column by assigning a unique tracking
-		ID to each colony in self.colony_prop_df
-		'''
-		pass
+	def __init__(self):
+		# initialize dictionary for time-tracked col property dfs
+		self.single_phase_col_prop_df_dict = dict()
 
 	def _get_overlap(self, curr_im_data, next_im_data):
 		'''
@@ -251,8 +210,8 @@ class _ColonyTracker(object):
 			match_df['curr_im_colony'].isin(colonies_that_merge)
 		merged_colonies = match_df.next_im_colony[colonies_that_merge_bool]
 		# set self.tracking_col_name to NaN for merged colonies in
-		# self.colony_prop_df
-		self.colony_prop_df.loc[
+		# self.active_col_prop_df
+		self.active_col_prop_df.loc[
 			merged_colonies, self.tracking_col_name] = np.nan
 		# return a version of match_df that is missing merged colonies
 		match_df_nonmerging = match_df[~colonies_that_merge_bool]
@@ -288,7 +247,7 @@ class _ColonyTracker(object):
 			curr_match_df = \
 				match_df_nonmerging[match_df_nonmerging.curr_im_colony ==
 					curr_colony].copy()
-			current_match_areas = self.colony_prop_df.loc[
+			current_match_areas = self.active_col_prop_df.loc[
 				curr_match_df.next_im_colony.to_list(), 'area'].to_numpy()
 			curr_match_df['area'] = current_match_areas
 			match_to_keep = \
@@ -306,7 +265,7 @@ class _ColonyTracker(object):
 	def _track_single_im_pair(self, curr_im_data, next_im_data):
 		'''
 		Performs full tracking between curr_im_data and next_im_data,
-		and records results in self.colony_prop_df
+		and records results in self.active_col_prop_df
 		'''
 		# identify all matches between colonies in the two images
 		match_df = self._id_colony_match(curr_im_data, next_im_data)
@@ -319,102 +278,210 @@ class _ColonyTracker(object):
 		# for colonies with a direct match between subsequent
 		# timepoints, set self.tracking_col_name in next_timepoint to the
 		# self.tracking_col_name from current_timepoint
-		self.colony_prop_df.loc[
+		self.active_col_prop_df.loc[
 			match_df_filtered.next_im_colony, self.tracking_col_name] = \
-			self.colony_prop_df.loc[
+			self.active_col_prop_df.loc[
 				match_df_filtered.curr_im_colony,
 					self.tracking_col_name].values
 
-class _TimeTracker(_ColonyTracker):
-	'''
-	Tracks colonies through time based on dataframe of colony properties
-	at each timepoint
-	The details of the tracking differ from the original matlab code
-	when it comes to colony splitting/merging
-	In addition, dealing with filters by min_growth_time, settle_frames,
-	etc is outsourced to growth rate functions
-	'''
-	# TODO: CURRENTLY DOESN'T HANDLE SATELLITES!
-	#	need to check how those are *really* dealt with in original code
-	#	it kind of seems like if they merge with main colony, it counts
-	#	as a merge?
-
-	def __init__(self, timecourse_colony_prop_df):
-		self._timepoints = \
-			np.sort(np.unique(timecourse_colony_prop_df.timepoint))
-		self.tracking_col_name = 'time_tracking_id'
-		super(_TimeTracker, self).__init__(timecourse_colony_prop_df)
-
-	def _init_tracking_col(self):
-		'''
-		Initializes the tracking column by assigning a unique tracking
-		ID to each colony in self.colony_prop_df
-		'''
-		self.colony_prop_df[self.tracking_col_name] = \
-			["phase_{}_xy{}_col{}".format(phase, xy_pos, col_id) for \
-				phase, xy_pos, col_id in \
-				zip(self.colony_prop_df.phase,
-					self.colony_prop_df.xy_pos_idx,
-					self.colony_prop_df.index)]
-
-	def match_and_track(self):
+	def match_and_track_across_time(self, phase_num, colony_prop_df):
 		'''
 		Identifies matching colonies between subsequent timepoints
 		Performs equivalent role to ColonyAreas_mod in original matlab
 		code, but see comments on class for differences
 		'''
 		### !!! NEEDS UNITTEST
-		# loop through timepoints
-		for curr_timepoint, next_timepoint in \
-			zip(self._timepoints[:-1], self._timepoints[1:]):
-			# get df of which colony in curr_timepoint matches which
-			# colony in next_timepoint
-			###
-			# get colony properties at current timepoint
-			curr_im_data = \
-				self.colony_prop_df[
-					self.colony_prop_df.timepoint == curr_timepoint]
-			# get colony properties at next timepoint
-			next_im_data = \
-				self.colony_prop_df[
-					self.colony_prop_df.timepoint == next_timepoint]
-			self._track_single_im_pair(curr_im_data, next_im_data)
-		return(self.colony_prop_df)
+		# set the tracking column we'll be using to track across time
+		self.tracking_col_name = 'time_tracking_id'
+		# set active_col_prop_df to colony_prop_df
+		self.active_col_prop_df = colony_prop_df.copy()
+		# reset indices in self.active_col_prop_df to be consecutive
+		# integers, to make sure each row has a unique index that can be
+		# used as an identifier
+		self.active_col_prop_df.reset_index(inplace = True, drop=True)
+		# identify xy positions
+		_xy_positions = \
+			np.sort(np.unique(self.active_col_prop_df.xy_pos_idx))
+		# identify timepoints
+		_curr_phase_timepts = \
+			np.sort(np.unique(self.active_col_prop_df.timepoint))
+		# populate tracking column with unique IDs
+		self.active_col_prop_df[self.tracking_col_name] = \
+		self.active_col_prop_df[self.tracking_col_name] = \
+			["phase_{}_xy{}_col{}".format(phase_num, xy_pos, col_id) for \
+				phase_num, xy_pos, col_id in \
+				zip(self.active_col_prop_df.phase_num,
+					self.active_col_prop_df.xy_pos_idx,
+					self.active_col_prop_df.index)]
+		# convert time tracking id column to categorical
+		self.active_col_prop_df[self.tracking_col_name] = \
+			self.active_col_prop_df[self.tracking_col_name].astype(
+				'category')
+		if len(_curr_phase_timepts) > 1:
+			# loop through xy positions
+			for curr_xy_pos in _xy_positions:
+				# loop through timepoints
+				for curr_timepoint, next_timepoint in \
+					zip(_curr_phase_timepts[:-1], _curr_phase_timepts[1:]):
+					# get df of which colony in curr_timepoint matches
+					# which colony in next_timepoint
+					###
+					# get colony properties at current timepoint
+					curr_im_data = \
+						self.active_col_prop_df[
+							(self.active_col_prop_df.timepoint ==
+								curr_timepoint) &
+							(self.active_col_prop_df.xy_pos_idx ==
+								curr_xy_pos)]
+					# get colony properties at next timepoint
+					next_im_data = \
+						self.active_col_prop_df[
+							(self.active_col_prop_df.timepoint ==
+								next_timepoint) &
+							(self.active_col_prop_df.xy_pos_idx ==
+								curr_xy_pos)]
+					self._track_single_im_pair(curr_im_data, next_im_data)
+		# add data for this phase to dict
+		self.single_phase_col_prop_df_dict[phase_num] = \
+			self.active_col_prop_df.copy()
+		return(self.active_col_prop_df)
 
-def track_single_phase_single_position(xy_pos, analysis_config,
-	postphase_analysis_config, write_phase_data = False):
-	'''
-	Runs colony property measurements and tracking on a single position
-	for a single phase
-	'''
-	# set xy position in analysis config and, if it exists,
-	# postphase_analysis_config
-	analysis_config.set_xy_position(xy_pos)
-	if postphase_analysis_config != None:
-		postphase_analysis_config.set_xy_position(xy_pos)
-	# run image analysis on each timepoint at xy_pos for the phases
-	# represented in analysis_config and postphase_analysis_config, and
-	# track the identified colonies through time
-	single_phase_single_pos_compiler = \
-		_SinglePhaseSinglePosCompiler(xy_pos, analysis_config,
-			postphase_analysis_config)
-	phase_colony_data_tracked = \
-		single_phase_single_pos_compiler.analyze_phase_data(write_phase_data)
-	return(phase_colony_data_tracked)
+	def match_and_track_across_phases(self):
+		'''
+		Identifies matching colonies between last timepoint of each
+		phase and the first timepoint of the subsequent phase
+		Performs equivalent role to ColonyAreas_mod in original matlab
+		code, but see comments on class for differences
+		'''
+		### !!! NEEDS UNITTEST
+		# concatenate time-tracked colony property dfs to create df for
+		# tracking colonies across phases
+		indiv_phase_dfs = list(self.single_phase_col_prop_df_dict.values())
+		if indiv_phase_dfs:
+			self.active_col_prop_df = pd.concat(indiv_phase_dfs, sort = False)
+			# set the tracking column we'll be using to track across phases
+			self.tracking_col_name = 'cross_phase_tracking_id'
+			# reset indices in self.active_col_prop_df to be consecutive
+			# integers, to make sure each row has a unique index that can be
+			# used as an identifier
+			self.active_col_prop_df.reset_index(inplace = True, drop=True)
+			# identify xy positions
+			_xy_positions = \
+				np.sort(np.unique(self.active_col_prop_df.xy_pos_idx))
+			# identify phases
+			phase_list = \
+				np.sort(np.array(
+					self.single_phase_col_prop_df_dict.keys()))
+			# check that phases are unique
+			if np.unique(phase_list).size < phase_list.size:
+				raise IndexError('phase list contains non-unique items: ' +
+					np.array_str(phase_list))
+			# populate tracking column with unique IDs
+			# it's important to use time_tracking_id within each phase,
+			# so that cross-phase tracking remains consistent across all
+			# timepoints within a phase
+			# prevents any colonies that merged in a previous phase from
+			# being tracked in a later phase
+			self.active_col_prop_df['cross_phase_tracking_id'] = \
+				self.active_col_prop_df['time_tracking_id']
+			# convert cross-phase tracking id column to categorical
+			self.active_col_prop_df[self.tracking_col_name] = \
+				self.active_col_prop_df[self.tracking_col_name].astype(
+					'category')
+			if len(phase_list) > 1:
+				# loop through timepoints
+				for curr_phase, next_phase in \
+					zip(phase_list[:-1], phase_list[1:]):
+					# get df of which colony in the last tracked
+					# timepoint of curr_phase matches which colony in
+					# the last tracked timepoint of next_phase
+					###
+					# get phase data
+					curr_phase_data = self.active_col_prop_df[
+						self.active_col_prop_df.phase_num == curr_phase]
+					next_phase_data = self.active_col_prop_df[
+						self.active_col_prop_df.phase_num == next_phase]
+					# find timepoints
+					curr_phase_last_tp = np.max(curr_phase_data.timepoint)
+					next_phase_first_tp = np.min(curr_phase_data.timepoint)
+					# loop through xy positions
+					for curr_xy_pos in self._xy_positions:
+						# get colony properties at current timepoint
+						curr_im_data = curr_phase_data[
+							(curr_phase_data.timepoint == curr_phase_last_tp) &
+							(curr_phase_data.xy_pos_idx == curr_xy_pos)]
+						# get colony properties at next timepoint
+						next_im_data = next_phase_data[
+							(next_phase_data.timepoint == next_phase_first_tp) &
+							(next_phase_data.xy_pos_idx == curr_xy_pos)]
+						self._track_single_im_pair(curr_im_data, next_im_data)
+			self.cross_phase_tracked_col_prop_df = \
+				self.active_col_prop_df.copy()
+		else:
+			# columns need to be included type to save to parquet later
+			self.cross_phase_tracked_col_prop_df = \
+				pd.DataFrame(columns = 
+					['time_tracking_id', 'phase_num', 'xy_pos_idx',
+						'cross_phase_tracking_id'])
+		return(self.cross_phase_tracked_col_prop_df)
 
-def track_single_phase_all_positions(analysis_config, postphase_analysis_config):
-	phase_data_tracked_list = []
-	for xy_pos in analysis_config.xy_position_vector:
-		# track colonies in current phase and at current position
-		# don't keep output dataframe since it will be written to a
-		# file anyways
-		curr_pos_phase_colony_data_tracked = \
-			track_single_phase_single_position(xy_pos, analysis_config,
-				postphase_analysis_config)
-		phase_data_tracked_list.append(curr_pos_phase_colony_data_tracked)
-	phase_data_tracked_col_prop_df = \
-		pd.concat(phase_data_tracked_list, sort = False)
-	phase_data_tracked_col_prop_df.to_csv(
-		analysis_config.phase_tracked_properties_write_path)
+def generate_match_key_df(cross_phase_tracked_col_prop_df):
+	'''
+	Generates a dataframe that can be used to identify cross phase
+	tracking IDs for any other dataframe with xy_pos_idx,
+	phase_num, and time_tracking_id info
+	'''
+	if cross_phase_tracked_col_prop_df.empty:
+		match_key_df = pd.DataFrame()
+	else:
+		match_key_df = \
+			cross_phase_tracked_col_prop_df[
+				['time_tracking_id', 'xy_pos_idx', 'phase_num',
+				'cross_phase_tracking_id']
+				].drop_duplicates().reset_index(drop = True)
+		match_key_df.dropna(subset=['cross_phase_tracking_id'], inplace = True)
+	return(match_key_df)
+
+def track_colonies_single_pos(xy_pos_idx, analysis_config_obj_df = None,
+	analysis_config_file = None):
+	'''
+	Runs image analysis and colony tracking for xy_pos_idx
+	Takes either analysis_config_obj_df or analysis_config_file as arg
+	'''
+	# check that only analysis_config_obj_df or
+	# analysis_config_file is supplied
+	if (analysis_config_obj_df is None) == (analysis_config_file is None):
+		raise ValueError(
+			'Must supply EITHER analysis_config_obj_df OR ' +
+			'analysis_config_file argument')
+	if analysis_config_obj_df is None:
+		analysis_config_obj_df = \
+			analysis_configuration.set_up_analysis_config(analysis_config_file)
+	# set up colony tracker
+	colony_tracker = ColonyTracker()
+	# track colonies within each phase
+	for phase_num in analysis_config_obj_df.index:
+		analysis_config = \
+			analysis_config_obj_df.at[phase_num, 'analysis_config']
+		postphase_analysis_config = \
+			analysis_config_obj_df.at[phase_num, 'postphase_analysis_config']
+		# perform image analysis on all timepoints for current phase
+		# and position
+		timelapse_data_compiler = SinglePhaseSinglePosCompiler(
+			xy_pos_idx, analysis_config, postphase_analysis_config)
+		untracked_phase_pos_data = \
+			timelapse_data_compiler.analyze_timepoint_ims()
+		if not untracked_phase_pos_data.empty:
+			# track colonies across time
+			colony_tracker.match_and_track_across_time(
+				phase_num, untracked_phase_pos_data)
+	# track colonies across phases
+	time_and_phase_tracked_pos_data = \
+		colony_tracker.match_and_track_across_phases()
+	# write phase-tracked file to parquet format
+	time_and_phase_tracked_pos_data.to_parquet(
+		analysis_config.tracked_properties_write_path)
+	return(time_and_phase_tracked_pos_data)
+
 
 

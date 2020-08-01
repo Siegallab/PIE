@@ -7,6 +7,7 @@ Measures growth across time
 import os
 import numpy as np
 import pandas as pd
+from io import BytesIO
 from PIE import track_colonies, analysis_configuration, colony_filters
 
 class _CompileColonyData(object):
@@ -14,18 +15,17 @@ class _CompileColonyData(object):
 	Compiles tracked colony data from each position into matrices of
 	colony properties across time
 	'''
-	def __init__(self, analysis_config):
-		self.colony_data_tracked_df = \
-			analysis_config.get_colony_data_tracked_df()
+	def __init__(self, analysis_config, colony_data_tracked_df):
+		self.colony_data_tracked_df = colony_data_tracked_df
 		self.matrix_save_dir = \
-			analysis_config.phase_col_properties_output_folder
+			analysis_config.phase_col_property_mats_output_folder
 		# identify indices of each unique timepoint and
 		# time_tracking_id value in their respective columns
 		self._get_index_locations()
 		# colony properties for which to NOT make property matrices
-		cols_to_exclude = ['timepoint', 'phase', 'xy_pos_idx',
+		cols_to_exclude = ['timepoint', 'phase_num', 'xy_pos_idx',
 			'time_tracking_id', 'main_image_name', 'bb_height', 'bb_width',
-			'bb_x_left', 'bb_y_top']
+			'bb_x_left', 'bb_y_top', 'cross_phase_tracking_id']
 		# colony properties for which to make property matrices
 		self.cols_to_include = \
 			list(set(self.colony_data_tracked_df.columns.to_list()) -
@@ -87,9 +87,10 @@ class _CompileColonyData(object):
 
 	def generate_imaging_info_df(self):
 		'''
-		Returns a dataframe of imaging info (e.g. xy position, phase)
+		Returns a dataframe of imaging info (e.g. xy position, phase_num)
 		'''
-		imaging_info_cols = ['time_tracking_id', 'xy_pos_idx', 'phase']
+		imaging_info_cols = \
+			['cross_phase_tracking_id', 'time_tracking_id', 'xy_pos_idx', 'phase_num']
 		imaging_info_df = \
 			self.colony_data_tracked_df[imaging_info_cols].drop_duplicates()
 		# imaging_info_df should be indexed by time_tracking_id
@@ -123,10 +124,15 @@ class _DistanceCalculator(object):
 	'''
 	Calculates distance from each colony with a growth rate to nearest
 	recognized colony (regardless of whether it was later filtered out)
+	within each phase
 	'''
 	def __init__(self, cX_df, cY_df, analysis_config):
 		self.colony_data_tracked_df = \
-			analysis_config.get_colony_data_tracked_df()
+			analysis_config.get_colony_data_tracked_df(
+				remove_untracked = True)
+		if len(np.unique(self.colony_data_tracked_df.phase_num)) > 1:
+			raise IndexError(
+				'Must use single-phase colony property data')
 		self.analysis_config = analysis_config
 		# drop NAs from cX_unfilt_df and cY_unfilt_df
 		cX_filt_df = cX_df.dropna(how = 'all')
@@ -472,14 +478,65 @@ class _GrowthMeasurer(object):
 		self._select_colony_gr()
 		return(self.final_gr)
 
-def measure_growth_rate(analysis_config):
+class _PhaseGRCombiner(object):
+	'''
+	Class that combines gr data across phases
+	'''
+	def __init__(self):
+		self.time_tracked_col_prop_list = []
+		self.gr_df_list = []
+
+	def add_phase_data(self, phase_num, gr_df):
+		'''
+		Add gr and tracked colony property data for a phase to the phase
+		combiner
+		'''
+		# add phase number to every column in gr_df except phase and
+		# time_tracking_id
+		gr_df.reset_index(inplace = True)
+		gr_df.set_index(['phase_num', 'xy_pos_idx', 'cross_phase_tracking_id'], inplace = True)#, append = True)
+		gr_df = gr_df.add_suffix('_phase_' + str(phase_num))
+		# reset indices so we can concatenate and merge by columns later
+		gr_df.reset_index(inplace = True)
+		self.gr_df_list.append(gr_df)
+
+	def track_gr_data(self, tracked_col_props):
+		'''
+		Combine growth rate data across phases based on colony tracking
+		tracked_col_props should have tracking info across both time
+		('time_tracking_id') and phase ('cross_phase_tracking_id')
+		'''
+		# combine growth rates data across phases - resetting index is
+		# important since it is not enforced to be unique across phases
+		gr_df_comb = pd.concat(self.gr_df_list, sort = False).reset_index(
+			drop = True)
+#		phase_match_key_df = \
+#			track_colonies.generate_match_key_df(tracked_col_props)
+#		# merge gr df with match key df to get a cross-phase tracking id
+#		# for every colony with a growth rate
+#		gr_df_comb_tracked = \
+#			gr_df_comb.merge(phase_match_key_df,
+#				on = ['phase_num', 'xy_pos_idx', 'time_tracking_id'],
+#				).reset_index(drop=True)
+		# re-orient df so that each row is a single colony tracked
+		# across phases, with columns from gr_df reported for each phase
+		gr_df_comb_squat = \
+			gr_df_comb.pivot(index = 'cross_phase_tracking_id',
+				columns = 'phase_num')
+		# remove second layer of column names ('phase')
+		gr_df_comb_squat.columns = gr_df_comb_squat.columns.droplevel(1)
+		return(gr_df_comb_squat)
+
+
+def measure_growth_rate(analysis_config, time_tracked_phase_pos_data):
 	'''
 	Compiles data from individual timepoints into a single dataframe of
 	tracked colonies, saves property matrices for each tracked colony,
 	performs filtering and measures growth rates for all colonies that
 	pass filtration
 	'''
-	colony_data_compiler = _CompileColonyData(analysis_config)
+	colony_data_compiler = \
+		_CompileColonyData(analysis_config, time_tracked_phase_pos_data)
 	area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df = \
 		colony_data_compiler.generate_property_matrices()
 	imaging_info_df = colony_data_compiler.generate_imaging_info_df()
@@ -487,9 +544,10 @@ def measure_growth_rate(analysis_config):
 		_GrowthMeasurer(area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df,
 			analysis_config, imaging_info_df)
 	gr_df = growth_measurer.find_growth_rates()
+	return(gr_df)
 
 def run_growth_rate_analysis(analysis_config_file,
-		repeat_image_analysis_and_tracking = True):
+		repeat_image_analysis_and_tracking = False):
 	'''
 	Runs growth rate analysis from scratch (including image analysis
 	steps) based on analysis_config_file
@@ -499,34 +557,68 @@ def run_growth_rate_analysis(analysis_config_file,
 	'''
 	analysis_config_obj_df = \
 		analysis_configuration.set_up_analysis_config(analysis_config_file)
-	for phase in analysis_config_obj_df.index:
-		analysis_config = analysis_config_obj_df.at[phase, 'analysis_config']
-		postphase_analysis_config = \
-			analysis_config_obj_df.at[phase, 'postphase_analysis_config']
+	phase_gr_combiner = _PhaseGRCombiner()
+	# track colonies through time and phase at each xy position and
+	# combine results
+	# xy positions and track_colonies.track_colonies_single_pos output
+	# should be the same for every phase
+	temp_analysis_config = analysis_config_obj_df.iloc[0]['analysis_config']
+	time_tracked_col_props_pos_list = []
+	for xy_pos_idx in temp_analysis_config.xy_position_vector:
+		temp_analysis_config.set_xy_position(xy_pos_idx)
+		if repeat_image_analysis_and_tracking or not \
+			os.path.exists(temp_analysis_config.tracked_properties_write_path):
+			time_tracked_pos_col_props = \
+				track_colonies.track_colonies_single_pos(xy_pos_idx,
+					analysis_config_obj_df = analysis_config_obj_df)
+		else:
+			time_tracked_pos_col_props = \
+				temp_analysis_config.get_position_colony_data_tracked_df()
+		time_tracked_col_props_pos_list.append(time_tracked_pos_col_props)
+	# combine time-tracked colony properties for each position into a
+	# single df
+	time_tracked_col_props_comb = \
+		pd.concat(time_tracked_col_props_pos_list, sort = False)
+	# write output file
+	time_tracked_col_props_comb.to_csv(
+		temp_analysis_config.combined_tracked_properties_write_path)
+	# measure growth rates within each phase
+	for phase_num in analysis_config_obj_df.index:
+		analysis_config = \
+			analysis_config_obj_df.at[phase_num, 'analysis_config']
 		# only perform image analysis and tracking steps if tracked
 		# colony phase properties file is missing and/or
 		# repeat_image_analysis_and_tracking is set to True
-		if repeat_image_analysis_and_tracking or not \
-			os.path.exists(analysis_config.phase_tracked_properties_write_path):
-			track_colonies.track_single_phase_all_positions(analysis_config,
-				postphase_analysis_config)
-		measure_growth_rate(analysis_config)
+		time_tracked_col_props_phase = \
+			time_tracked_col_props_comb[
+				time_tracked_col_props_comb.phase_num == phase_num]
+		gr_df = measure_growth_rate(analysis_config,
+			time_tracked_col_props_phase)
+		phase_gr_combiner.add_phase_data(phase_num, gr_df)
+	# combine growth rates across phases
+	gr_df_combined = \
+		phase_gr_combiner.track_gr_data(time_tracked_col_props_comb)
+	gr_df_combined.to_csv(temp_analysis_config.combined_gr_write_path)
+	
 
 def run_default_growth_rate_analysis(input_path, output_path,
-	total_timepoint_num, phase = 'growth', hole_fill_area = np.inf,
-	cleanup = False, max_proportion_exposed_edge = 0.75,
+	total_timepoint_num, phase_num = 1,
+	hole_fill_area = np.inf, cleanup = False,
+	max_proportion_exposed_edge = 0.75,
 	im_file_extension = 'tif', minimum_growth_time = 4,
 	label_order_list = ['channel', 'timepoint', 'position'],
 	total_xy_position_num = 1, first_timepoint = 1,
 	timepoint_spacing = 3600, timepoint_label_prefix = 't',
 	position_label_prefix = 'xy', main_channel_label = '',
 	main_channel_imagetype = 'brightfield', im_format = 'individual',
-	chosen_for_extended_display_list = [1], first_xy_position = 1,
+	extended_display_positions = [1], first_xy_position = 1,
 	settle_frames = 1, growth_window_timepoints = 0,
 	max_area_pixel_decrease = np.inf, max_area_fold_decrease = 2,
 	max_area_fold_increase = 6, min_colony_area = 10,
 	max_colony_area = np.inf, min_correlation = 0.9, min_foldX = 0,
-	min_neighbor_dist = 5, repeat_image_analysis_and_tracking = True):
+	min_neighbor_dist = 5, fluor_channel_scope_labels = '',
+	fluor_channel_names = '', fluor_channel_thresholds = '',
+	repeat_image_analysis_and_tracking = True):
 	'''
 	Runs growth rate analysis on a single phase of brightfield-only
 	imaging from scratch (including image analysis steps) based on
@@ -537,29 +629,48 @@ def run_default_growth_rate_analysis(input_path, output_path,
 	properties file already exists, skip image analysis and tracking
 	and go straight to growth rate assay
 	'''
-	# This analysis type doesn't allow for fluorescent images
-	fluor_channel_df = pd.DataFrame(columns = ['fluor_channel_label',
-		'fluor_channel_column_name', 'fluor_threshold'])
-	postphase_analysis_config = None
-	# set up analysis_config object
-	analysis_config = analysis_configuration.AnalysisConfig(phase,
-		hole_fill_area,
-		cleanup, max_proportion_exposed_edge, input_path,
-		output_path, im_file_extension, label_order_list,
-		total_xy_position_num, first_timepoint,
-		total_timepoint_num, timepoint_spacing,
-		timepoint_label_prefix, position_label_prefix,
-		main_channel_label, main_channel_imagetype,
-		fluor_channel_df, im_format,
-		chosen_for_extended_display_list, first_xy_position,
-		settle_frames, minimum_growth_time,
-		growth_window_timepoints, max_area_pixel_decrease,
-		max_area_fold_decrease, max_area_fold_increase,
-		min_colony_area, max_colony_area, min_correlation,
-		min_foldX, min_neighbor_dist)
-	if repeat_image_analysis_and_tracking or not \
-		os.path.exists(analysis_config.phase_tracked_properties_write_path):
-		track_colonies.track_single_phase_all_positions(analysis_config,
-			postphase_analysis_config)
-	measure_growth_rate(analysis_config)
+	# set parent_phase to empty string, since only one phase and no
+	# postphase data
+	parent_phase = ''
+	analysis_config_file_standin = BytesIO()
+	parameter_list = [
+		'input_path', 'output_path', 'total_timepoint_num',
+		'hole_fill_area', 'cleanup', 'max_proportion_exposed_edge',
+		'im_file_extension', 'minimum_growth_time', 'label_order_list',
+		'total_xy_position_num', 'first_timepoint', 'timepoint_spacing',
+		'timepoint_label_prefix', 'position_label_prefix', 'main_channel_label',
+		'main_channel_imagetype', 'im_format',
+		'extended_display_positions', 'first_xy_position',
+		'settle_frames', 'growth_window_timepoints', 'max_area_pixel_decrease',
+		'max_area_fold_decrease', 'max_area_fold_increase', 'min_colony_area',
+		'max_colony_area', 'min_correlation', 'min_foldX', 'min_neighbor_dist',
+		'fluor_channel_scope_labels', 'fluor_channel_names',
+		'fluor_channel_thresholds',
+		'parent_phase']
+	param_val_list = []
+	for param in parameter_list:
+		param_val = eval(param)
+		if isinstance(param_val, list):
+			param_val_str = \
+				';'.join([str(param_val_memb) for param_val_memb in param_val])
+		else:
+			param_val_str = str(param_val)
+		param_val_list.append(param_val_str)
+	analysis_config_df = pd.DataFrame({
+		'Parameter': parameter_list,
+		'Value': param_val_list,
+		'PhaseNum': str(phase_num)})
+	# need to change PhaseNum in required global parameters to 'all'
+	required_global_params = [
+		'output_path', 'im_format', 'first_xy_position',
+		'total_xy_position_num', 'extended_display_positions']
+	analysis_config_df.PhaseNum[[param in required_global_params for
+		param in analysis_config_df.Parameter]] = 'all'
+	analysis_config_df.to_csv(analysis_config_file_standin, index = False)
+#	analysis_config_file_standin.seek(0)
+#	test = pd.read_csv(analysis_config_file_standin)
+#	print(test)
+	analysis_config_file_standin.seek(0)
+	run_growth_rate_analysis(analysis_config_file_standin,
+		repeat_image_analysis_and_tracking)
 

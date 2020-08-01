@@ -2,6 +2,7 @@ numpy >= 1.16.0
 opencv-contrib-python > 4.0.0.0
 pandas >= 0.24.1
 Pillow >= 7.2.0
+pyarrow
 scipy >= 1.1.0
 plotnine
 shutil
