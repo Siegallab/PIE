@@ -22,6 +22,11 @@ tests_require = [
 ]
 
 
+extras_require = {
+    'tests': tests_require
+}
+
+
 # Get the version string from the version.py file.
 # Based on:
 # https://stackoverflow.com/questions/458550
@@ -54,6 +59,7 @@ setup(
     packages=find_packages(exclude=('PIE_tests',)),
     include_package_data=True,
     test_suite='nose.collector',
+    extras_require=extras_require,
     tests_require=tests_require,
     install_requires=install_requires,
     entry_points={
