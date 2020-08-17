@@ -1,0 +1,1 @@
+This data corresponds to timepoints 2-10 of the xy0002 position from the SL_170619_2_GR experiment
