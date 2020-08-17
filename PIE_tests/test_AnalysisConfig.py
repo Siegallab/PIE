@@ -34,8 +34,8 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		self.fluor_channel_df = pd.DataFrame(columns = ['fluor_channel_label',
 			'fluor_channel_column_name', 'fluor_threshold'])
 		self.im_format = 'individual'
-		self.chosen_for_extended_display_list = [1, 4, 11]
-		self.first_xy_position = 1
+		self.extended_display_positions = [1, 4, 11]
+		self.xy_position_vector = range(1,1001)
 		self.combined_gr_write_path = \
 			'PIE_tests/temp_out/growth_rates_combined.csv'
 		self.combined_tracked_properties_write_path = \
@@ -103,7 +103,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.timepoint_list = range(1,11)
 		expected_analysis_config.timepoint_dict = \
 			dict(zip(range(1,11), np.arange(1,11)*3600.0))
-		expected_analysis_config.xy_position_vector = range(1,1001)
+		expected_analysis_config.xy_position_vector = self.xy_position_vector
 		expected_analysis_config.timepoint_label_prefix = \
 			self.timepoint_label_prefix
 		expected_analysis_config.position_label_prefix = \
@@ -114,7 +114,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.main_channel_label = self.main_channel_label
 		expected_analysis_config.fluor_channel_df = self.fluor_channel_df
 		expected_analysis_config.image_retriever = _IndivImageRetriever()
-		expected_analysis_config.chosen_for_extended_display_list = [1,4,11]
+		expected_analysis_config.extended_display_positions = [1,4,11]
 		# create analysis config
 		test_analysis_config = AnalysisConfig(self.phase_num, self.hole_fill_area,
 			self.cleanup, self.max_proportion_exposed_edge, self.input_path,
@@ -124,7 +124,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 			self.timepoint_label_prefix, self.position_label_prefix,
 			self.main_channel_label, self.main_channel_imagetype,
 			self.fluor_channel_df, self.im_format,
-			self.chosen_for_extended_display_list, self.first_xy_position,
+			self.extended_display_positions, self.xy_position_vector,
 			self.settle_frames, self.minimum_growth_time,
 			self.growth_window_timepoints, self.max_area_pixel_decrease,
 			self.max_area_fold_decrease, self.max_area_fold_increase,

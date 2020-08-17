@@ -64,8 +64,8 @@ class AnalysisConfig(object):
 		label_order_list, total_xy_position_num, first_timepoint,
 		total_timepoint_num, timepoint_spacing, timepoint_label_prefix,
 		position_label_prefix, main_channel_label, main_channel_imagetype,
-		fluor_channel_df, im_format, chosen_for_extended_display_list,
-		first_xy_position, settle_frames, minimum_growth_time,
+		fluor_channel_df, im_format, extended_display_positions,
+		xy_position_vector, settle_frames, minimum_growth_time,
 		growth_window_timepoints, max_area_pixel_decrease,
 		max_area_fold_decrease, max_area_fold_increase, min_colony_area,
 		max_colony_area, min_correlation, min_foldX, min_neighbor_dist):
@@ -116,8 +116,7 @@ class AnalysisConfig(object):
 		# set up dictionary of timepoint times
 		self._set_up_timevector(timepoint_spacing, first_timepoint)
 		# set up list of possible xy positions
-		self.xy_position_vector = \
-			range(first_xy_position, (self.total_xy_position_num + 1))
+		self.xy_position_vector = xy_position_vector
 		# labels used for timepoint number and xy position
 		self.timepoint_label_prefix = timepoint_label_prefix
 		self.position_label_prefix = position_label_prefix
@@ -136,7 +135,7 @@ class AnalysisConfig(object):
 			self.image_retriever = _IndivImageRetriever()
 		else:
 			raise ValueError('image format ' + im_format + ' not recognized')
-		self.chosen_for_extended_display_list = chosen_for_extended_display_list
+		self.extended_display_positions = extended_display_positions
 		self._run_parameter_tests()
 
 	def _create_output_paths(self):
@@ -362,7 +361,7 @@ class AnalysisConfig(object):
 		# determine wether non-essential info (threshold plot outputs,
 		# boundary images, etc) need to be saved for this experiment
 		self.save_extra_info = \
-			xy_position_idx in self.chosen_for_extended_display_list
+			xy_position_idx in self.extended_display_positions
 		# create filename for tracked colony properties output file for
 		# current xy position
 		self.tracked_properties_write_path = \
@@ -397,13 +396,11 @@ class AnalysisConfigFileProcessor(object):
 					output_val = True
 				elif val_str.lower() == 'false':
 					output_val = False
-				elif val_str == '':
-					output_val = np.nan
 				else:
 					output_val = val_str
 		return(output_val)
 
-	def _check_global_vals(self):
+	def _set_global_vals(self):
 		'''
 		Checks that parameters in config file related to number of
 		imaging positions, analysis output, and format in which input
@@ -414,13 +411,24 @@ class AnalysisConfigFileProcessor(object):
 		required_global_params = \
 			['output_path', 'im_format', 'first_xy_position',
 			'total_xy_position_num', 'extended_display_positions']
-		global_parameters = \
-			self.analysis_config_df.Parameter[
-				self.analysis_config_df.PhaseNum == 'all']
+		global_param_val_series = self._get_phase_data('all')
+		global_parameters = global_param_val_series.index.tolist()
 		if not set(required_global_params).issubset(set(global_parameters)):
 			raise ValueError(
 				'The following parameters must have PhaseNum set to "all": ' +
 				', '.join(required_global_params))
+		self.output_path = global_param_val_series.output_path
+		self.im_format = global_param_val_series.im_format
+		self.total_xy_position_num = \
+			global_param_val_series.total_xy_position_num
+		# set up list of possible xy positions
+		self.xy_position_vector = \
+			range(global_param_val_series.first_xy_position,
+				(self.total_xy_position_num + 1))
+		self.extended_display_positions = \
+			global_param_val_series.extended_display_positions
+		if not self.extended_display_positions:
+			self.extended_display_positions = []
 
 	def _process_parameter_vals(self, val_str):
 		'''
@@ -448,32 +456,54 @@ class AnalysisConfigFileProcessor(object):
 		self.phases = [int(phase.lower()) for phase in unique_phases if
 			phase.lower() != 'all']
 
+	def _create_fluor_channel_df(self, phase_conf_ser, phase_num):
+		'''
+		Creates a dataframe from phase_conf_ser with info on every
+		fluorescent channel imaged
+		'''
+		### !!! NEED UNITTEST?
+		# create empty df if every fluor property is an empty string
+		list_of_fluor_properties = [phase_conf_ser.fluor_channel_scope_labels,
+			phase_conf_ser.fluor_channel_names,
+			phase_conf_ser.fluor_channel_thresholds]
+		if all([x == '' for x in list_of_fluor_properties]):
+			fluor_channel_df = pd.DataFrame(columns =
+				['fluor_channel_label', 'fluor_channel_column_name',
+					'fluor_threshold'])
+		# raise error if only some fluor properties are empty strings
+		elif '' in list_of_fluor_properties:
+			raise ValueError(
+				'fluor_channel_label, fluor_channel_column_nam, or ' +
+				'fluor_threshold is not set for phase ' + phase_num +
+				'; these values must either all be left blank, or all filled')
+		else:
+			# create df with a row for every channel
+			# (use np.size here, not len function, to get accurate
+			# lengths for single-string fluor_channel_scope_labels)
+			channel_num = np.size(phase_conf_ser.fluor_channel_scope_labels)
+			fluor_channel_df = \
+				pd.DataFrame({
+					'fluor_channel_label':
+						phase_conf_ser.fluor_channel_scope_labels,
+					'fluor_channel_column_name':
+						phase_conf_ser.fluor_channel_names,
+					'fluor_threshold':
+						phase_conf_ser.fluor_channel_thresholds},
+					index = np.arange(0, channel_num))
+		return(fluor_channel_df)
+
 	def _create_analysis_config(self, phase_num, phase_conf_ser):
 		'''
 		Creates AnalysisConfig object based on phase_conf_ser, the
 		series corresponding to the Value column of the subset of
 		self.analysis_config_df that applies to the current phase
 		'''
-		# NEED UNITTEST FOR JUST THIS METHOD?
-		fluor_col_names = ['fluor_channel_label', 'fluor_channel_column_name',
-			'fluor_threshold']
-		list_of_fluor_properties = [phase_conf_ser.fluor_channel_scope_labels,
-			phase_conf_ser.fluor_channel_names,
-			phase_conf_ser.fluor_channel_thresholds]
-		if all(np.isnan(list_of_fluor_properties)):
-			fluor_channel_df = pd.DataFrame(columns = fluor_col_names)
-		elif any(np.isnan(list_of_fluor_properties)):
-			raise ValueError(
-				'fluor_channel_label, fluor_channel_column_nam, or ' +
-				'fluor_threshold is not set for phase ' + phase_num +
-				'; these values must either all be left blank, or all filled')
-		else:
-			fluor_channel_df = \
-				pd.DataFrame(list(zip(*list_of_fluor_properties)),
-				columns = fluor_col_names)
+		### NEED UNITTEST FOR JUST THIS METHOD?
+		fluor_channel_df = \
+			self._create_fluor_channel_df(phase_conf_ser, phase_num)
 		# if timepoint spacing tab is empty, set timepoint_spacing to
 		# None (i.e. get info from files)
-		if np.isnan(phase_conf_ser.timepoint_spacing):
+		if phase_conf_ser.timepoint_spacing == '':
 			timepoint_spacing = None
 		else:
 			timepoint_spacing = phase_conf_ser.timepoint_spacing
@@ -497,8 +527,8 @@ class AnalysisConfigFileProcessor(object):
 			phase_conf_ser.main_channel_imagetype,
 			fluor_channel_df,
 			phase_conf_ser.im_format,
-			self.chosen_for_extended_display_list,
-			phase_conf_ser.first_xy_position,
+			self.extended_display_positions,
+			self.xy_position_vector,
 			phase_conf_ser.settle_frames,
 			phase_conf_ser.minimum_growth_time,
 			phase_conf_ser.growth_window_timepoints,
@@ -551,8 +581,11 @@ class AnalysisConfigFileProcessor(object):
 			'total_xy_position_num', 'first_timepoint', 'total_timepoint_num',
 			'timepoint_label_prefix', 'position_label_prefix',
 			'main_channel_label', 'main_channel_imagetype', 'im_format',
-			'parent_phase', 'first_xy_position', 'settle_frames',
-			'minimum_growth_time', 'growth_window_timepoints']
+			'parent_phase', 'settle_frames', 'max_area_pixel_decrease',
+			'max_area_fold_decrease', 'max_area_fold_increase',
+			'min_colony_area', 'max_colony_area', 'min_correlation',
+			'min_foldX', 'minimum_growth_time', 'growth_window_timepoints',
+			'min_neighbor_dist']
 		# take all possible fields from current_setup_ser, get missing
 		# ones from parent_setup_ser
 		reqd_parents_fields = \
@@ -590,7 +623,24 @@ class AnalysisConfigFileProcessor(object):
 			# get phase setup series containing the parameters that
 			# apply only to the current phase_num
 			current_phase_setup = self._get_phase_data(phase_num)
-			if not np.isnan(current_phase_setup.parent_phase):
+			# check whether current phase has a 'parent phase'
+			if 'parent_phase' in global_parent_setup.index:
+				if global_parent_setup.parent_phase == '':
+					parent_phase = ''
+				else:
+					raise ValueError(
+						'If parent_phase is specified for all phases ' +
+							'simultaneously, it must be left blank')
+			else:
+				parent_phase = current_phase_setup.parent_phase
+			if parent_phase == '':
+				# if current phase has no parent, just use global setup
+				# parent series (i.e. where phase is listed as 'all')
+				combined_parent_setup = global_parent_setup
+				# set where to store object
+				storage_phase = phase_num
+				config_type = 'analysis_config'
+			else:
 				# if the current phase has a 'parent' phase, combine
 				# that parent phase with the global parent setup to
 				# use as the joint parent phase for the phase
@@ -601,13 +651,6 @@ class AnalysisConfigFileProcessor(object):
 				# set where to store object
 				storage_phase = current_phase_setup.parent_phase
 				config_type = 'postphase_analysis_config'
-			else:
-				# if current phase has no parent, just use global setup
-				# parent series (i.e. where phase is listed as 'all')
-				combined_parent_setup = global_parent_setup
-				# set where to store object
-				storage_phase = phase_num
-				config_type = 'analysis_config'
 			# create setup series based on parent phase(s) and current
 			# phase
 			current_phase_combined_setup = \
@@ -633,31 +676,16 @@ class AnalysisConfigFileProcessor(object):
 			dtype = {'PhaseNum': str},
 			converters =
 				{'Value': self._process_parameter_vals})
+		# replace empty strings with na, drop all-na rows, then replace
+		# back with empty strings
+		self.analysis_config_df.replace('', np.nan, inplace=True)
 		self.analysis_config_df.dropna(how="all", inplace=True)
-		# check that phase for global parameters correctly specified
-		self._check_global_vals()
-		# get list of elements chosen for extended display
-		self.chosen_for_extended_display_list = \
-			self.analysis_config_df[
-				(self.analysis_config_df['Parameter'] == 
-					'extended_display_positions') &
-					(self.analysis_config_df['PhaseNum'].str.lower() ==
-						'all')].Value.iloc[0]
-		if not self.chosen_for_extended_display_list:
-			self.chosen_for_extended_display_list = []
+		self.analysis_config_df.replace(np.nan, '', inplace=True)
+		# check that phase for global parameters correctly specified,
+		# and set them as attributes
+		self._set_global_vals()
 		# identify phases
 		self._define_phases()
 		# create df of analysis config objects
 		analysis_config_obj_df = self._create_analysis_config_df()
 		return(analysis_config_obj_df)
-
-def set_up_analysis_config(analysis_config_file):
-	'''
-	Creates a dataframe of phases containing AnalysisConfig objects for
-	each phase
-	'''
-	analysis_config_file_processor = AnalysisConfigFileProcessor()
-	analysis_config_obj_df = \
-		analysis_config_file_processor.process_analysis_config_file(
-			analysis_config_file)
-	return(analysis_config_obj_df)

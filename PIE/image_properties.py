@@ -245,7 +245,7 @@ class _ImageAnalyzer(object):
 			self.colony_property_finder.property_df.columns.difference(
 				['pixel_idx_list', 'Eroded_Colony_Mask', 'Eroded_Background_Mask'])
 		colony_property_df_to_save = \
-			self.colony_property_finder.property_df[columns_to_save]
+			self.colony_property_finder.property_df[columns_to_save].copy()
 		return(colony_property_df_to_save)
 
 	def process_image(self):

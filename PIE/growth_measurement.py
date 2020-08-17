@@ -7,7 +7,7 @@ Measures growth across time
 import os
 import numpy as np
 import pandas as pd
-from io import BytesIO
+from io import StringIO, TextIOWrapper
 from PIE import track_colonies, analysis_configuration, colony_filters
 
 class _CompileColonyData(object):
@@ -16,7 +16,9 @@ class _CompileColonyData(object):
 	colony properties across time
 	'''
 	def __init__(self, analysis_config, colony_data_tracked_df):
-		self.colony_data_tracked_df = colony_data_tracked_df
+		# remove rows where time_tracking_id is None
+		self.colony_data_tracked_df = \
+			colony_data_tracked_df.dropna(subset = ['time_tracking_id'])
 		self.matrix_save_dir = \
 			analysis_config.phase_col_property_mats_output_folder
 		# identify indices of each unique timepoint and
@@ -491,11 +493,6 @@ class _PhaseGRCombiner(object):
 		Add gr and tracked colony property data for a phase to the phase
 		combiner
 		'''
-		# add phase number to every column in gr_df except phase and
-		# time_tracking_id
-		gr_df.reset_index(inplace = True)
-		gr_df.set_index(['phase_num', 'xy_pos_idx', 'cross_phase_tracking_id'], inplace = True)#, append = True)
-		gr_df = gr_df.add_suffix('_phase_' + str(phase_num))
 		# reset indices so we can concatenate and merge by columns later
 		gr_df.reset_index(inplace = True)
 		self.gr_df_list.append(gr_df)
@@ -510,21 +507,15 @@ class _PhaseGRCombiner(object):
 		# important since it is not enforced to be unique across phases
 		gr_df_comb = pd.concat(self.gr_df_list, sort = False).reset_index(
 			drop = True)
-#		phase_match_key_df = \
-#			track_colonies.generate_match_key_df(tracked_col_props)
-#		# merge gr df with match key df to get a cross-phase tracking id
-#		# for every colony with a growth rate
-#		gr_df_comb_tracked = \
-#			gr_df_comb.merge(phase_match_key_df,
-#				on = ['phase_num', 'xy_pos_idx', 'time_tracking_id'],
-#				).reset_index(drop=True)
+		phase_match_key_df = \
+			track_colonies.generate_match_key_df(tracked_col_props)
 		# re-orient df so that each row is a single colony tracked
 		# across phases, with columns from gr_df reported for each phase
 		gr_df_comb_squat = \
-			gr_df_comb.pivot(index = 'cross_phase_tracking_id',
+			gr_df_comb.pivot(index = ['cross_phase_tracking_id', 'xy_pos_idx'],
 				columns = 'phase_num')
-		# remove second layer of column names ('phase')
-		gr_df_comb_squat.columns = gr_df_comb_squat.columns.droplevel(1)
+		# combine multi-indexing in columns to make data R-readable
+		gr_df_comb_squat.columns = [f'{i}_phase_{j}' for i,j in gr_df_comb_squat.columns]
 		return(gr_df_comb_squat)
 
 
@@ -555,8 +546,11 @@ def run_growth_rate_analysis(analysis_config_file,
 	properties file already exists, skip image analysis and tracking
 	and go straight to growth rate assay
 	'''
+	analysis_config_file_processor = \
+		analysis_configuration.AnalysisConfigFileProcessor()
 	analysis_config_obj_df = \
-		analysis_configuration.set_up_analysis_config(analysis_config_file)
+		analysis_config_file_processor.process_analysis_config_file(
+			analysis_config_file)
 	phase_gr_combiner = _PhaseGRCombiner()
 	# track colonies through time and phase at each xy position and
 	# combine results
@@ -632,7 +626,7 @@ def run_default_growth_rate_analysis(input_path, output_path,
 	# set parent_phase to empty string, since only one phase and no
 	# postphase data
 	parent_phase = ''
-	analysis_config_file_standin = BytesIO()
+	analysis_config_file_standin = StringIO()
 	parameter_list = [
 		'input_path', 'output_path', 'total_timepoint_num',
 		'hole_fill_area', 'cleanup', 'max_proportion_exposed_edge',
@@ -666,7 +660,8 @@ def run_default_growth_rate_analysis(input_path, output_path,
 		'total_xy_position_num', 'extended_display_positions']
 	analysis_config_df.PhaseNum[[param in required_global_params for
 		param in analysis_config_df.Parameter]] = 'all'
-	analysis_config_df.to_csv(analysis_config_file_standin, index = False)
+	analysis_config_df.to_csv(analysis_config_file_standin,
+		index = False)
 #	analysis_config_file_standin.seek(0)
 #	test = pd.read_csv(analysis_config_file_standin)
 #	print(test)

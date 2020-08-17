@@ -30,7 +30,7 @@ class SinglePhaseSinglePosCompiler(object):
 		image_analyzer.set_up_fluor_measurements()
 		# loop through fluor channels and analyze each one
 		for fluor_row in \
-			curr_analysis_config.fluor_channel_df.iterrows():
+			curr_analysis_config.fluor_channel_df.itertuples():
 			# retrieve fluorescent image
 			fluor_im, _, _ = \
 				curr_analysis_config.get_image(timepoint,
@@ -370,8 +370,8 @@ class ColonyTracker(object):
 				np.sort(np.unique(self.active_col_prop_df.xy_pos_idx))
 			# identify phases
 			phase_list = \
-				np.sort(np.array(
-					self.single_phase_col_prop_df_dict.keys()))
+				np.sort(np.array(list(
+					self.single_phase_col_prop_df_dict.keys())))
 			# check that phases are unique
 			if np.unique(phase_list).size < phase_list.size:
 				raise IndexError('phase list contains non-unique items: ' +
@@ -405,7 +405,7 @@ class ColonyTracker(object):
 					curr_phase_last_tp = np.max(curr_phase_data.timepoint)
 					next_phase_first_tp = np.min(curr_phase_data.timepoint)
 					# loop through xy positions
-					for curr_xy_pos in self._xy_positions:
+					for curr_xy_pos in _xy_positions:
 						# get colony properties at current timepoint
 						curr_im_data = curr_phase_data[
 							(curr_phase_data.timepoint == curr_phase_last_tp) &
