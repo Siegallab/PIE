@@ -108,7 +108,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 			self.timepoint_label_prefix
 		expected_analysis_config.position_label_prefix = \
 			self.position_label_prefix
-		expected_analysis_config.first_timepoint = 3600.0
+		expected_analysis_config.first_timepoint_time = 3600.0
 		expected_analysis_config.main_channel_imagetype = \
 			self.main_channel_imagetype
 		expected_analysis_config.main_channel_label = self.main_channel_label

@@ -7,6 +7,7 @@ Measures growth across time
 import os
 import numpy as np
 import pandas as pd
+import re
 from io import StringIO, TextIOWrapper
 from PIE import track_colonies, analysis_configuration, colony_filters
 
@@ -19,8 +20,7 @@ class _CompileColonyData(object):
 		# remove rows where time_tracking_id is None
 		self.colony_data_tracked_df = \
 			colony_data_tracked_df.dropna(subset = ['time_tracking_id'])
-		self.matrix_save_dir = \
-			analysis_config.phase_col_property_mats_output_folder
+		self.analysis_config = analysis_config
 		# identify indices of each unique timepoint and
 		# time_tracking_id value in their respective columns
 		self._get_index_locations()
@@ -83,8 +83,7 @@ class _CompileColonyData(object):
 		'''
 		Writes col_property_df to file
 		'''
-		write_path = os.path.join(self.matrix_save_dir,
-			(col_property + '_property_mat.csv'))
+		write_path = self.analysis_config.get_property_mat_path(col_property)
 		col_property_df.to_csv(write_path)
 
 	def generate_imaging_info_df(self):
@@ -109,6 +108,8 @@ class _CompileColonyData(object):
 		# set up dictionary that will be returned for growth rate calc
 		properties_to_return = ['area', 'time_in_seconds', 'cX', 'cY']
 		dict_for_gr = dict.fromkeys(properties_to_return)
+		# identify fluorescent properties to return
+		fluor_prop_dict = dict()
 		# loop through colony properties and create and save a matrix
 		# (df) of properties over time for each
 		for col_property in self.cols_to_include:
@@ -119,8 +120,11 @@ class _CompileColonyData(object):
 			# if needed, add to dict_for_gr
 			if col_property in properties_to_return:
 				dict_for_gr[col_property] = col_property_df
+			# if fluor channel property, add to fluor_prop_dict
+			if '_flprop_' in col_property:
+				fluor_prop_dict[col_property] = col_property_df
 		return(dict_for_gr['area'], dict_for_gr['time_in_seconds'], dict_for_gr['cX'],
-			dict_for_gr['cY'])
+			dict_for_gr['cY'], fluor_prop_dict)
 
 class _DistanceCalculator(object):
 	'''
@@ -220,8 +224,8 @@ class _GrowthMeasurer(object):
 	#		In the current implementation, we are only calculating
 	#		growth rate for those windows that don't contain any missing
 	#		areas
-	def __init__(self, areas, times_in_seconds, cX, cY, analysis_config,
-				 imaging_info_df):
+	def __init__(self, areas, times_in_seconds, cX, cY, fl_prop_mat_df_dict,
+			analysis_config, imaging_info_df):
 		self.analysis_config = analysis_config
 		self.imaging_info_df = imaging_info_df
 		self.unfilt_areas = areas
@@ -229,6 +233,7 @@ class _GrowthMeasurer(object):
 		self.unfilt_times = self._convert_times(times_in_seconds)
 		self.unfilt_cX = cX
 		self.unfilt_cY = cY
+		self.fl_prop_mat_df_dict = fl_prop_mat_df_dict
 		self.columns_to_return = ['t0', 'gr', 'lag', 'rsq', 'foldX', 'mindist'] + \
 				imaging_info_df.columns.to_list()
 
@@ -239,7 +244,7 @@ class _GrowthMeasurer(object):
 		'''
 		### !!! NEEDS UNITTEST
 		rel_times_in_seconds = \
-			times_in_seconds - self.analysis_config.first_timepoint
+			times_in_seconds - self.analysis_config.first_timepoint_time
 		rel_times_in_hrs = rel_times_in_seconds.astype(float)/3600
 		return(rel_times_in_hrs)
 
@@ -455,7 +460,62 @@ class _GrowthMeasurer(object):
 		# join filtered gr and imaging info gr by their indices
 		combined_filtered_gr = filtered_gr.join(self.imaging_info_df)
 		self.final_gr = combined_filtered_gr[self.columns_to_return]
-		self.final_gr.to_csv(self.analysis_config.phase_gr_write_path)
+
+	def _get_t0_indices(self, col_property_mat_df):
+		'''
+		Gets indices of t0 timepoints in col_property_mat_df column
+		names
+		'''
+		t0_indices = np.searchsorted(col_property_mat_df.columns,
+			self.final_gr.t0.to_numpy())
+		return(t0_indices)
+
+	def _get_timepoint_val(self, row, col_property_mat_df):
+		'''
+		Gets fluorescent timepoint that should be used to retrieve
+		timepoints based on val set in setup config to value based on
+		row in self.analysis_config.fluor_channel_df
+		'''
+		### !!! NEEDS UNITTEST
+		tp_val = \
+			self.analysis_config.fluor_channel_df.at[row, 'fluor_timepoint']
+		if tp_val == 'last_gr':
+			tp_idx = self._get_t0_indices(col_property_mat_df) + \
+				self.analysis_config.growth_window_timepoints - 1
+		elif tp_val == 'first_gr':
+			tp_idx = self._get_t0_indices(col_property_mat_df)
+		elif isinstance(tp_val, int):
+			# convert timepoint to timepoint index
+			tp_idx = np.where(test_df.columns == tp_val)[0][0]
+		else:
+			tp_idx = tp_val
+		return(tp_idx)
+
+	def _add_fluor_data(self):
+		'''
+		If there is measured fluorescent data, add the necessary
+		timepoints to the growth rate output
+		'''
+		### !!! NEEDS UNITTEST
+		row_indices_to_use = self.final_gr.index
+		if not self.analysis_config.fluor_channel_df.empty:
+			fl_prop_keys = list(self.fl_prop_mat_df_dict.keys())
+			for row, channel in \
+				enumerate(self.analysis_config.fluor_channel_df.\
+					fluor_channel_column_name):
+				# identify property names in this channel
+				prop_substring = '_flprop_' + channel
+				prop_substring_re = re.compile('.*'+prop_substring+'$')
+				current_channel_prop_names = \
+					list(filter(prop_substring_re.match, fl_prop_keys))
+				# loop through property names for current channel, read
+				# them in, identify data at timepoints, add as column to
+				# self.final_gr
+				for fl_prop_name in current_channel_prop_names:
+					col_prop_mat_df = self.fl_prop_mat_df_dict[fl_prop_name]
+					timepoint_indices = self._get_timepoint_val(row,col_prop_mat_df)
+					self.final_gr[fl_prop_name] = get_colony_properties(
+						col_prop_mat_df, timepoint_indices, row_indices_to_use)
 
 	def find_growth_rates(self):
 		'''
@@ -475,9 +535,12 @@ class _GrowthMeasurer(object):
 		# run filter to remove growth rates with problematic properties
 		# (e.g. poor correaltion, too little growth)
 		self._filter_post_gr()
-		# select the highest growth rate for each colony to report, and
-		# save results
+		# select the highest growth rate for each colony to report
 		self._select_colony_gr()
+		# add fluorescent data if it exists
+		self._add_fluor_data()
+		# save results
+		self.final_gr.to_csv(self.analysis_config.phase_gr_write_path)
 		return(self.final_gr)
 
 class _PhaseGRCombiner(object):
@@ -519,6 +582,71 @@ class _PhaseGRCombiner(object):
 		return(gr_df_comb_squat)
 
 
+def get_colony_properties(col_property_mat_df, timepoint_indices,
+	index_names = None):
+	'''
+	Returns values from pd df col_property_mat_df at timepoint_indices for
+	rows with names index_names
+	If index_names is None, returns properties for all indices
+	timepoint_indices can be a numpy array of timepoint indices, a single int,
+	'last_tracked' (meaning the last tracked timepoint for each index),
+	'first_tracked' (meaning the first tracked timepoint for each
+	index), or
+	'mean', 'median', 'max', or 'min' (returning specified function on all
+	tracked timepoint_indices)
+	'''
+	### !!! NEEDS UNITTEST
+	# if index_names is None, use all of col_property_mat_df in
+	# col_property_mat; otherwise, use rows corresponding to specified
+	# index_names
+	if isinstance(index_names, pd.Index) or \
+		isinstance(index_names, list) or isinstance(index_names, np.ndarray):
+		col_property_mat = col_property_mat_df.loc[index_names].to_numpy()
+	elif index_names == None:
+		col_property_mat = col_property_mat_df.to_numpy()
+	else:
+		raise TypeError("index_names must be a list of index names")
+	# identify timepoint_indices to be used for each index
+	nan_mat = np.isnan(col_property_mat)
+	if isinstance(timepoint_indices, str) and \
+		timepoint_indices in ['mean', 'median', 'min', 'max']:
+		# perform the specified function on tracked timepoint_indices in each
+		# row
+		if timepoint_indices == 'mean':
+			output_vals = np.nanmean(col_property_mat, axis = 1)
+		elif timepoint_indices == 'median':
+			output_vals = np.nanmedian(col_property_mat, axis = 1)
+		elif timepoint_indices == 'min':
+			output_vals = np.nanmin(col_property_mat, axis = 1)
+		elif timepoint_indices == 'max':
+			output_vals = np.nanmax(col_property_mat, axis = 1)
+	else:
+		if isinstance(timepoint_indices, str) and \
+			timepoint_indices == 'first_tracked':
+			# return first tracked timepoint
+			tp_to_use = \
+				np.argmin(nan_mat, axis = 1)
+		elif isinstance(timepoint_indices, str) and \
+			timepoint_indices == 'last_tracked':
+			# return last tracked timepoint
+			tp_to_use = \
+				nan_mat.shape[1] - np.argmin(np.fliplr(nan_mat), axis = 1) - 1
+		elif isinstance(timepoint_indices, int):
+			# return specified timepoint
+			tp_to_use = timepoint_indices
+		elif isinstance(timepoint_indices, np.ndarray) and \
+			timepoint_indices.shape == (col_property_mat.shape[0],):
+			# return timepoint specified for each row
+			tp_to_use = timepoint_indices
+		else:
+			raise ValueError(
+				'timepoint_indices may be "first", "last", an integer, or a 1-D numpy ' +
+				'array with as many elements as rows of interest in ' +
+				'col_property_mat_df')
+		output_vals = \
+			col_property_mat[np.arange(0,col_property_mat.shape[0]), tp_to_use]
+	return(output_vals)
+
 def measure_growth_rate(analysis_config, time_tracked_phase_pos_data):
 	'''
 	Compiles data from individual timepoints into a single dataframe of
@@ -528,12 +656,12 @@ def measure_growth_rate(analysis_config, time_tracked_phase_pos_data):
 	'''
 	colony_data_compiler = \
 		_CompileColonyData(analysis_config, time_tracked_phase_pos_data)
-	area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df = \
+	area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df, fl_prop_mat_df_dict = \
 		colony_data_compiler.generate_property_matrices()
 	imaging_info_df = colony_data_compiler.generate_imaging_info_df()
 	growth_measurer = \
 		_GrowthMeasurer(area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df,
-			analysis_config, imaging_info_df)
+			fl_prop_mat_df_dict, analysis_config, imaging_info_df)
 	gr_df = growth_measurer.find_growth_rates()
 	return(gr_df)
 
@@ -612,6 +740,7 @@ def run_default_growth_rate_analysis(input_path, output_path,
 	max_colony_area = np.inf, min_correlation = 0.9, min_foldX = 0,
 	min_neighbor_dist = 5, fluor_channel_scope_labels = '',
 	fluor_channel_names = '', fluor_channel_thresholds = '',
+	fluor_channel_timepoints = '',
 	repeat_image_analysis_and_tracking = True):
 	'''
 	Runs growth rate analysis on a single phase of brightfield-only
@@ -639,7 +768,7 @@ def run_default_growth_rate_analysis(input_path, output_path,
 		'max_area_fold_decrease', 'max_area_fold_increase', 'min_colony_area',
 		'max_colony_area', 'min_correlation', 'min_foldX', 'min_neighbor_dist',
 		'fluor_channel_scope_labels', 'fluor_channel_names',
-		'fluor_channel_thresholds',
+		'fluor_channel_thresholds', 'fluor_channel_timepoints',
 		'parent_phase']
 	param_val_list = []
 	for param in parameter_list:

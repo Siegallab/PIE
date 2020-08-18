@@ -524,16 +524,16 @@ class TestMeasureColonyFluorProperties(unittest.TestCase):
 			np.uint16([1, 2, 3, 4, 5, 6, 7, 12, 13, 18, 19, 24, 25, 30, 31, 32,
 				33, 34, 35, 36])
 		expected_fluor_prop_dict = dict()
-		expected_fluor_prop_dict['back_mean_ppix'] = \
+		expected_fluor_prop_dict['back_mean_ppix_flprop'] = \
 			np.mean(background_intensities)
-		expected_fluor_prop_dict['back_med_ppix'] = \
+		expected_fluor_prop_dict['back_med_ppix_flprop'] = \
 			np.median(background_intensities)
-		expected_fluor_prop_dict['back_var_ppix'] = \
+		expected_fluor_prop_dict['back_var_ppix_flprop'] = \
 			np.var(background_intensities)
-		expected_fluor_prop_dict['col_mean_ppix'] = np.mean(colony_intensities)
-		expected_fluor_prop_dict['col_med_ppix'] = np.median(colony_intensities)
-		expected_fluor_prop_dict['col_var_ppix'] = np.var(colony_intensities)
-		expected_fluor_prop_dict['col_upquartile_ppix'] = \
+		expected_fluor_prop_dict['col_mean_ppix_flprop'] = np.mean(colony_intensities)
+		expected_fluor_prop_dict['col_med_ppix_flprop'] = np.median(colony_intensities)
+		expected_fluor_prop_dict['col_var_ppix_flprop'] = np.var(colony_intensities)
+		expected_fluor_prop_dict['col_upquartile_ppix_flprop'] = \
 			np.quantile(colony_intensities, 0.75)
 		test_fluor_prop_dict = \
 			self.colony_property_finder_standin._measure_colony_fluor_properties(
@@ -551,16 +551,16 @@ class TestMeasureColonyFluorProperties(unittest.TestCase):
 		background_intensities = \
 			np.uint16([1, 2, 3, 4, 5, 6, 7, 12, 13])
 		expected_fluor_prop_dict = dict()
-		expected_fluor_prop_dict['back_mean_ppix'] = \
+		expected_fluor_prop_dict['back_mean_ppix_flprop'] = \
 			np.mean(background_intensities)
-		expected_fluor_prop_dict['back_med_ppix'] = \
+		expected_fluor_prop_dict['back_med_ppix_flprop'] = \
 			np.median(background_intensities)
-		expected_fluor_prop_dict['back_var_ppix'] = \
+		expected_fluor_prop_dict['back_var_ppix_flprop'] = \
 			np.var(background_intensities)
-		expected_fluor_prop_dict['col_mean_ppix'] = np.nan
-		expected_fluor_prop_dict['col_med_ppix'] = np.nan
-		expected_fluor_prop_dict['col_var_ppix'] = np.nan
-		expected_fluor_prop_dict['col_upquartile_ppix'] = np.nan
+		expected_fluor_prop_dict['col_mean_ppix_flprop'] = np.nan
+		expected_fluor_prop_dict['col_med_ppix_flprop'] = np.nan
+		expected_fluor_prop_dict['col_var_ppix_flprop'] = np.nan
+		expected_fluor_prop_dict['col_upquartile_ppix_flprop'] = np.nan
 		test_fluor_prop_dict = \
 			self.colony_property_finder_standin._measure_colony_fluor_properties(
 				self.fluor_im, self.single_colony_bbox_mask_eroded,
@@ -730,24 +730,24 @@ class TestMakeFluorMeasurements(unittest.TestCase):
 		colony_property_finder.make_fluor_measurements(fluor_im,
 			fluor_channel_name, fluor_threshold)
 		expected_fluor_prop_df = pd.DataFrame()
-		expected_fluor_prop_df['back_mean_ppix_Green'] = \
+		expected_fluor_prop_df['back_mean_ppix_flprop_Green'] = \
 			[131.4806201550386, 130.2075055187637]
-		expected_fluor_prop_df['back_med_ppix_Green'] = \
+		expected_fluor_prop_df['back_med_ppix_flprop_Green'] = \
 			[130.5, 130.0]
-		expected_fluor_prop_df['back_var_ppix_Green'] = \
+		expected_fluor_prop_df['back_var_ppix_flprop_Green'] = \
 			[88.737996514632457, 89.400650068954249]
-		expected_fluor_prop_df['col_mean_ppix_Green'] = \
+		expected_fluor_prop_df['col_mean_ppix_flprop_Green'] = \
 			[147.3103448275862, 131.2790697674419]
-		expected_fluor_prop_df['col_med_ppix_Green'] = \
+		expected_fluor_prop_df['col_med_ppix_flprop_Green'] = \
 			[151.0, 132.0]
-		expected_fluor_prop_df['col_var_ppix_Green'] = \
+		expected_fluor_prop_df['col_var_ppix_flprop_Green'] = \
 			[128.2829964328181, 95.2709572742023]
-		expected_fluor_prop_df['col_upquartile_ppix_Green'] = \
+		expected_fluor_prop_df['col_upquartile_ppix_flprop_Green'] = \
 			[155.0, 137.0]
 		test_fluor_prop_df = \
 			colony_property_finder.property_df[
-				['back_mean_ppix_Green', 'back_med_ppix_Green',
-				'back_var_ppix_Green', 'col_mean_ppix_Green',
-				'col_med_ppix_Green', 'col_var_ppix_Green',
-				'col_upquartile_ppix_Green']]
+				['back_mean_ppix_flprop_Green', 'back_med_ppix_flprop_Green',
+				'back_var_ppix_flprop_Green', 'col_mean_ppix_flprop_Green',
+				'col_med_ppix_flprop_Green', 'col_var_ppix_flprop_Green',
+				'col_upquartile_ppix_flprop_Green']]
 		assert_frame_equal(expected_fluor_prop_df, test_fluor_prop_df)

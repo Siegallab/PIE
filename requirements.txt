@@ -6,4 +6,5 @@ pyarrow
 scipy >= 1.1.0
 plotnine >= 0.7.1
 shutil
+re
 Click>=7.0

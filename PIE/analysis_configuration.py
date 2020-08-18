@@ -212,25 +212,25 @@ class AnalysisConfig(object):
 			os.path.join(self.phase_output_path, 'first_timepoint_time.txt')
 		if os.path.exists(first_timepoint_file):
 			with open(first_timepoint_file) as f:
-				self.first_timepoint = int(f.readline())
+				self.first_timepoint_time = int(f.readline())
 		else:
 			if self.timepoint_dict is None:
 				# if no timepoint dict, find the modification time of
 				# the first image captured in this phase
-				self.first_timepoint = np.inf
+				self.first_timepoint_time = np.inf
 				for current_file in os.listdir(self.input_path):
 					if current_file.endswith(self.im_file_extension):
 						current_time = \
 							os.path.getmtime(os.path.join(self.input_path,
 								current_file))
-						self.first_timepoint = \
-							np.min([self.first_timepoint, current_time])
+						self.first_timepoint_time = \
+							np.min([self.first_timepoint_time, current_time])
 			else:
-				self.first_timepoint = \
+				self.first_timepoint_time = \
 					self.timepoint_dict[self.timepoint_list[0]]
 			# write to text file
 			with open(first_timepoint_file, 'w') as f:
-  				f.write('%d' % self.first_timepoint)
+  				f.write('%d' % self.first_timepoint_time)
 
 	def _reformat_values(self, int_to_format, max_val_num):
 		'''
@@ -324,6 +324,14 @@ class AnalysisConfig(object):
 				colony_properties_df_phase[
 					colony_properties_df_phase.time_tracking_id.notna()]
 		return(colony_properties_df_phase)
+
+	def get_property_mat_path(self, col_property):
+		'''
+		Gets path to property matrix
+		'''
+		write_path = os.path.join(self.phase_col_property_mats_output_folder,
+			(col_property + '_property_mat.csv'))
+		return(write_path)
 
 	def get_image(self, timepoint, channel):
 		'''
@@ -465,16 +473,18 @@ class AnalysisConfigFileProcessor(object):
 		# create empty df if every fluor property is an empty string
 		list_of_fluor_properties = [phase_conf_ser.fluor_channel_scope_labels,
 			phase_conf_ser.fluor_channel_names,
-			phase_conf_ser.fluor_channel_thresholds]
+			phase_conf_ser.fluor_channel_thresholds,
+			phase_conf_ser.fluor_channel_timepoints]
 		if all([x == '' for x in list_of_fluor_properties]):
 			fluor_channel_df = pd.DataFrame(columns =
 				['fluor_channel_label', 'fluor_channel_column_name',
-					'fluor_threshold'])
+					'fluor_threshold', 'fluor_timepoint'])
 		# raise error if only some fluor properties are empty strings
 		elif '' in list_of_fluor_properties:
 			raise ValueError(
-				'fluor_channel_label, fluor_channel_column_nam, or ' +
-				'fluor_threshold is not set for phase ' + phase_num +
+				'fluor_channel_label, fluor_channel_column_nam, ' +
+				'fluor_threshold, or fluor_timepoint is not set for phase ' + 
+				phase_num +
 				'; these values must either all be left blank, or all filled')
 		else:
 			# create df with a row for every channel
@@ -488,7 +498,9 @@ class AnalysisConfigFileProcessor(object):
 					'fluor_channel_column_name':
 						phase_conf_ser.fluor_channel_names,
 					'fluor_threshold':
-						phase_conf_ser.fluor_channel_thresholds},
+						phase_conf_ser.fluor_channel_thresholds,
+					'fluor_timepoint':
+						phase_conf_ser.fluor_channel_timepoints},
 					index = np.arange(0, channel_num))
 		return(fluor_channel_df)
 
@@ -575,7 +587,8 @@ class AnalysisConfigFileProcessor(object):
 		# list fields that must be in the output series
 		required_fields = \
 			['fluor_channel_scope_labels', 'fluor_channel_names',
-			'fluor_channel_thresholds', 'timepoint_spacing', 'hole_fill_area',
+			'fluor_channel_thresholds', 'fluor_channel_timepoints',
+			'timepoint_spacing', 'hole_fill_area',
 			'cleanup', 'max_proportion_exposed_edge', 'input_path',
 			'output_path', 'im_file_extension', 'label_order_list',
 			'total_xy_position_num', 'first_timepoint', 'total_timepoint_num',

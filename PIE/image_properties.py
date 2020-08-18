@@ -455,6 +455,7 @@ class _ColonyPropertyFinder(object):
 		'''
 		Measures and records intensities of single colony and background
 		masks in fluor_channel
+		All fluor properties must end in _flprop
 		'''
 		# create a dictionary to hold fluorescent properties
 		fluor_prop_dict = dict()
@@ -471,29 +472,29 @@ class _ColonyPropertyFinder(object):
 				background_bbox_mask_eroded, fluor_threshold)
 		if len(background_intensities) > 0:
 			# get the per pixel intensity for the background near the colony
-			fluor_prop_dict['back_mean_ppix'] = np.mean(background_intensities)
-			fluor_prop_dict['back_med_ppix'] = np.median(background_intensities)
+			fluor_prop_dict['back_mean_ppix_flprop'] = np.mean(background_intensities)
+			fluor_prop_dict['back_med_ppix_flprop'] = np.median(background_intensities)
 			# calculate the variance of pixel intensities
-			fluor_prop_dict['back_var_ppix'] = np.var(background_intensities)
+			fluor_prop_dict['back_var_ppix_flprop'] = np.var(background_intensities)
 		else:
-			fluor_prop_dict['back_mean_ppix'] = np.nan
-			fluor_prop_dict['back_med_ppix'] = np.nan
-			fluor_prop_dict['back_var_ppix'] = np.nan
+			fluor_prop_dict['back_mean_ppix_flprop'] = np.nan
+			fluor_prop_dict['back_med_ppix_flprop'] = np.nan
+			fluor_prop_dict['back_var_ppix_flprop'] = np.nan
 		if len(colony_intensities) > 0:
 			# get the per pixel intensity for the colony excluding saturated
 			# region at the colony edge
-			fluor_prop_dict['col_mean_ppix'] = np.mean(colony_intensities)
-			fluor_prop_dict['col_med_ppix'] = np.median(colony_intensities)
+			fluor_prop_dict['col_mean_ppix_flprop'] = np.mean(colony_intensities)
+			fluor_prop_dict['col_med_ppix_flprop'] = np.median(colony_intensities)
 			# calculate the variance of pixel intensities
-			fluor_prop_dict['col_var_ppix'] = np.var(colony_intensities)
+			fluor_prop_dict['col_var_ppix_flprop'] = np.var(colony_intensities)
 			# calculate the upper quartile value of colony intensities
-			fluor_prop_dict['col_upquartile_ppix'] = \
+			fluor_prop_dict['col_upquartile_ppix_flprop'] = \
 				np.quantile(colony_intensities, 0.75)
 		else:
-			fluor_prop_dict['col_mean_ppix'] = np.nan
-			fluor_prop_dict['col_med_ppix'] = np.nan
-			fluor_prop_dict['col_var_ppix'] = np.nan
-			fluor_prop_dict['col_upquartile_ppix'] = np.nan
+			fluor_prop_dict['col_mean_ppix_flprop'] = np.nan
+			fluor_prop_dict['col_med_ppix_flprop'] = np.nan
+			fluor_prop_dict['col_var_ppix_flprop'] = np.nan
+			fluor_prop_dict['col_upquartile_ppix_flprop'] = np.nan
 		return(fluor_prop_dict)
 
 	def measure_and_record_colony_properties(self):
