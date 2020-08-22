@@ -4,6 +4,7 @@
 Tracks colonies through time in a single imaging field
 '''
 
+import cv2
 import numpy as np
 import pandas as pd
 from PIE import image_properties
@@ -100,7 +101,9 @@ class ColonyTracker(object):
 	Generic class for tracking colonies based on dataframe of colony
 	properties in an image and the subsequent image
 	The details of the tracking differ from the original matlab code
-	when it comes to colony splitting/merging
+	when it comes to colony splintering/merging, as well as the fact
+	that here, image registration occurs between every consecutive
+	timepoint
 	In addition, dealing with filters by min_growth_time, settle_frames,
 	etc is outsourced to growth rate functions
 	IMPORTANT:
@@ -117,26 +120,113 @@ class ColonyTracker(object):
 		# initialize dictionary for time-tracked col property dfs
 		self.single_phase_col_prop_df_dict = dict()
 
+	def _find_centroid_transform(self, curr_im_data, next_im_data):
+		'''
+		Takes in dataframes of data for the current image and the
+		following image
+		Returns a rigid-body affine transformation matrix M that
+		transforms centroid positions in curr_im_data to centroid
+		positions in next_im_data
+		'''
+		# make matrices of centroids
+		curr_centroids = np.float32(curr_im_data[['cX', 'cY']].to_numpy())
+		next_centroids = np.float32(next_im_data[['cX', 'cY']].to_numpy())
+		# initialize brute force matcher
+		bf = cv2.BFMatcher()
+		# return top two matches for each point
+		matches = bf.knnMatch(curr_centroids, next_centroids, k=2)
+		# Apply ratio test from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_feature2d/py_matcher/py_matcher.html
+		# This ensures that only those matches are used for finding the
+		# transformation matrix which match their #1 match much closer
+		# than they match their #2 match; stringency of this requirement
+		# can be increased by decreasing match_ratio_cutoff, at the risk
+		# of ending up with too few match points
+		match_ratio_cutoff = 0.75
+		good = []
+		for m,n in matches:
+		    if m.distance < match_ratio_cutoff * n.distance:
+		        good.append(m)
+		if len(good) >= 3:
+			curr_centroids_matching = curr_centroids[[a.queryIdx for a in good]]
+			next_centroids_matching = next_centroids[[a.trainIdx for a in good]]
+			# estimateAffinePartial2D removes outliers in its default state
+			# and returns a mask showing which points it didn't remove, but
+			# we ignore this mask here
+			M, _ = cv2.estimateAffinePartial2D(curr_centroids_matching,
+				next_centroids_matching)
+		else:
+			# can't estimate affine matrix with this few points, assume
+			# no transformation
+			M = np.float64([[1, 0, 0], [0, 1, 0]])
+		return(M)
+
+	def _register_images(self, curr_im_data, next_im_data):
+		'''
+		Finds the rigid affine transform between the centroids from
+		curr_im_data to next_im_data, applies it to the centroids and
+		bounds of curr_im_data, and returns the transformed curr_im_data
+		NB: The bound transformation for rotations is not totally
+		correct, since the bounding box is rotated and a new bounding
+		box encompassing the old, transformed one is created; this is
+		larger than if a new bounding box were calculated on the
+		warped image, but with low levels of rotation expected in most
+		images, this should not be a big problem for tracking
+		'''
+		### !!! NEEDS UNITTEST
+		warp_mat = self._find_centroid_transform(curr_im_data, next_im_data)
+		# id bounding box and centroids
+		data_to_warp = curr_im_data.copy()
+		data_to_warp['bb_x_right'] = \
+			data_to_warp['bb_width'] + data_to_warp['bb_x_left']
+		data_to_warp['bb_y_bottom'] = \
+			data_to_warp['bb_height'] + data_to_warp['bb_y_top']
+		curr_im_bb_small = \
+			np.float32(data_to_warp[['bb_x_left', 'bb_y_top']].to_numpy())
+		curr_im_bb_large = \
+			np.float32(data_to_warp[['bb_x_right', 'bb_y_bottom']].to_numpy())
+		curr_im_centroids = np.float32(data_to_warp[['cX', 'cY']].to_numpy())
+		# warp centroids and bb
+		warped_centroids = \
+			np.squeeze(np.float32(cv2.transform(curr_im_centroids[np.newaxis],
+				warp_mat)))
+		warped_bb_small = np.squeeze(
+			np.float32(cv2.transform(curr_im_bb_small[np.newaxis], warp_mat)))
+		warped_bb_large = np.squeeze(
+			np.float32(cv2.transform(curr_im_bb_large[np.newaxis], warp_mat)))
+		# calculate and populate warped current image df
+		warped_curr_im_data = curr_im_data.copy()
+		warped_curr_im_data[['cX', 'cY']] = warped_centroids
+		warped_curr_im_data[['bb_x_left', 'bb_y_top']] = \
+			np.round(warped_bb_small).astype(int)
+		warped_curr_im_data[['bb_width', 'bb_height']] = \
+			np.round(warped_bb_large- warped_bb_small).astype(int)
+	#	print(warp_mat)
+	#	print(curr_im_data[['cX', 'cY', 'bb_x_left', 'bb_y_top', 'bb_width', 'bb_height']]-warped_curr_im_data[['cX', 'cY', 'bb_x_left', 'bb_y_top', 'bb_width', 'bb_height']])
+		return(warped_curr_im_data)
+
 	def _get_overlap(self, curr_im_data, next_im_data):
 		'''
 		Makes overlap df of colonies between two images
 		Identifies pairs of colonies between images for which the
 		centroid of one falls inside the other's bounding box
 		'''
+		# perform image registration
+		curr_im_data_reg = \
+			self._register_images(curr_im_data, next_im_data)
 		# get matrices of absolute differences between x and y
 		# centroids of the colonies in the two images
 		cX_diff_mat = np.abs(np.subtract.outer(
-			curr_im_data['cX'].to_numpy(),
+			curr_im_data_reg['cX'].to_numpy(),
 			next_im_data['cX'].to_numpy()))
 		cY_diff_mat = np.abs(np.subtract.outer(
-			curr_im_data['cY'].to_numpy(),
+			curr_im_data_reg['cY'].to_numpy(),
 			next_im_data['cY'].to_numpy()))
 		# calculate whether the other image's centroid falls
 		# within each respective image's bounding box bounds
 		curr_im_cX_bbox_overlap = (cX_diff_mat.T <
-			curr_im_data['bb_width'].to_numpy()/2).T
+			curr_im_data_reg['bb_width'].to_numpy()/2).T
 		curr_im_cY_bbox_overlap = (cY_diff_mat.T <
-			curr_im_data['bb_height'].to_numpy()/2).T
+			curr_im_data_reg['bb_height'].to_numpy()/2).T
 		next_im_cX_bbox_overlap = \
 			cX_diff_mat < next_im_data['bb_width'].to_numpy()/2
 		next_im_cY_bbox_overlap = \
@@ -160,7 +250,7 @@ class ColonyTracker(object):
 		# convert to dataframe with rows (indices) and columns labeled
 		# with indices of colonies from original colony property df
 		overlap_df = pd.DataFrame(overlap_mat,
-			index = curr_im_data.index,
+			index = curr_im_data_reg.index,
 			columns = next_im_data.index)
 		return(overlap_df)
 
@@ -276,8 +366,8 @@ class ColonyTracker(object):
 		# largest piece as the main colony
 		match_df_filtered = self._resolve_splits(match_df_nonmerging)
 		# for colonies with a direct match between subsequent
-		# timepoints, set self.tracking_col_name in next_timepoint to the
-		# self.tracking_col_name from current_timepoint
+		# images, set self.tracking_col_name in next_image to the
+		# self.tracking_col_name from current_image
 		self.active_col_prop_df.loc[
 			match_df_filtered.next_im_colony, self.tracking_col_name] = \
 			self.active_col_prop_df.loc[
@@ -288,7 +378,8 @@ class ColonyTracker(object):
 		'''
 		Identifies matching colonies between subsequent timepoints
 		Performs equivalent role to ColonyAreas_mod in original matlab
-		code, but see comments on class for differences
+		code, but with image registration; see comments on class for
+		differences
 		'''
 		### !!! NEEDS UNITTEST
 		# set the tracking column we'll be using to track across time
@@ -403,7 +494,7 @@ class ColonyTracker(object):
 						self.active_col_prop_df.phase_num == next_phase]
 					# find timepoints
 					curr_phase_last_tp = np.max(curr_phase_data.timepoint)
-					next_phase_first_tp = np.min(curr_phase_data.timepoint)
+					next_phase_first_tp = np.min(next_phase_data.timepoint)
 					# loop through xy positions
 					for curr_xy_pos in _xy_positions:
 						# get colony properties at current timepoint
