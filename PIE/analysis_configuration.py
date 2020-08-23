@@ -65,7 +65,7 @@ class AnalysisConfig(object):
 		total_timepoint_num, timepoint_spacing, timepoint_label_prefix,
 		position_label_prefix, main_channel_label, main_channel_imagetype,
 		fluor_channel_df, im_format, extended_display_positions,
-		xy_position_vector, settle_frames, minimum_growth_time,
+		xy_position_vector, minimum_growth_time,
 		growth_window_timepoints, max_area_pixel_decrease,
 		max_area_fold_decrease, max_area_fold_increase, min_colony_area,
 		max_colony_area, min_correlation, min_foldX, min_neighbor_dist):
@@ -82,7 +82,6 @@ class AnalysisConfig(object):
 		self.cleanup = bool(cleanup)
 		self.max_proportion_exposed_edge = float(max_proportion_exposed_edge)
 		# specify growth rate analysis parameters
-		self.settle_frames = int(settle_frames)
 		self.minimum_growth_time = int(minimum_growth_time)
 		growth_window_timepoint_int = int(growth_window_timepoints)
 		if growth_window_timepoint_int == 0:
@@ -541,7 +540,6 @@ class AnalysisConfigFileProcessor(object):
 			phase_conf_ser.im_format,
 			self.extended_display_positions,
 			self.xy_position_vector,
-			phase_conf_ser.settle_frames,
 			phase_conf_ser.minimum_growth_time,
 			phase_conf_ser.growth_window_timepoints,
 			phase_conf_ser.max_area_pixel_decrease,
@@ -594,7 +592,7 @@ class AnalysisConfigFileProcessor(object):
 			'total_xy_position_num', 'first_timepoint', 'total_timepoint_num',
 			'timepoint_label_prefix', 'position_label_prefix',
 			'main_channel_label', 'main_channel_imagetype', 'im_format',
-			'parent_phase', 'settle_frames', 'max_area_pixel_decrease',
+			'parent_phase', 'max_area_pixel_decrease',
 			'max_area_fold_decrease', 'max_area_fold_increase',
 			'min_colony_area', 'max_colony_area', 'min_correlation',
 			'min_foldX', 'minimum_growth_time', 'growth_window_timepoints',

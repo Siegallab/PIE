@@ -47,7 +47,6 @@ class TestAnalysisConfigInit(unittest.TestCase):
 			'PIE_tests/temp_out/phase_1/positionwise_colony_property_matrices'
 		self.phase_gr_write_path = \
 			'PIE_tests/temp_out/phase_1/growth_rates.csv'
-		self.settle_frames = 1
 		self.minimum_growth_time = 4
 		self.growth_window_timepoints = 7
 		self.max_area_pixel_decrease = 500.0
@@ -70,7 +69,6 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.cleanup = self.cleanup
 		expected_analysis_config.max_proportion_exposed_edge = \
 			self.max_proportion_exposed_edge
-		expected_analysis_config.settle_frames = self.settle_frames
 		expected_analysis_config.minimum_growth_time = self.minimum_growth_time
 		expected_analysis_config.growth_window_timepoints = \
 			self.growth_window_timepoints
@@ -125,7 +123,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 			self.main_channel_label, self.main_channel_imagetype,
 			self.fluor_channel_df, self.im_format,
 			self.extended_display_positions, self.xy_position_vector,
-			self.settle_frames, self.minimum_growth_time,
+			self.minimum_growth_time,
 			self.growth_window_timepoints, self.max_area_pixel_decrease,
 			self.max_area_fold_decrease, self.max_area_fold_increase,
 			self.min_colony_area, self.max_colony_area, self.min_correlation,

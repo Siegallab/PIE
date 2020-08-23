@@ -223,23 +223,18 @@ class _FilterByMaxAreaFoldIncrease(_FilterBaseClass):
 				upper_change_bound)
 		return(filter_pass)
 
-class _FilterBySettleFrames(_FilterBaseClass):
+class _FilterByColonyAppearanceTime(_FilterBaseClass):
 	'''
-	Filters out any colonies that appear after the timepoint
-	specified by settle_frames
+	Filters out any colonies that appear after the first timepoint
 	'''
 	def _filtration_method(self):
 		### !!! NEEDS UNITTEST
 		timepoints = self.df_to_filter.columns.to_numpy()
-		last_timepoint_for_new_colonies = \
-			self.analysis_config.settle_frames + 1
-		settling_timepoints = \
-			timepoints[timepoints <= last_timepoint_for_new_colonies]
-		settling_timepoints_areas = self.df_to_filter[settling_timepoints]
-		# identify colonies that have an area recorded within the
-		# settling timepoints
+		valid_timepoint_areas = self.df_to_filter[np.min(timepoints)]
+		# identify colonies that have an area recorded at the
+		# valid timepoint
 		filter_pass_rows = \
-			settling_timepoints_areas.notnull().any(1).to_numpy()
+			valid_timepoint_areas.notnull().to_numpy()
 		# repeat filter_pass_rows in every column
 		filter_pass = self._propage_filter_across_columns(filter_pass_rows)
 		return(filter_pass)
@@ -456,7 +451,7 @@ class PreGrowthCombinedFilter(CombinedFilterBaseClass):
 			'max_colony_area': _FilterByMaxArea
 			}
 		pre_gr_filtration_dict_round_2 = {
-			'settle_frames': _FilterBySettleFrames,
+			'colony_appearance_time': _FilterByColonyAppearanceTime,
 			'min_growth_time': _FilterByMinGrowthTime,
 			'max_area_fold_increase': _FilterByMaxAreaFoldIncrease,
 			'max_area_fold_decrease': _FilterByMaxAreaFoldDecrease,

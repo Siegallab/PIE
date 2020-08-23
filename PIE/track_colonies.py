@@ -104,8 +104,8 @@ class ColonyTracker(object):
 	when it comes to colony splintering/merging, as well as the fact
 	that here, image registration occurs between every consecutive
 	timepoint
-	In addition, dealing with filters by min_growth_time, settle_frames,
-	etc is outsourced to growth rate functions
+	In addition, dealing with filters by min_growth_time, appearance in
+	first timepoint, etc is outsourced to growth rate functions
 	IMPORTANT:
 	tracking IDs created within this class are only unique
 	for the colony property dataframes being passed to it (which may

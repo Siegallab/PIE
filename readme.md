@@ -115,7 +115,7 @@ PIE.run_default_growth_rate_analysis(
 	output_path = '/local/path/to/PIE/PIE_test_data/out/SL_170619_2_GR_small',
 	total_timepoint_num = 10, total_xy_position_num = 1000,
 	timepoint_spacing = 3600, extended_display_positions = [1, 4, 11],
-	settle_frames = 4, growth_window_timepoints = 7,
+	growth_window_timepoints = 7,
 	max_area_pixel_decrease = 500, min_colony_area = 30,
 	max_colony_area = np.inf, min_correlation = 0.9, min_neighbor_dist = 100,
 	repeat_image_analysis_and_tracking = False)
