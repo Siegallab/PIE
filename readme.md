@@ -1,11 +1,32 @@
 # PIE Readme
+
+- [System requirements](#system-requirements)
+- [Installing PIE](#installing-pie)
+- [Running PIE](#running-pie)
+  * [Running PIE single-image analysis](#running-pie-single-image-analysis)
+  * [Running PIE multi-image experiments](#running-pie-multi-image-experiments)
+    + [Setting up multi-image experiments](#setting-up-multi-image-experiments)
+      - [General setup](#general-setup)
+      - [Phases](#phases)
+      - [Setup file Examples](#setup-file-examples)
+    + [Running the experiment](#running-the-experiment)
+    + [Running PIE with batch submission](#running-pie-with-batch-submission)
+      - [Analyzing individual imaged xy positions](#analyzing-individual-imaged-xy-positions)
+      - [Combining position-wise data and calculating growth rates](#combining-position-wise-data-and-calculating-growth-rates)
+  * [Analysis Outputs](#analysis-outputs)
+- [Analysis details](#analysis-details)
+  * [Growth Rate](#growth-rate)
+  * [Lag](#lag)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+
 ---
 
 ## System requirements
 
 PIE runs in python, and is compatible with Python 3.8.
 
-The full list of required python packages is listed in the [requirements.txt](https://github.com/Siegallab/PIE/tree/master/requirements.txt) file.
+The full list of required python packages is listed in the [requirements.txt](https://github.com/Siegallab/PIE/tree/master/requirements.txt) file; these will be automatically installed using the code [below](#installing-pie).
 
 ## Installing PIE
 
@@ -74,14 +95,15 @@ To set up a file for an experiment, modify an existing setup file (or make your 
 
 Each experiment may consist of one or more phases; the list of phases in the experiment must be provided in the experimental setup file. A single phase consists of a single, continuously labeled bout of imaging. Colony outlines are always calculated based on a "main channel", which should consist of either brightfield or phase contrast images; the colonies identified in the main channel will then be overlaid on any fluorescent images in the phase to calculate fluorescence levels.
 
-A phase can also be run that takes only fluorescent images for a single timepoint, in which case `main_channel_label` should be set to `phase_#`, where `#` indicates the number of the parent phase.
+A phase can also be run that takes only fluorescent images for a single timepoint, in which case `parent_phase` should be set to the phase number of the phase containing the brightfield/phase contrast data corresponding to the fluorescent images.
 
 During growth rate analysis, growth rates will be calculated independently for any phase that contains multiple timepoints, but colony identities will be linked across phases.
 
 ##### Setup file Examples
 
 Here are some examples of setup files for experiments commonly done in the Siegal Lab:
- * [setup file for an experiment consisting of only growth rate measurements](https://github.com/Siegallab/PIE/tree/master/sample_PIE_setup_files/gr_phase_setup.csv)
+ * [setup file](https://github.com/Siegallab/PIE/tree/master/sample_PIE_setup_files/gr_phase_setup.csv) for an experiment consisting of only growth rate measurements
+ * [setup file](https://github.com/Siegallab/PIE/tree/master/sample_PIE_setup_files/two_phase_setup.csv) for an experiment consisting of two phases of growth rate measurements, the first with two fluorescent channels, the second with a single fluorescent channel
 
 #### Running the experiment
 
@@ -89,11 +111,12 @@ To run a full image analysis experiment using PIE, you can use the `run_growth_r
 
 ```python
 import PIE
-PIE.run_growth_rate_analysis('/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv')
+PIE.run_growth_rate_analysis(analysis_config_file =
+    '/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv')
 ```
 You can also use the `pie` command-line interface:
 
-```
+```console
 pie run /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv
 ```
 
@@ -101,8 +124,10 @@ Finally, running a single-phase, brightfield-only analysis with all-default inpu
 
 ```python
 import PIE
-PIE.run_default_growth_rate_analysis(input_path, output_path,
-	total_timepoint_num)
+PIE.run_default_growth_rate_analysis(
+    input_path,
+    output_path,
+    total_timepoint_num)
 ```
 
 To achieve the same results as using the provided setup file, some options need to be changed when using the default analysis; for example, the sample data can be analyzed as follows:
@@ -111,28 +136,71 @@ To achieve the same results as using the provided setup file, some options need 
 import PIE
 import numpy as np
 PIE.run_default_growth_rate_analysis(
-	input_path = '/local/path/to/PIE/PIE_test_data/IN/SL_170619_2_GR_small',
-	output_path = '/local/path/to/PIE/PIE_test_data/out/SL_170619_2_GR_small',
-	total_timepoint_num = 10, total_xy_position_num = 1000,
-	timepoint_spacing = 3600, extended_display_positions = [1, 4, 11],
-	growth_window_timepoints = 7,
-	max_area_pixel_decrease = 500, min_colony_area = 30,
-	max_colony_area = np.inf, min_correlation = 0.9, min_neighbor_dist = 100,
-	repeat_image_analysis_and_tracking = False)
-
+    input_path = '/local/path/to/PIE/PIE_test_data/IN/SL_170619_2_GR_small',
+    output_path = '/local/path/to/PIE/PIE_test_data/out/SL_170619_2_GR_small',
+    total_timepoint_num = 10, total_xy_position_num = 1000,
+    timepoint_spacing = 3600, extended_display_positions = [1, 4, 11],
+    growth_window_timepoints = 7,
+    max_area_pixel_decrease = 500, min_colony_area = 30,
+    max_colony_area = np.inf, min_correlation = 0.9, min_neighbor_dist = 100,
+    repeat_image_analysis_and_tracking = False)
 ```
 
-#### Analysis Outputs
+#### Running PIE with batch submission
 
-Outputs of the PIE experiment can be found in the directory provided by the `output_folder` path in the setup file.
+PIE is set up to easily be run via batch submission. To do this, the colony tracking step for each individual xy position is separated from the steps that compile the data across positions and calculate growth rates.
 
-Each output folder includes one or multiple folders corresponding to phases of the experiment, and named **phase_[*phase_name*]**. This folder contains:
+##### Analyzing individual imaged xy positions
 
- * **growth_rates.csv**, containing all the colony growth rates for this experiment that pass the filtration steps
- * **col_props_with_tracking_pos.csv**, containing the (unfiltered) properties of every colony identified in every timepoint during analysis, and the colony tracking data
- * Phase-specific image analysis outputs (see [*Running PIE single-image analysis*](#Running-PIE-single-image-analysis), although without a **single_image_colony_centers** folder, as this data is saved in the colony properties file)
+To analyze each imaged position individually (e.g. via batch jobs), you need to pass the integer corresponding to the xy position being analyzed and the path to the setup file. This can be done e.g. for position 11 of the `SL_170619_2_GR_small` sample data either in python:
 
-In addition, the file containing the growth rates of all colonies tracked across all phases can be found directly in the output folder (**UNDER CONSTRUCTION**)
+```python
+import PIE
+PIE.track_colonies_single_pos(
+    11,
+    analysis_config_file = 
+        '/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv'
+    )
+```
+
+or using the command-line interface
+
+```console
+pie track_single_position 11 /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv
+```
+
+In addition, the dataframe returned by `PIE.process_setup_file` can be directly passed to `PIE.track_colonies_single_pos` instead of the setup filepath itself, which may be useful when automating image analysis pipelines:
+
+```python
+import PIE
+config_df = PIE.process_setup_file('/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv')
+PIE.track_colonies_single_pos(
+    xy_pos_idx,
+    analysis_config_obj_df = config_df
+    )
+```
+
+##### Combining position-wise data and calculating growth rates
+
+After every imaged xy position has been analyzed, the data can be combined and growth rates can be calculated by simply running `PIE.run_growth_rate_analysis(...)` (or `pie run ...`), as in [*Running the experiment*](#running-the-experiment), with the default `repeat_image_analysis_and_tracking = False` option.
+
+### Analysis Outputs
+
+Outputs of the PIE experiment can be found in the directory provided by the `output_folder` path in the setup file. Each output folder includes one or multiple folders corresponding to phases of the experiment, named **phase_[*phase_name*]**, with all phase-specific data contained within.
+
+Phase-specific output folders contain:
+
+ * **growth_rates.csv** for each phase of the experiment; created only after running `PIE.run_growth_rate_analysis(...)` or `pie run ...`. For all colonies that pass the filtration steps, this file contains:
+   + colony growth rates
+   + colony lag times
+   + if applicable, a cross-section/summary of colony fluorescent data
+ * a folder called **positionwise_colony_property_matrices** containing *csv* files for each quantified colony property, tracked across time, for each colony; created only after running `PIE.run_growth_rate_analysis(...)` or `pie run ...`. This is phase-specific data from each column of **colony_properties_combined.csv** (see below) in matrix form, and can be useful for analysis outside the scope of that done by PIE
+ * Phase-specific image analysis outputs (see [*Running PIE single-image analysis*](#running-PIE-single-image-analysis), although without a **single_image_colony_centers** folder, as this data is saved in the colony properties file); these are created during the analysis of every individual imaging position.
+
+In addition to the phase-specific folders, the output folder contains:
+ * a folder called **positionwise_colony_properties**, which contains the dataframes produced by cross-time and cross-phase colony tracking, saved individually for every position in *parquet* format.
+ * **colony_properties_combined.csv**, containing the (unfiltered) properties of every colony identified in every timepoint during analysis, and the colony tracking data, in *csv* format (this is a simple compilation of the data in **positionwise_colony_properties**); created only after running `PIE.run_growth_rate_analysis(...)` or `pie run ...`.
+ * **growth_rates_combined.csv**, containing the data from the phase-specific growth rate files but tracked across all phases of the experiment; created only after running `PIE.run_growth_rate_analysis(...)` or `pie run ...`.
 
 ## Analysis details
 
