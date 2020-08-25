@@ -8,7 +8,7 @@ import os
 import numpy as np
 import pandas as pd
 import re
-from io import StringIO, TextIOWrapper
+from io import StringIO
 from PIE import track_colonies, analysis_configuration, colony_filters
 
 class _CompileColonyData(object):
@@ -665,7 +665,8 @@ def measure_growth_rate(analysis_config, time_tracked_phase_pos_data):
 	gr_df = growth_measurer.find_growth_rates()
 	return(gr_df)
 
-def run_growth_rate_analysis(analysis_config_file,
+def run_growth_rate_analysis(analysis_config_file = None,
+		analysis_config_obj_df = None,
 		repeat_image_analysis_and_tracking = False):
 	'''
 	Runs growth rate analysis from scratch (including image analysis
@@ -674,11 +675,10 @@ def run_growth_rate_analysis(analysis_config_file,
 	properties file already exists, skip image analysis and tracking
 	and go straight to growth rate assay
 	'''
-	analysis_config_file_processor = \
-		analysis_configuration.AnalysisConfigFileProcessor()
-	analysis_config_obj_df = \
-		analysis_config_file_processor.process_analysis_config_file(
-			analysis_config_file)
+	# check that only analysis_config_obj_df or
+	# analysis_config_file is passed, and get analysis_config_obj_df
+	analysis_config_obj_df = analysis_configuration.check_passed_config(
+		analysis_config_obj_df, analysis_config_file)
 	phase_gr_combiner = _PhaseGRCombiner()
 	# track colonies through time and phase at each xy position and
 	# combine results
@@ -795,6 +795,8 @@ def run_default_growth_rate_analysis(input_path, output_path,
 #	test = pd.read_csv(analysis_config_file_standin)
 #	print(test)
 	analysis_config_file_standin.seek(0)
-	run_growth_rate_analysis(analysis_config_file_standin,
-		repeat_image_analysis_and_tracking)
+	run_growth_rate_analysis(
+		analysis_config_file = analysis_config_file_standin,
+		repeat_image_analysis_and_tracking =
+			repeat_image_analysis_and_tracking)
 

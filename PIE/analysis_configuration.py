@@ -376,7 +376,7 @@ class AnalysisConfig(object):
 				'xy_' + str(xy_position_idx) + 
 				'_col_props_with_tracking_pos.parquet')
 
-class AnalysisConfigFileProcessor(object):
+class _AnalysisConfigFileProcessor(object):
 	'''
 	Reads an analysis config csv file and creates a dictionary with an
 	AnalysisConfig object for each phase of the experiment; for each
@@ -700,3 +700,27 @@ class AnalysisConfigFileProcessor(object):
 		# create df of analysis config objects
 		analysis_config_obj_df = self._create_analysis_config_df()
 		return(analysis_config_obj_df)
+
+def process_setup_file(analysis_config_path):
+	'''
+	Processed the experimental setup file in analysis_config_path and
+	creates pandas df of AnalysisConfig objects for each phase
+	'''
+	analysis_config_file_processor = _AnalysisConfigFileProcessor()
+	analysis_config_obj_df = \
+		analysis_config_file_processor.process_analysis_config_file(
+			analysis_config_path)
+	return(analysis_config_obj_df)
+
+def check_passed_config(analysis_config_obj_df, analysis_config_file):
+	'''
+	Check that only analysis_config_obj_df or analysis_config_file is
+	passed, and get analysis_config_obj_df
+	'''
+	if (analysis_config_obj_df is None) == (analysis_config_file is None):
+		raise ValueError(
+			'Must supply EITHER analysis_config_obj_df OR ' +
+			'analysis_config_file argument')
+	if analysis_config_obj_df is None:
+		analysis_config_obj_df = process_setup_file(analysis_config_file)
+	return(analysis_config_obj_df)

@@ -7,7 +7,7 @@ Tracks colonies through time in a single imaging field
 import cv2
 import numpy as np
 import pandas as pd
-from PIE import image_properties
+from PIE import image_properties, analysis_configuration
 
 class SinglePhaseSinglePosCompiler(object):
 	'''
@@ -540,14 +540,9 @@ def track_colonies_single_pos(xy_pos_idx, analysis_config_obj_df = None,
 	Takes either analysis_config_obj_df or analysis_config_file as arg
 	'''
 	# check that only analysis_config_obj_df or
-	# analysis_config_file is supplied
-	if (analysis_config_obj_df is None) == (analysis_config_file is None):
-		raise ValueError(
-			'Must supply EITHER analysis_config_obj_df OR ' +
-			'analysis_config_file argument')
-	if analysis_config_obj_df is None:
-		analysis_config_obj_df = \
-			analysis_configuration.set_up_analysis_config(analysis_config_file)
+	# analysis_config_file is passed, and get analysis_config_obj_df
+	analysis_config_obj_df = analysis_configuration.check_passed_config(
+		analysis_config_obj_df, analysis_config_file)
 	# set up colony tracker
 	colony_tracker = ColonyTracker()
 	# track colonies within each phase

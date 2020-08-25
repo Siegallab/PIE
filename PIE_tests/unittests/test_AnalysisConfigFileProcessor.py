@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 #import pandas.testing.assert_frame_equal
 #import numpy.testing.assert_equal
-from PIE.analysis_configuration import AnalysisConfigFileProcessor, \
+from PIE.analysis_configuration import _AnalysisConfigFileProcessor, \
 	AnalysisConfig
 
 class TestProcessAnalysisConfigFile(unittest.TestCase):
@@ -16,7 +16,7 @@ class TestProcessAnalysisConfigFile(unittest.TestCase):
 		Tests input with single growth rate phase
 		'''
 		analysis_config_file = 'sample_PIE_setup_files/gr_phase_setup.csv'
-		analysis_config_file_processor = AnalysisConfigFileProcessor()
+		analysis_config_file_processor = _AnalysisConfigFileProcessor()
 		test_analysis_config_obj_df = \
 			analysis_config_file_processor.process_analysis_config_file(
 				analysis_config_file)
