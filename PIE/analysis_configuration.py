@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import os
 import pandas as pd
-from random import sample
+from PIL import Image
 
 class _ImageRetriever(object):
 	'''
@@ -121,6 +121,8 @@ class AnalysisConfig(object):
 		self.position_label_prefix = position_label_prefix
 		# find time of first existing file
 		self._find_first_timepoint()
+		# find size of images
+		self._find_im_size()
 		# specify type of image (brightfield or phase_contrast) is in
 		# the main channel
 		self.main_channel_imagetype = main_channel_imagetype
@@ -229,7 +231,24 @@ class AnalysisConfig(object):
 					self.timepoint_dict[self.timepoint_list[0]]
 			# write to text file
 			with open(first_timepoint_file, 'w') as f:
-  				f.write('%d' % self.first_timepoint_time)
+				f.write('%d' % self.first_timepoint_time)
+
+	def _find_im_size(self):
+		'''
+		Assumes all images are the same size
+		'''
+		# find image files in self.input_path
+		im_files = [
+			f for f in os.listdir(self.input_path)
+			if f.endswith(self.im_file_extension)
+			]
+		# open *some* input image
+		im_to_use = im_files[0]
+		self.size_ref_im = im_to_use
+		# NB: Pillow doesn't open jpegs saved through matlab with weird
+		# bitdepths, i.e. in old matlab PIE code
+		with Image.open(os.path.join(self.input_path,im_to_use)) as im:
+			self.im_width, self.im_height = im.size
 
 	def _reformat_values(self, int_to_format, max_val_num):
 		'''
@@ -305,24 +324,30 @@ class AnalysisConfig(object):
 					pos_tracked_col_prop_df.time_tracking_id.notna()]
 		return(pos_tracked_col_prop_df)
 
-	def get_colony_data_tracked_df(self, remove_untracked = False):
+	def get_colony_data_tracked_df(self, remove_untracked = False,
+								filter_by_phase = True):
 		'''
 		Reads and returns dataframe of tracked phase colony properties
 		output
-		Removes any rows with missing time_tracking_id (corresponding
+
+		If remove_untracked is True,
+		removes any rows with missing time_tracking_id (corresponding
 		to colonies that weren't tracked because e.g. they are a minor
 		piece of a broken-up colony)
 		'''
 		colony_properties_df_total = \
 			pd.read_csv(self.combined_tracked_properties_write_path,
 				index_col = 0)
-		colony_properties_df_phase = colony_properties_df_total[
-			colony_properties_df_total.phase_num == self.phase_num]
+		if filter_by_phase:
+			colony_properties_df = colony_properties_df_total[
+				colony_properties_df_total.phase_num == self.phase_num]
+		else:
+			colony_properties_df = colony_properties_df_total
 		if remove_untracked:
-			colony_properties_df_phase = \
-				colony_properties_df_phase[
-					colony_properties_df_phase.time_tracking_id.notna()]
-		return(colony_properties_df_phase)
+			colony_properties_df = \
+				colony_properties_df[
+					colony_properties_df.time_tracking_id.notna()]
+		return(colony_properties_df)
 
 	def get_property_mat_path(self, col_property):
 		'''
@@ -344,7 +369,7 @@ class AnalysisConfig(object):
 		image = self.image_retriever.get_image(im_filepath = im_filepath,
 			timepoint = timepoint, channel = channel)
 		# get image time
-		if image is None:
+		if image is None or timepoint is None:
 			image_time = None
 		else:
 			# if timepoint dict exists, get time value from there;
@@ -432,10 +457,16 @@ class _AnalysisConfigFileProcessor(object):
 		self.xy_position_vector = \
 			range(global_param_val_series.first_xy_position,
 				(self.total_xy_position_num + 1))
-		self.extended_display_positions = \
-			global_param_val_series.extended_display_positions
-		if not self.extended_display_positions:
+		if not global_param_val_series.extended_display_positions:
 			self.extended_display_positions = []
+		elif isinstance(
+			global_param_val_series.extended_display_positions,
+			int):
+			self.extended_display_positions = [
+				global_param_val_series.extended_display_positions]
+		else:
+			self.extended_display_positions = \
+				global_param_val_series.extended_display_positions
 
 	def _process_parameter_vals(self, val_str):
 		'''
@@ -478,13 +509,6 @@ class _AnalysisConfigFileProcessor(object):
 			fluor_channel_df = pd.DataFrame(columns =
 				['fluor_channel_label', 'fluor_channel_column_name',
 					'fluor_threshold', 'fluor_timepoint'])
-		# raise error if only some fluor properties are empty strings
-		elif '' in list_of_fluor_properties:
-			raise ValueError(
-				'fluor_channel_label, fluor_channel_column_nam, ' +
-				'fluor_threshold, or fluor_timepoint is not set for phase ' + 
-				phase_num +
-				'; these values must either all be left blank, or all filled')
 		else:
 			# create df with a row for every channel
 			# (use np.size here, not len function, to get accurate
@@ -501,6 +525,29 @@ class _AnalysisConfigFileProcessor(object):
 					'fluor_timepoint':
 						phase_conf_ser.fluor_channel_timepoints},
 					index = np.arange(0, channel_num))
+			# raise error if only some fluor properties are empty strings
+			mutually_required_fluor_properties = [
+				'fluor_channel_column_name',
+				'fluor_threshold',
+				'fluor_timepoint']
+			for prop in mutually_required_fluor_properties:
+				if '' in fluor_channel_df[prop]:
+					raise ValueError(
+						prop + 
+						' is not set for one of the channels in phase ' +
+						str(phase_num) +
+						'; these values must either all be left blank, or '
+						'all filled')
+			# raise error if any non-unique values in columns
+			unique_properties = [
+				'fluor_channel_label',
+				'fluor_channel_column_name']
+			for prop in unique_properties:
+				if not fluor_channel_df[prop].is_unique:
+					raise ValueError(
+						'Non-unique values identified in ' + prop +
+						'for phase ' + str(phase_num) + ': ' +
+						str(fluor_channel_df[prop]))
 		return(fluor_channel_df)
 
 	def _create_analysis_config(self, phase_num, phase_conf_ser):
@@ -567,7 +614,7 @@ class _AnalysisConfigFileProcessor(object):
 		# check that each parameter is specified only once in this phase
 		if not current_phase_data.Parameter.is_unique:
 			raise ValueError('There is a Parameter value listed in phase ' +
-				phase_num + ' of the setup file that is not unique.')
+				str(phase_num) + ' of the setup file that is not unique.')
 		# set index to parameter and extract series corresponding to values
 		current_phase_data.index = current_phase_data.Parameter
 		current_phase_series = current_phase_data.Value
@@ -673,6 +720,9 @@ class _AnalysisConfigFileProcessor(object):
 			# store AnalysisConfig object in pandas df
 			analysis_config_obj_df.at[storage_phase, config_type] = \
 				current_analysis_config
+		# in case any phase rows are empty (because those phases are
+		# child phases of other phases), remove rows with all None
+		analysis_config_obj_df.dropna(0, how = 'all', inplace = True)
 		return(analysis_config_obj_df)
 
 	def process_analysis_config_file(self, analysis_config_path):
