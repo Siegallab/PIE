@@ -8,7 +8,6 @@ import os
 import numpy as np
 import pandas as pd
 import re
-from io import StringIO
 from PIE import track_colonies, analysis_configuration, colony_filters
 
 class _CompileColonyData(object):
@@ -225,8 +224,9 @@ class _GrowthMeasurer(object):
 	#		growth rate for those windows that don't contain any missing
 	#		areas
 	def __init__(self, areas, times_in_seconds, cX, cY, fl_prop_mat_df_dict,
-			analysis_config, imaging_info_df):
+			analysis_config, postphase_analysis_config, imaging_info_df):
 		self.analysis_config = analysis_config
+		self.postphase_analysis_config = postphase_analysis_config
 		self.imaging_info_df = imaging_info_df
 		self.unfilt_areas = areas
 		# times nee
@@ -234,8 +234,9 @@ class _GrowthMeasurer(object):
 		self.unfilt_cX = cX
 		self.unfilt_cY = cY
 		self.fl_prop_mat_df_dict = fl_prop_mat_df_dict
-		self.columns_to_return = ['t0', 'gr', 'lag', 'rsq', 'foldX', 'mindist'] + \
-				imaging_info_df.columns.to_list()
+		self.columns_to_return = \
+			['t0', 'tfinal', 'gr', 'lag', 'intercept', 'rsq', 'foldX',
+				'mindist'] + imaging_info_df.columns.to_list()
 
 	def _convert_times(self, times_in_seconds):
 		'''
@@ -300,14 +301,15 @@ class _GrowthMeasurer(object):
 		window_rows, window_end_positions = \
 			np.where(cum_run_lengths >=
 				self.analysis_config.growth_window_timepoints)
-		window_start_postions = \
+		window_start_positions = \
 			window_end_positions - \
 			self.analysis_config.growth_window_timepoints + 1
 		# create dataframe of positions to run linear regression on
 		self.positions_for_regression = pd.DataFrame({
-			't0': self.log_filt_areas.columns[window_start_postions],
-			'start_col': window_start_postions,
-			'range_stop_col': (window_start_postions +
+			't0': self.log_filt_areas.columns[window_start_positions],
+			'tfinal': self.log_filt_areas.columns[window_end_positions],
+			'start_col': window_start_positions,
+			'range_stop_col': (window_start_positions +
 				self.analysis_config.growth_window_timepoints),
 			'row': window_rows,
 			'intercept': np.nan,
@@ -338,8 +340,9 @@ class _GrowthMeasurer(object):
 		if self.log_filt_areas.empty:
 			# create empty gr dataframe
 			self.positions_for_regression = \
-				pd.DataFrame(columns = ['t0', 'start_col', 'range_stop_col',
-					'row', 'intercept', 'gr', 'lag', 'rsq', 'foldX'],
+				pd.DataFrame(columns = ['t0', 'tfinal', 'start_col',
+					'range_stop_col', 'row', 'intercept', 'gr', 'lag',
+					'rsq', 'foldX'],
 					index = [])
 		else:
 			self._identify_regr_window_start_and_ends()
@@ -461,36 +464,6 @@ class _GrowthMeasurer(object):
 		combined_filtered_gr = filtered_gr.join(self.imaging_info_df)
 		self.final_gr = combined_filtered_gr[self.columns_to_return]
 
-	def _get_t0_indices(self, col_property_mat_df):
-		'''
-		Gets indices of t0 timepoints in col_property_mat_df column
-		names
-		'''
-		t0_indices = np.searchsorted(col_property_mat_df.columns,
-			self.final_gr.t0.to_numpy())
-		return(t0_indices)
-
-	def _get_timepoint_val(self, row, col_property_mat_df):
-		'''
-		Gets fluorescent timepoint that should be used to retrieve
-		timepoints based on val set in setup config to value based on
-		row in self.analysis_config.fluor_channel_df
-		'''
-		### !!! NEEDS UNITTEST
-		tp_val = \
-			self.analysis_config.fluor_channel_df.at[row, 'fluor_timepoint']
-		if tp_val == 'last_gr':
-			tp_idx = self._get_t0_indices(col_property_mat_df) + \
-				self.analysis_config.growth_window_timepoints - 1
-		elif tp_val == 'first_gr':
-			tp_idx = self._get_t0_indices(col_property_mat_df)
-		elif isinstance(tp_val, int):
-			# convert timepoint to timepoint index
-			tp_idx = np.where(test_df.columns == tp_val)[0][0]
-		else:
-			tp_idx = tp_val
-		return(tp_idx)
-
 	def _add_fluor_data(self):
 		'''
 		If there is measured fluorescent data, add the necessary
@@ -498,10 +471,18 @@ class _GrowthMeasurer(object):
 		'''
 		### !!! NEEDS UNITTEST
 		row_indices_to_use = self.final_gr.index
-		if not self.analysis_config.fluor_channel_df.empty:
+		if self.postphase_analysis_config == None:
+			combined_fluor_channel_df = self.analysis_config.fluor_channel_df
+		else:
+			combined_fluor_channel_df = pd.concat([
+					self.analysis_config.fluor_channel_df,
+					self.postphase_analysis_config.fluor_channel_df
+					], sort = False
+				)
+		if not combined_fluor_channel_df.empty:
 			fl_prop_keys = list(self.fl_prop_mat_df_dict.keys())
-			for row, channel in \
-				enumerate(self.analysis_config.fluor_channel_df.\
+			for row_idx, channel in \
+				enumerate(combined_fluor_channel_df.\
 					fluor_channel_column_name):
 				# identify property names in this channel
 				prop_substring = '_flprop_' + channel
@@ -513,9 +494,13 @@ class _GrowthMeasurer(object):
 				# self.final_gr
 				for fl_prop_name in current_channel_prop_names:
 					col_prop_mat_df = self.fl_prop_mat_df_dict[fl_prop_name]
-					timepoint_indices = self._get_timepoint_val(row,col_prop_mat_df)
-					self.final_gr[fl_prop_name] = get_colony_properties(
-						col_prop_mat_df, timepoint_indices, row_indices_to_use)
+					timepoint_label = \
+						combined_fluor_channel_df.at[row_idx, 'fluor_timepoint']
+					self.final_gr[fl_prop_name], _ = get_colony_properties(
+						col_prop_mat_df,
+						timepoint_label,
+						index_names = row_indices_to_use,
+						gr_df = self.final_gr)
 
 	def find_growth_rates(self):
 		'''
@@ -551,7 +536,7 @@ class _PhaseGRCombiner(object):
 		self.time_tracked_col_prop_list = []
 		self.gr_df_list = []
 
-	def add_phase_data(self, phase_num, gr_df):
+	def add_phase_data(self, gr_df):
 		'''
 		Add gr and tracked colony property data for a phase to the phase
 		combiner
@@ -570,8 +555,8 @@ class _PhaseGRCombiner(object):
 		# important since it is not enforced to be unique across phases
 		gr_df_comb = pd.concat(self.gr_df_list, sort = False).reset_index(
 			drop = True)
-		phase_match_key_df = \
-			track_colonies.generate_match_key_df(tracked_col_props)
+#		phase_match_key_df = \
+#			track_colonies.generate_match_key_df(tracked_col_props)
 		# re-orient df so that each row is a single colony tracked
 		# across phases, with columns from gr_df reported for each phase
 		gr_df_comb_squat = \
@@ -581,19 +566,35 @@ class _PhaseGRCombiner(object):
 		gr_df_comb_squat.columns = [f'{i}_phase_{j}' for i,j in gr_df_comb_squat.columns]
 		return(gr_df_comb_squat)
 
-
-def get_colony_properties(col_property_mat_df, timepoint_indices,
-	index_names = None):
+def find_column_idx(df, col_vals):
 	'''
-	Returns values from pd df col_property_mat_df at timepoint_indices for
-	rows with names index_names
+	Returns indices of col_vals in df.columns
+	'''
+	sorter = np.argsort(df.columns)
+	col_val_idx = sorter[np.searchsorted(
+		df.columns, col_vals, sorter=sorter)]
+	return(col_val_idx)
+
+def get_colony_properties(col_property_mat_df, timepoint_label,
+	index_names = None, gr_df = None):
+	'''
+	Returns values from pd df col_property_mat_df at timepoint_label for
+	rows with names index_names, as well as timepoints corresponding to those
+	values
+
 	If index_names is None, returns properties for all indices
-	timepoint_indices can be a numpy array of timepoint indices, a single int,
+
+	timepoint_label can be a numpy array of timepoints, a single int,
 	'last_tracked' (meaning the last tracked timepoint for each index),
 	'first_tracked' (meaning the first tracked timepoint for each
-	index), or
+	index),
+	'first_gr' (meaning the timepoint corresponding to t0),
+	'last_gr' (meaning the timepoint corresponding to tfinal),
 	'mean', 'median', 'max', or 'min' (returning specified function on all
-	tracked timepoint_indices)
+	tracked timepoint_label)
+
+	If timepoint_label is last_gr or first_gr, then gr_df must be
+	passed
 	'''
 	### !!! NEEDS UNITTEST
 	# if index_names is None, use all of col_property_mat_df in
@@ -601,53 +602,92 @@ def get_colony_properties(col_property_mat_df, timepoint_indices,
 	# index_names
 	if isinstance(index_names, pd.Index) or \
 		isinstance(index_names, list) or isinstance(index_names, np.ndarray):
-		col_property_mat = col_property_mat_df.loc[index_names].to_numpy()
-	elif index_names == None:
-		col_property_mat = col_property_mat_df.to_numpy()
+		col_property_mat_df_subset = col_property_mat_df.loc[index_names]
+	elif index_names is None:
+		col_property_mat_df_subset = col_property_mat_df
 	else:
 		raise TypeError("index_names must be a list of index names")
-	# identify timepoint_indices to be used for each index
-	nan_mat = np.isnan(col_property_mat)
-	if isinstance(timepoint_indices, str) and \
-		timepoint_indices in ['mean', 'median', 'min', 'max']:
-		# perform the specified function on tracked timepoint_indices in each
+	col_property_mat = col_property_mat_df_subset.to_numpy()
+	if isinstance(timepoint_label, str) and \
+		timepoint_label in ['mean', 'median', 'min', 'max']:
+		# perform the specified function on tracked timepoint_label in each
 		# row
-		if timepoint_indices == 'mean':
+		if timepoint_label == 'mean':
 			output_vals = np.nanmean(col_property_mat, axis = 1)
-		elif timepoint_indices == 'median':
+		elif timepoint_label == 'median':
 			output_vals = np.nanmedian(col_property_mat, axis = 1)
-		elif timepoint_indices == 'min':
+		elif timepoint_label == 'min':
 			output_vals = np.nanmin(col_property_mat, axis = 1)
-		elif timepoint_indices == 'max':
+		elif timepoint_label == 'max':
 			output_vals = np.nanmax(col_property_mat, axis = 1)
+		# tp_to_use_idx should be empty
+		tp_to_use_idx = np.empty([col_property_mat.shape[0],1])
+		tp_to_use_idx[:] = np.nan
 	else:
-		if isinstance(timepoint_indices, str) and \
-			timepoint_indices == 'first_tracked':
-			# return first tracked timepoint
-			tp_to_use = \
-				np.argmin(nan_mat, axis = 1)
-		elif isinstance(timepoint_indices, str) and \
-			timepoint_indices == 'last_tracked':
-			# return last tracked timepoint
-			tp_to_use = \
-				nan_mat.shape[1] - np.argmin(np.fliplr(nan_mat), axis = 1) - 1
-		elif isinstance(timepoint_indices, int):
-			# return specified timepoint
-			tp_to_use = timepoint_indices
-		elif isinstance(timepoint_indices, np.ndarray) and \
-			timepoint_indices.shape == (col_property_mat.shape[0],):
-			# return timepoint specified for each row
-			tp_to_use = timepoint_indices
+		# identify timepoint_label to be used for each index
+		if isinstance(timepoint_label, str) and \
+			timepoint_label in ['first_gr', 'last_gr']:
+			# check that gr_df has been passed
+			if (gr_df is not None) and isinstance(gr_df, pd.DataFrame) \
+				and (not gr_df.empty):
+				if len(gr_df.phase_num.unique())>1:
+					raise ValueError(
+						'gr_df must contain data for no more than one phase_num'
+						)
+				if gr_df.index.name == 'time_tracking_id':
+					gr_df_time_id_indexed = gr_df
+				else:
+					gr_df_time_id_indexed = gr_df.set_index('time_tracking_id')
+				if timepoint_label == 'first_gr':
+					# return last tracked timepoint
+					tp_to_use = \
+						gr_df.loc[
+							col_property_mat_df_subset.index, 't0'].to_numpy()
+				else:
+					tp_to_use = \
+						gr_df.loc[
+							col_property_mat_df_subset.index, 'tfinal'].to_numpy()
+				tp_to_use_idx = \
+					find_column_idx(col_property_mat_df_subset,
+						[float(tp) for tp in tp_to_use])
+			else:
+				raise ValueError(
+					'If timepoint_label is first_gr or last_gr then a non-'
+					'empty pandas dataframe must be passed as gr_df')
 		else:
-			raise ValueError(
-				'timepoint_indices may be "first", "last", an integer, or a 1-D numpy ' +
-				'array with as many elements as rows of interest in ' +
-				'col_property_mat_df')
+			nan_mat = np.isnan(col_property_mat)
+			if isinstance(timepoint_label, str) and \
+				timepoint_label == 'first_tracked':
+				# return first tracked timepoint
+				tp_to_use_idx = \
+					np.argmin(nan_mat, axis = 1)
+			elif isinstance(timepoint_label, str) and \
+				timepoint_label == 'last_tracked':
+				# return last tracked timepoint
+				tp_to_use_idx = \
+					nan_mat.shape[1] - np.argmin(np.fliplr(nan_mat), axis = 1) - 1
+			elif isinstance(timepoint_label, int):
+				# return specified timepoint
+				tp_to_use_idx = np.where(col_property_mat_df_subset.columns == tp_val)[0][0]
+			elif isinstance(timepoint_label, np.ndarray) and \
+				timepoint_label.shape == (col_property_mat.shape[0],):
+				# return timepoint specified for each row
+				tp_to_use_idx = \
+					find_column_idx(col_property_mat_df_subset.columns,
+						timepoint_label.astype(float).astype(str))
+			else:
+				raise ValueError(
+					'timepoint_label may be "first_tracked", "last_tracked", '
+					'"first_gr", "last_gr", an integer, or a 1-D numpy '
+					'array with as many elements as rows of interest in '
+					'col_property_mat_df')
+			tp_to_use = col_property_mat_df_subset.columns[tp_to_use_idx]
 		output_vals = \
-			col_property_mat[np.arange(0,col_property_mat.shape[0]), tp_to_use]
-	return(output_vals)
+			col_property_mat[np.arange(0,col_property_mat.shape[0]), tp_to_use_idx]
+	return(output_vals, tp_to_use)
 
-def measure_growth_rate(analysis_config, time_tracked_phase_pos_data):
+def measure_growth_rate(analysis_config, postphase_analysis_config,
+	time_tracked_phase_pos_data):
 	'''
 	Compiles data from individual timepoints into a single dataframe of
 	tracked colonies, saves property matrices for each tracked colony,
@@ -661,7 +701,8 @@ def measure_growth_rate(analysis_config, time_tracked_phase_pos_data):
 	imaging_info_df = colony_data_compiler.generate_imaging_info_df()
 	growth_measurer = \
 		_GrowthMeasurer(area_mat_df, timepoint_mat_df, cX_mat_df, cY_mat_df,
-			fl_prop_mat_df_dict, analysis_config, imaging_info_df)
+			fl_prop_mat_df_dict, analysis_config, postphase_analysis_config,
+			imaging_info_df)
 	gr_df = growth_measurer.find_growth_rates()
 	return(gr_df)
 
@@ -708,15 +749,14 @@ def run_growth_rate_analysis(analysis_config_file = None,
 	for phase_num in analysis_config_obj_df.index:
 		analysis_config = \
 			analysis_config_obj_df.at[phase_num, 'analysis_config']
-		# only perform image analysis and tracking steps if tracked
-		# colony phase properties file is missing and/or
-		# repeat_image_analysis_and_tracking is set to True
+		postphase_analysis_config = \
+			analysis_config_obj_df.at[phase_num, 'postphase_analysis_config']
 		time_tracked_col_props_phase = \
 			time_tracked_col_props_comb[
 				time_tracked_col_props_comb.phase_num == phase_num]
-		gr_df = measure_growth_rate(analysis_config,
+		gr_df = measure_growth_rate(analysis_config, postphase_analysis_config,
 			time_tracked_col_props_phase)
-		phase_gr_combiner.add_phase_data(phase_num, gr_df)
+		phase_gr_combiner.add_phase_data(gr_df)
 	# combine growth rates across phases
 	gr_df_combined = \
 		phase_gr_combiner.track_gr_data(time_tracked_col_props_comb)
@@ -755,7 +795,9 @@ def run_default_growth_rate_analysis(input_path, output_path,
 	# set parent_phase to empty string, since only one phase and no
 	# postphase data
 	parent_phase = ''
-	analysis_config_file_standin = StringIO()
+	if not os.path.exists(output_path):
+		os.makedirs(output_path)
+	analysis_config_file_standin = os.path.join(output_path, 'setup_file.csv')
 	parameter_list = [
 		'input_path', 'output_path', 'total_timepoint_num',
 		'hole_fill_area', 'cleanup', 'max_proportion_exposed_edge',
@@ -794,7 +836,7 @@ def run_default_growth_rate_analysis(input_path, output_path,
 #	analysis_config_file_standin.seek(0)
 #	test = pd.read_csv(analysis_config_file_standin)
 #	print(test)
-	analysis_config_file_standin.seek(0)
+#	analysis_config_file_standin.seek(0)
 	run_growth_rate_analysis(
 		analysis_config_file = analysis_config_file_standin,
 		repeat_image_analysis_and_tracking =

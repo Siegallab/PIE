@@ -7,6 +7,7 @@ Tracks colonies through time in a single imaging field
 import cv2
 import numpy as np
 import os
+import shutil
 import pandas as pd
 from PIL import Image
 
@@ -755,11 +756,19 @@ def process_setup_file(analysis_config_path):
 	'''
 	Processed the experimental setup file in analysis_config_path and
 	creates pandas df of AnalysisConfig objects for each phase
+	If there's no setup file saved in output path, copies file in
+	analysis_config_path to output_path/setup_file.csv
 	'''
 	analysis_config_file_processor = _AnalysisConfigFileProcessor()
 	analysis_config_obj_df = \
 		analysis_config_file_processor.process_analysis_config_file(
 			analysis_config_path)
+	# save setup file in output path
+	output_analysis_config_filepath = \
+		os.path.join(analysis_config_file_processor.output_path,
+			'setup_file.csv')
+	if not os.path.exists(output_analysis_config_filepath):
+		shutil.copyfile(analysis_config_path, output_analysis_config_filepath)
 	return(analysis_config_obj_df)
 
 def check_passed_config(analysis_config_obj_df, analysis_config_file):
@@ -774,3 +783,6 @@ def check_passed_config(analysis_config_obj_df, analysis_config_file):
 	if analysis_config_obj_df is None:
 		analysis_config_obj_df = process_setup_file(analysis_config_file)
 	return(analysis_config_obj_df)
+
+
+

@@ -107,6 +107,9 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.position_label_prefix = \
 			self.position_label_prefix
 		expected_analysis_config.first_timepoint_time = 3600.0
+		expected_analysis_config.size_ref_im = 't01xy0001.tif'
+		expected_analysis_config.im_width = 850
+		expected_analysis_config.im_height = 720
 		expected_analysis_config.main_channel_imagetype = \
 			self.main_channel_imagetype
 		expected_analysis_config.main_channel_label = self.main_channel_label

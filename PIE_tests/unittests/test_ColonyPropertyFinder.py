@@ -62,7 +62,7 @@ class TestFindConnectedComponents(unittest.TestCase):
 		self.col_prop_finder._find_connected_components()
 		# check properties
 		assert_array_equal(expected_labeled_mask,
-			self.col_prop_finder._labeled_mask)
+			self.col_prop_finder.labeled_mask)
 		self.assertEqual(expected_label_num,
 			self.col_prop_finder._label_num)
 		assert_array_equal(expected_stat_matrix,

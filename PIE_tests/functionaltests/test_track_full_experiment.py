@@ -42,6 +42,22 @@ class ParentTestClass(object):
 		analysis_config_filepath = 'sample_PIE_setup_files/gr_phase_setup.csv'
 		self._run_full_analysis_no_setup_test(expected_output_path)
 
+	def test_postphase(self):
+		'''
+		Tests running full single-phase experiment with postphase
+		fluorescence imaging
+		'''
+		expected_output_path = os.path.join(
+			'PIE_tests',
+			'expected_ft_outputs',
+			'EP_170202_small_expected_out'
+			)
+		analysis_config_filepath = \
+			'sample_PIE_setup_files/gr_with_postfluor_setup.csv'
+		self._run_full_analysis_test(
+			analysis_config_filepath,
+			expected_output_path)
+
 	def test_twophase(self):
 		'''
 		Tests running full two-phase experiment

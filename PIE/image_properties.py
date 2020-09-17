@@ -24,8 +24,8 @@ class _ImageAnalyzer(object):
 				threshold_plot_filetype = 'png',
 				create_pie_overlay = False, write_col_props_file = True):
 		# TODO: Reorganize this section to make more sense; add more info about inputs
-		# parameter for saving jpegs
-		self._jpeg_quality = 98
+		# parameter for saving jpegs (>95 not recommended by PIL)
+		self._jpeg_quality = 95
 		# parameters for saving plots
 		self._threshold_plot_width = threshold_plot_width
 		self._threshold_plot_height = threshold_plot_height
@@ -168,12 +168,15 @@ class _ImageAnalyzer(object):
 
 	def _save_colony_mask(self):
 		'''
-		Saves colony mask as 8-bit tif file
+		Saves labeled colony mask as tif file
 		'''
 		# !!! NEEDS UNITTEST
-		colony_mask_path = os.path.join(self._image_output_dir_dict['colony_masks'],
-			self.image_name + '.tif')
-		cv2.imwrite(colony_mask_path, np.uint8(self.colony_mask)*255)
+		colony_mask_path = \
+			os.path.join(
+				self._image_output_dir_dict['colony_masks'],
+				self.image_name + '.tif'
+				)
+		cv2.imwrite(colony_mask_path, np.uint16(self.colony_property_finder.labeled_mask))
 
 	def _save_boundary_im(self):
 		'''
@@ -226,10 +229,10 @@ class _ImageAnalyzer(object):
 		'''
 		# write input image as a jpeg
 		self._save_jpeg()
-		# write colony mask as 8-bit tif file
-		self._save_colony_mask()
 		# measure and save colony properties
 		self._save_colony_properties()
+		# write colony mask as 16-bit tif file
+		self._save_colony_mask()
 		# if self._save_extra_info is True, save additional files
 		if self._save_extra_info:
 			self._save_boundary_im()
@@ -301,9 +304,19 @@ class _ColonyPropertyFinder(object):
 		is set to 8 for the colony identification step
 		(This is consistent with previous versions of PIE)
 		'''
-		[self._label_num, self._labeled_mask, self._stat_matrix, self._centroids] = \
+		[self._label_num, self.labeled_mask, self._stat_matrix, self._centroids] = \
 			cv2.connectedComponentsWithStats(np.uint8(self.colony_mask),
 				True, True, True, 8, cv2.CV_32S)
+
+	def _find_labels(self):
+		'''
+		Records the label of each colony
+		'''
+		# start labels at 1, since '0' label should be background
+		# (this assumption made elsewhere as well)
+		labels = range(1, self._label_num)
+		# remove background
+		self.property_df['label'] = labels
 
 	def _find_areas(self):
 		'''
@@ -366,7 +379,7 @@ class _ColonyPropertyFinder(object):
 		self.property_df['pixel_idx_list'] = None
 		# don't loop through background
 		for colony in range(1, self._label_num):
-			current_colony_mask = self._labeled_mask == colony
+			current_colony_mask = self.labeled_mask == colony
 			self.property_df.at[colony-1, 'perimeter'] = \
 				self._find_perimeter(current_colony_mask)
 			self.property_df.at[colony-1, 'pixel_idx_list'] = \
@@ -502,6 +515,7 @@ class _ColonyPropertyFinder(object):
 		Measures and records all colony properties
 		'''
 		self._find_connected_components()
+		self._find_labels()
 		self._find_areas()
 		self._find_centroids()
 		self._find_bounding_box()
@@ -516,6 +530,7 @@ class _ColonyPropertyFinder(object):
 		self.property_df['Eroded_Background_Mask'] = None
 		# create mask of background, excluding colonies
 		background_mask = np.invert(self.colony_mask)
+		self.property_df.to_csv('~/Documents/temp.csv')
 		for idx, row in self.property_df.iterrows():
 			colony_pixel_idx_list = row['pixel_idx_list']
 			colony_bounding_box_series = \

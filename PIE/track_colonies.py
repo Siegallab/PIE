@@ -55,6 +55,13 @@ class SinglePhaseSinglePosCompiler(object):
 				self.analysis_config.get_image(timepoint,
 					self.analysis_config.main_channel_label)
 			if image is not None:
+				# check that image size is the same for all images
+				if image.shape[0] != self.analysis_config.im_height or \
+					image.shape[1] != self.analysis_config.im_width:
+					raise ValueError(
+						'It looks like not all image sizes are the same!'
+						'Compare ' + image_name + ' with ' +
+						self.analysis_config.size_ref_im)
 				image_analyzer = image_properties._ImageAnalyzer(image,
 					image_name, self.analysis_config.phase_output_path, 
 					self.analysis_config.main_channel_imagetype,
@@ -69,14 +76,12 @@ class SinglePhaseSinglePosCompiler(object):
 				if not self.analysis_config.fluor_channel_df.empty:
 					self._perform_fluor_measurements(self.analysis_config,
 						image_analyzer, timepoint)
-				# if you're at the last timepoint, and there's a
-				# postphase_analysis_config, perform postphase fluor
-				# measurements
-				if self.postphase_analysis_config != None and \
-					(timepoint == np.max(self.analysis_config.timepoint_list)):
+				# if there's a postphase_analysis_config, perform
+				# postphase fluor measurements (at every timepoint)
+				if self.postphase_analysis_config != None:
 					self._perform_fluor_measurements(
 						self.postphase_analysis_config, image_analyzer,
-						timepoint)
+						None)
 				# retrieve colony_property_df
 				colony_property_df = \
 					image_analyzer.get_colony_property_df_to_save()
@@ -143,9 +148,10 @@ class ColonyTracker(object):
 		# of ending up with too few match points
 		match_ratio_cutoff = 0.75
 		good = []
-		for m,n in matches:
-		    if m.distance < match_ratio_cutoff * n.distance:
-		        good.append(m)
+		if len(matches)>0 and len(matches[0])>1:
+			for m,n in matches:
+				if m.distance < match_ratio_cutoff * n.distance:
+					good.append(m)
 		if len(good) >= 3:
 			curr_centroids_matching = curr_centroids[[a.queryIdx for a in good]]
 			next_centroids_matching = next_centroids[[a.trainIdx for a in good]]
@@ -352,6 +358,32 @@ class ColonyTracker(object):
 			pd.concat(split_colony_match_list, sort = False)
 		return(match_df_filtered)
 
+	def _replace_vals_using_matchkey(self, match_df, curr_im_data,
+		next_im_data):
+		'''
+		Uses match_df to replace tracking_col_name in
+		self.active_col_prop_df from every timepoint that have the
+		values in match_df.next_im_colony with values from
+		match_df.curr_im_colony
+		'''
+		### !!! NEEDS UNITTEST
+#		print('############################')
+#		print(self.active_col_prop_df[list(match_df.curr_im_colony) + list(match_df.next_im_colony), self.tracking_col_name])
+		replace_vals = \
+			curr_im_data.loc[match_df.curr_im_colony.values]\
+				[self.tracking_col_name].to_list()
+		replace_keys = \
+			next_im_data.loc[match_df.next_im_colony.values]\
+				[self.tracking_col_name].to_list()
+		replace_dict = pd.Series(
+			replace_vals,
+			index=replace_keys
+			).to_dict()
+		self.active_col_prop_df.replace(
+			{self.tracking_col_name: replace_dict},
+			inplace = True)
+#		print(self.active_col_prop_df[list(match_df.curr_im_colony) + list(match_df.next_im_colony), self.tracking_col_name])
+
 	def _track_single_im_pair(self, curr_im_data, next_im_data):
 		'''
 		Performs full tracking between curr_im_data and next_im_data,
@@ -366,13 +398,11 @@ class ColonyTracker(object):
 		# largest piece as the main colony
 		match_df_filtered = self._resolve_splits(match_df_nonmerging)
 		# for colonies with a direct match between subsequent
-		# images, set self.tracking_col_name in next_image to the
+		# images, set self.tracking_col_name in all images to the
 		# self.tracking_col_name from current_image
-		self.active_col_prop_df.loc[
-			match_df_filtered.next_im_colony, self.tracking_col_name] = \
-			self.active_col_prop_df.loc[
-				match_df_filtered.curr_im_colony,
-					self.tracking_col_name].values
+#		print(match_df_filtered)
+		self._replace_vals_using_matchkey(match_df_filtered, curr_im_data,
+			next_im_data)
 
 	def match_and_track_across_time(self, phase_num, colony_prop_df):
 		'''
@@ -404,10 +434,6 @@ class ColonyTracker(object):
 				zip(self.active_col_prop_df.phase_num,
 					self.active_col_prop_df.xy_pos_idx,
 					self.active_col_prop_df.index)]
-		# convert time tracking id column to categorical
-		self.active_col_prop_df[self.tracking_col_name] = \
-			self.active_col_prop_df[self.tracking_col_name].astype(
-				'category')
 		if len(_curr_phase_timepts) > 1:
 			# loop through xy positions
 			for curr_xy_pos in _xy_positions:
@@ -432,6 +458,10 @@ class ColonyTracker(object):
 							(self.active_col_prop_df.xy_pos_idx ==
 								curr_xy_pos)]
 					self._track_single_im_pair(curr_im_data, next_im_data)
+		# convert time tracking id column to categorical
+		self.active_col_prop_df[self.tracking_col_name] = \
+			self.active_col_prop_df[self.tracking_col_name].astype(
+				'category')
 		# add data for this phase to dict
 		self.single_phase_col_prop_df_dict[phase_num] = \
 			self.active_col_prop_df.copy()
@@ -475,10 +505,6 @@ class ColonyTracker(object):
 			# being tracked in a later phase
 			self.active_col_prop_df['cross_phase_tracking_id'] = \
 				self.active_col_prop_df['time_tracking_id']
-			# convert cross-phase tracking id column to categorical
-			self.active_col_prop_df[self.tracking_col_name] = \
-				self.active_col_prop_df[self.tracking_col_name].astype(
-					'category')
 			if len(phase_list) > 1:
 				# loop through timepoints
 				for curr_phase, next_phase in \
@@ -506,6 +532,10 @@ class ColonyTracker(object):
 							(next_phase_data.timepoint == next_phase_first_tp) &
 							(next_phase_data.xy_pos_idx == curr_xy_pos)]
 						self._track_single_im_pair(curr_im_data, next_im_data)
+			# convert cross-phase tracking id column to categorical
+			self.active_col_prop_df[self.tracking_col_name] = \
+				self.active_col_prop_df[self.tracking_col_name].astype(
+					'category')
 			self.cross_phase_tracked_col_prop_df = \
 				self.active_col_prop_df.copy()
 		else:
