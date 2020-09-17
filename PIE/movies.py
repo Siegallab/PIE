@@ -983,6 +983,40 @@ class MovieGenerator(object):
 			raise ValueError('blank is a reserved name and may not be '
 				'used for movie component labels')
 
+	def _get_ordered_image_list(self, compiled_movie_dict):
+		'''
+		Puts images from compiled_movie_dict into list in correct order
+		'''
+		ordered_timepoints = np.sort(list(compiled_movie_dict.keys()))
+		images_to_save = [compiled_movie_dict[tp] for tp in ordered_timepoints]
+		return(images_to_save)
+
+	def _write_movie(self, compiled_movie_dict, output_path, duration, fourcc):
+		'''
+		Writes movie of fourcc format using cv2
+		'''
+		# make sure images saved in order
+		images_to_save = self._get_ordered_image_list(compiled_movie_dict)
+		images_as_cv2 = \
+			[cv2.cvtColor(np.uint8(img), cv2.COLOR_RGB2BGR)
+				for img in images_to_save]
+		fps = 1000.0/duration
+		framesize = (images_as_cv2[0].shape[1],images_as_cv2[0].shape[0])
+		# cv2 can't overwrite, so manually remove output_path if it
+		# exists
+		if os.path.isfile(output_path):
+			os.remove(output_path)
+		video = \
+			cv2.VideoWriter(
+				output_path,
+				fourcc,
+				fps,
+				framesize)
+		for image in images_as_cv2:
+			video.write(image)
+		cv2.destroyAllWindows()
+		video.release()
+
 	def _write_gif(self, compiled_movie_dict, output_path, duration, loop):
 		'''
 		Writes gif to output_path from images in compiled_movie_dict
@@ -993,12 +1027,19 @@ class MovieGenerator(object):
 		(0 means forever, 1 means no looping)
 		'''
 		# make sure images saved in order
-		ordered_timepoints = np.sort(list(compiled_movie_dict.keys()))
-		images_to_save = [compiled_movie_dict[tp] for tp in ordered_timepoints]
-		images_to_save[0].save(
+		images_to_save = self._get_ordered_image_list(compiled_movie_dict)
+		# solution to background noise from
+		# https://medium.com/@Futong/how-to-build-gif-video-from-images-with-python-pillow-opencv-c3126ce89ca8
+		byteframes = []
+		for img in images_to_save:
+		    byte = BytesIO()
+		    byteframes.append(byte)
+		    img.save(byte, format="GIF")
+		gifs = [Image.open(byteframe) for byteframe in byteframes]
+		gifs[0].save(
 			output_path,
 			save_all=True,
-			append_images=images_to_save[1:],
+			append_images=gifs[1:],
 			duration=duration,
 			loop=loop)
 
@@ -1022,8 +1063,11 @@ class MovieGenerator(object):
 		duration, loop, jpeg_quality):
 		'''
 		Saves movie for each xy_pos_idx in format specificed by
-		movie_format, which can be 'jpeg'/'jpg', 'tiff'/'tif', or 'gif'
+		movie_format, which can be 'jpeg'/'jpg', 'tiff'/'tif', 'gif',
+		or video codecs ('h264' or 'mjpg', which both save to .mov
+		format)
 		'''
+		movie_format = movie_format.lower()
 		if movie_format in ['tiff', 'tif', 'jpeg', 'jpg']:
 			output_dir = self.movie_subfolder_dict[xy_pos_idx]
 			if not os.path.isdir(output_dir):
@@ -1039,6 +1083,20 @@ class MovieGenerator(object):
 					'xy' + str(xy_pos_idx) + '.gif')
 			self._write_gif(
 				compiled_movie_dict, output_path, duration, loop)
+		elif movie_format == 'h264':
+			output_path = \
+				os.path.join(self.movie_output_path,
+					'xy' + str(xy_pos_idx) + '.mov')
+			fourcc = cv2.VideoWriter_fourcc(*'H264')
+			self._write_movie(
+				compiled_movie_dict, output_path, duration, fourcc)
+		elif movie_format == 'mjpeg':
+			output_path = \
+				os.path.join(self.movie_output_path,
+					'xy' + str(xy_pos_idx) + '.mov')
+			fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+			self._write_movie(
+				compiled_movie_dict, output_path, duration, fourcc)
 		else:
 			raise ValueError('Unrecognized movie format ' + movie_format)
 
