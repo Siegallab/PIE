@@ -310,11 +310,11 @@ class _ColonyPropertyFinder(object):
 
 	def _find_labels(self):
 		'''
-		Records the label of each colony
+		Records the label of each colony as a string
 		'''
 		# start labels at 1, since '0' label should be background
 		# (this assumption made elsewhere as well)
-		labels = range(1, self._label_num)
+		labels = np.arange(1, self._label_num).astype(str)
 		# remove background
 		self.property_df['label'] = labels
 
@@ -357,18 +357,30 @@ class _ColonyPropertyFinder(object):
 		concat_coords = ' '.join([str(k) for k in flat_coords])
 		return(concat_coords)
 
-	def _find_perimeter(self, single_colony_mask):
+	def _find_contour_props(self, single_colony_mask):
 		'''
-		Finds external perimeter of mask that should contain single
-		colony
+		Finds external perimeter and major axis length of best-fit
+		ellipse of mask that should contain single colony
 		NB: perimeter calculated here between centers of consecutive
-		contour pixels
+		contour pixels; ellipse fitting for major axis length also
+		happens differently than in matlab, resulting in slightly
+		smaller values calculated by cv2
 		'''
 		colony_cont = \
 			cv2.findContours(np.uint8(single_colony_mask), cv2.RETR_EXTERNAL,
 				cv2.CHAIN_APPROX_NONE)[0][0]
 		colony_perim = cv2.arcLength(colony_cont, True)
-		return(colony_perim)
+		# documentation of fitEllipse seems to give minor and major axis
+		# in reverse order, return max to be sure
+		if np.sum(single_colony_mask) > 4:
+			_, (axis_0_length, axis_1_length), _ = cv2.fitEllipse(colony_cont)
+		else:
+			# fitEllipse won't work, find max number of non-overlapping
+			# pixels along length and width axes
+			axis_0_length = np.sum(np.any(single_colony_mask, axis = 0))
+			axis_1_length = np.sum(np.any(single_colony_mask, axis = 1))
+		maj_axis_length = max([axis_0_length, axis_1_length])
+		return(colony_perim, maj_axis_length)
 
 	def _find_colonywise_properties(self):
 		'''
@@ -380,8 +392,9 @@ class _ColonyPropertyFinder(object):
 		# don't loop through background
 		for colony in range(1, self._label_num):
 			current_colony_mask = self.labeled_mask == colony
-			self.property_df.at[colony-1, 'perimeter'] = \
-				self._find_perimeter(current_colony_mask)
+			self.property_df.at[colony-1, 'perimeter'], \
+				self.property_df.at[colony-1, 'major_axis_length'] = \
+					self._find_contour_props(current_colony_mask)
 			self.property_df.at[colony-1, 'pixel_idx_list'] = \
 				self._find_flat_coordinates(current_colony_mask)
 

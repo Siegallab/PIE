@@ -172,17 +172,20 @@ class TestFindFlatCoordinates(unittest.TestCase):
 			dtype = int, sep = ' ')] = True
 		assert_array_equal(single_colony_mask, test_mask)
 
-class TestFindPerimeter(unittest.TestCase):
+class TestFindContourProps(unittest.TestCase):
 
-	def test_find_perimeter(self):
+	def test_find_contour_props(self):
 		'''
-		Tests that correct external colony perimeter returned
+		Tests that correct external colony perimeter and major axis
+		length are returned
 		'''
 		self.col_prop_finder = _ColonyPropertyFinder(colony_mask)
 		expected_perimeter = 10.0
-		test_perimeter = \
-			self.col_prop_finder._find_perimeter(single_colony_mask)
+		expected_major_axis_length = 4.013865
+		test_perimeter, test_major_axis_length = \
+			self.col_prop_finder._find_contour_props(single_colony_mask)
 		self.assertEqual(expected_perimeter, test_perimeter)
+		assert_allclose(expected_major_axis_length, test_major_axis_length)
 
 class TestFindColonyWiseProperties(unittest.TestCase):
 
@@ -200,7 +203,8 @@ class TestFindColonyWiseProperties(unittest.TestCase):
 			pd.DataFrame({
 				'perimeter': [6+np.sqrt(2)+np.sqrt(2), 8+np.sqrt(2)],
 				'pixel_idx_list': ['12 13 14 20 21 22 29 30 37',
-					'25 26 33 34 35 41 43 49 50 51']
+					'25 26 33 34 35 41 43 49 50 51'],
+				'major_axis_length': [3.4324963092803955, 3.7621912956237793]
 				})
 		assert_frame_equal(expected_property_df,
 			self.col_prop_finder.property_df)

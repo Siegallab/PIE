@@ -61,10 +61,17 @@ class _CompileColonyData(object):
 		# Indexing is ridiculous in pandas so fill in values in a numpy
 		# array, then convert to pandas df and add column and row names
 		# Get property values we're interested in as numpy array
-		# Need to convert values to float, since only float-type numpy
-		# arrays have np.nan values
-		property_vals = \
-			self.colony_data_tracked_df[col_property].to_numpy().astype(float)
+		# Unless property vals are strings, need to convert values to
+		# float, since only float-type numpy arrays have np.nan values
+		col_from_strings = \
+			self.colony_data_tracked_df[col_property].dtype == 'O'
+		if col_from_strings:
+			property_vals = \
+				self.colony_data_tracked_df[col_property].to_numpy()
+		else:
+			property_vals = \
+				self.colony_data_tracked_df[col_property]\
+					.to_numpy().astype(float)
 		# create and populate colony property matrix
 		col_property_mat = \
 			self.empty_col_property_mat.copy().astype(property_vals.dtype)
@@ -73,6 +80,10 @@ class _CompileColonyData(object):
 		# convert to pandas df
 		col_property_df = pd.DataFrame(col_property_mat,
 			columns = self.timepoint_list, index = self.time_tracking_id_list)
+		# if property values are string, need to replace 'nan' with
+		# np.nan
+		if col_from_strings:
+			col_property_df.replace('nan', np.nan)
 		# sort by rows and columns
 		col_property_df.sort_index(inplace = True)
 		col_property_df.reindex(sorted(col_property_df.columns), axis=1)

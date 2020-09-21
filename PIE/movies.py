@@ -440,7 +440,12 @@ class _PositionMovieMaker(object):
 		and boundary (with width dependent on
 		self.bound_width) to a single colony
 		'''
-		colony_mask = labeled_mask == col_row.label
+		current_label = col_row.label
+		if isinstance(current_label, str):
+			label_list = [int(l) for l in current_label.split(';')]
+		else:
+			label_list = [int(current_label)]
+		colony_mask = np.isin(labeled_mask, label_list)
 		if override_shading or self.col_shading_alpha == 0:
 			shaded_im = input_im
 		else:

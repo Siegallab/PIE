@@ -5,6 +5,7 @@ Tracks colonies through time in a single imaging field
 '''
 
 import cv2
+import itertools
 import numpy as np
 import pandas as pd
 from PIE import image_properties, analysis_configuration
@@ -124,6 +125,9 @@ class ColonyTracker(object):
 	def __init__(self):
 		# initialize dictionary for time-tracked col property dfs
 		self.single_phase_col_prop_df_dict = dict()
+		# set proportion of major axis length that satellite must be
+		# from colony center to be considered a satellite
+		self._max_sat_major_axis_prop = .7
 
 	def _find_centroid_transform(self, curr_im_data, next_im_data):
 		'''
@@ -264,6 +268,7 @@ class ColonyTracker(object):
 		'''
 		Identifies colonies from next_im_data that match to colonies in
 		curr_im_data
+
 		Returns df of matches (by idx in original colony property df)
 		'''
 		# get df with labeled overlap matrix between current image and
@@ -275,6 +280,42 @@ class ColonyTracker(object):
 			{'curr_im_colony': overlap_df.index[curr_im_idx],
 			'next_im_colony': overlap_df.columns[next_im_idx]})
 		return(match_df)
+
+	def _match_by_parent(self, match_df, curr_im_data, next_im_data):
+		'''
+		Removes any matches in which a satellite matches its parent
+
+		Adds all matches based on shared parentage (i.e. if colony
+		whose parent is A matches a colony whose parent is B, all
+		colonies whose parent is A match all colonies whose parent is B)
+		
+		Returns df of matches (by idx in original colony property df)
+		'''
+		### !!! NEEDS UNITTEST
+		match_df_parent = pd.DataFrame(
+			{'curr_im_parent':
+				curr_im_data.loc[match_df.curr_im_colony]['parent_colony'].values,
+			'next_im_parent':
+				next_im_data.loc[match_df.next_im_colony]['parent_colony'].values})
+		# remove cases of colonies merging with their parents
+		match_df_parent = match_df_parent[
+			match_df_parent.curr_im_parent != match_df_parent.next_im_parent
+			].drop_duplicates()
+		# add all combos of parent-parent and parent-satellite matches
+		# based on parent-parent matches to match_df
+		match_df_list = []
+		for _, row in match_df_parent.iterrows():
+			curr_colonies = curr_im_data.index[
+				curr_im_data.parent_colony == row.curr_im_parent].to_list()
+			next_colonies = next_im_data.index[
+				next_im_data.parent_colony == row.next_im_parent].to_list()
+			curr_match_df = pd.DataFrame(
+				list(itertools.product(
+					*[curr_colonies, next_colonies])),
+				columns = ['curr_im_colony', 'next_im_colony'])
+			match_df_list.append(curr_match_df)
+		match_df_by_parent = pd.concat(match_df_list, sort = False)
+		return(match_df_by_parent)
 
 	def _tag_merged_colonies(self, match_df):
 		'''
@@ -351,38 +392,148 @@ class ColonyTracker(object):
 			# in case two areas of split colonies are identical,
 			# keep the first
 			match_to_keep = match_to_keep.iloc[[0]]
-			split_colony_match_list.append(match_to_keep)
+			split_colony_match_list.append(
+				match_to_keep.drop(columns = ['area']))
 		# combine selected split colonies with
 		# match_df_no_splits into single df
 		match_df_filtered = \
 			pd.concat(split_colony_match_list, sort = False)
 		return(match_df_filtered)
 
-	def _replace_vals_using_matchkey(self, match_df, curr_im_data,
-		next_im_data):
+	def _find_satellites_by_dist(self, parent_candidate_df, sat_candidate_df):
 		'''
-		Uses match_df to replace tracking_col_name in
-		self.active_col_prop_df from every timepoint that have the
-		values in match_df.next_im_colony with values from
-		match_df.curr_im_colony
+		Returns df with indices of sat_candidate_df rows in which
+		satellite colony is within self._max_sat_major_axis_prop of a
+		single colony from parent_candidate_df, and indices of
+		corresponding parent colonies
 		'''
-		### !!! NEEDS UNITTEST
-#		print('############################')
-#		print(self.active_col_prop_df[list(match_df.curr_im_colony) + list(match_df.next_im_colony), self.tracking_col_name])
-		replace_vals = \
-			curr_im_data.loc[match_df.curr_im_colony.values]\
-				[self.tracking_col_name].to_list()
-		replace_keys = \
-			next_im_data.loc[match_df.next_im_colony.values]\
-				[self.tracking_col_name].to_list()
+		# create distance matrix with parent colonies along columns
+		# and satellite colonies along rows
+		x_dist = \
+			parent_candidate_df.cX.to_numpy() - \
+			sat_candidate_df.cX.to_numpy()[np.newaxis].T
+		y_dist = \
+			parent_candidate_df.cY.to_numpy() - \
+			sat_candidate_df.cY.to_numpy()[np.newaxis].T
+		dist_mat = np.sqrt(x_dist**2 + y_dist**2)
+		# find positions in dist_mat within
+		# self._max_sat_major_axis_prop of major_axis_length of parent
+		cutoff_dist_array = \
+			parent_candidate_df.major_axis_length.to_numpy()*\
+			self._max_sat_major_axis_prop
+		within_cutoff_mat = dist_mat <= cutoff_dist_array
+		# find the number of 'parents' each satellite matches to
+		parent_colony_num = np.sum(within_cutoff_mat, axis = 1)
+		# only real 'satellites' are colonies that match a single parent
+		real_sat_pos_list = parent_colony_num == 1
+		# find position corresponding to parent of each real satellite
+		parent_pos_list = \
+			np.argmax(within_cutoff_mat[real_sat_pos_list,:], axis = 1)
+		parent_sat_df = pd.DataFrame(
+			{'satellite_idx': sat_candidate_df.index[real_sat_pos_list],
+			'parent_idx': parent_candidate_df.index[parent_pos_list]})
+		return(parent_sat_df)
+
+	def _id_satellites(self, next_im_data, match_df_filtered):
+		'''
+		Identifies colonies in next_im_data that are satellites of
+		other colonies
+
+		Must be fone after tagging merged colonies and resolving splits
+
+		Satellites are colonies that:
+		- 	first appear in next_im_data (i.e. have no match in
+			match_df_filtered, and have not been removed due to merging)
+		- 	are within self._max_sat_major_axis_prop of only one other
+			colony
+		'''
+		# find colonies in next_im_data with no match (post-removing
+		# minor colony split products) in previous timepoint and that
+		# have not been filtered out as merge products
+		unmatched_colonies = next_im_data.loc[
+			~next_im_data.index.isin(match_df_filtered.next_im_colony) & 
+			~pd.isnull(self.active_col_prop_df.loc[
+				next_im_data.index][self.tracking_col_name])
+			]
+		# for now, allow all colonies that are not satellite candidates
+		# to be parent candidates; afterwards, filter out parents that
+		# were not successfully tracked from the previous timepoint
+		parent_candidates = next_im_data[
+			~next_im_data.index.isin(unmatched_colonies.index)]
+		# get dataframe of parent-satellite pair indices from
+		# self.active_col_prop_df
+		parent_sat_df = \
+			self._find_satellites_by_dist(
+				parent_candidates,
+				unmatched_colonies
+				)
+		# remove any parent colonies that are satellites to colonies
+		# that weren't matched successfully to previous timepoint (e.g.
+		# merged colonies)
+		parent_sat_df_filt = parent_sat_df.loc[
+			parent_sat_df.parent_idx.isin(match_df_filtered.next_im_colony)]
+		return(parent_sat_df_filt)
+
+	def _replace_vals_by_keydict(self, replace_keys, replace_vals,
+		col_to_replace):
+		'''
+		Replaces replace_keys in col_to_replace of
+		self.active_col_prop_df with replace_vals
+		'''
 		replace_dict = pd.Series(
 			replace_vals,
 			index=replace_keys
 			).to_dict()
 		self.active_col_prop_df.replace(
-			{self.tracking_col_name: replace_dict},
+			{col_to_replace: replace_dict},
 			inplace = True)
-#		print(self.active_col_prop_df[list(match_df.curr_im_colony) + list(match_df.next_im_colony), self.tracking_col_name])
+
+	def _replace_tracking_col_by_match(self, match_df, curr_im_data,
+		next_im_data):
+		'''
+		Uses match_df to replace tracking_col_name and parent_coloy in
+		self.active_col_prop_df from every timepoint that have the
+		values in match_df.next_im_colony with values from
+		match_df.curr_im_colony
+		'''
+		### !!! NEEDS UNITTEST
+		# replace tracking id values based on match_df
+		replace_vals_track = \
+			curr_im_data.loc[match_df.curr_im_colony.values]\
+				[self.tracking_col_name].to_list()
+		replace_keys_track = \
+			next_im_data.loc[match_df.next_im_colony.values]\
+				[self.tracking_col_name].to_list()
+		self._replace_vals_by_keydict(
+			replace_keys_track, replace_vals_track, self.tracking_col_name)
+		# replace parent_colony values based on match_df
+		replace_vals_parent = \
+			curr_im_data.loc[match_df.curr_im_colony.values]\
+				['parent_colony'].to_list()
+		replace_keys_parent = \
+			next_im_data.loc[match_df.next_im_colony.values]\
+				['parent_colony'].to_list()
+		self._replace_vals_by_keydict(
+			replace_keys_parent, replace_vals_parent, 'parent_colony')
+
+	def _replace_parent_for_sat(self, parent_sat_df):
+		'''
+		Uses parent_sat_df to replace parent_colony in
+		self.active_col_prop_df from every timepoint that have the
+		values in parent_sat_df.satellite_idx with values from
+		parent_sat_df.parnet_idx
+		'''
+		### !!! NEEDS UNITTEST
+		replace_vals = \
+			self.active_col_prop_df.loc[
+				parent_sat_df.parent_idx.values
+				]['parent_colony'].to_list()
+		replace_keys = \
+			self.active_col_prop_df.loc[
+				parent_sat_df.satellite_idx.values
+				]['parent_colony'].to_list()
+		self._replace_vals_by_keydict(
+			replace_keys, replace_vals, 'parent_colony')
 
 	def _track_single_im_pair(self, curr_im_data, next_im_data):
 		'''
@@ -391,18 +542,80 @@ class ColonyTracker(object):
 		'''
 		# identify all matches between colonies in the two images
 		match_df = self._id_colony_match(curr_im_data, next_im_data)
+		# modify matches so that all colonies with shared parent share
+		# matches, and matches between colonies with same parent are
+		# removed
+		match_df_by_parent = \
+			self._match_by_parent(match_df, curr_im_data, next_im_data)
 		# set self.tracking_col_name in merged colonies to NaN, and get
 		# back match_df without colonies that merge into others
 		match_df_nonmerging = self._tag_merged_colonies(match_df)
 		# for colonies that break into multiple pieces, track the
 		# largest piece as the main colony
 		match_df_filtered = self._resolve_splits(match_df_nonmerging)
+		# identify satellite colonies and their parents in next_im_data
+		parent_sat_df_filt = \
+			self._id_satellites(next_im_data, match_df_filtered)
 		# for colonies with a direct match between subsequent
 		# images, set self.tracking_col_name in all images to the
-		# self.tracking_col_name from current_image
-#		print(match_df_filtered)
-		self._replace_vals_using_matchkey(match_df_filtered, curr_im_data,
+		# self.tracking_col_name from current_im_data
+		self._replace_tracking_col_by_match(match_df_filtered, curr_im_data,
 			next_im_data)
+		# for colonies in next_im that are a satellite, set the
+		# parent_colony of every colony that shares their parent_colony
+		# to the matching parent value from parent_sat_df_filt
+		# This is important in cross-phase tracking, when a colony that
+		# has already been tracked independently across multiple
+		# timepoints turns out to be a satellite based on tracking from
+		# a previous phase (in this case, these satellites will not
+		# receive independent growth rates in the corresponding
+		# phase's growth rate analysis)
+		self._replace_parent_for_sat(parent_sat_df_filt)
+
+	def _set_up_satellite_track(self):
+		'''
+		Sets up columns necessary for tracking satellites
+		'''
+		# initialize parent_colony column
+		self.active_col_prop_df['parent_colony'] = \
+			self.active_col_prop_df[self.tracking_col_name]
+
+	def _aggregate_by_parent(self):
+		'''
+		Aggregates data in self.active_col_prop_df by parent in the
+		following way:
+		-	label across all colonies sharing same parent gets joined
+			with semicolon
+		-	area is summed across all colonies sharing same parent
+		-	all other colony properties are taken from the parent
+		-	parent_colony column is dropped
+		'''
+		# set aside parent colonies only
+		parent_property_df = \
+			self.active_col_prop_df.loc[
+				self.active_col_prop_df['parent_colony'] == 
+				self.active_col_prop_df[self.tracking_col_name]
+				].copy()
+		# remove properties to be aggregated
+		parent_property_df.drop(
+				columns=['label', 'area'],
+				inplace = True)
+		# set up df for aggregated properties
+		agg_property_df_group = \
+			self.active_col_prop_df[[
+					'phase_num', 'timepoint', 'parent_colony', 'xy_pos_idx',
+					'label', 'area']
+				].groupby(
+					['phase_num', 'timepoint', 'parent_colony', 'xy_pos_idx']
+					)
+		agg_property_df = agg_property_df_group.agg({
+			'label': ';'.join,
+			'area': np.sum
+			})
+		property_df = parent_property_df.join(agg_property_df,
+			on = ['phase_num', 'timepoint', 'parent_colony', 'xy_pos_idx'])
+		property_df.drop(columns = ['parent_colony'], inplace = True)
+		return(property_df)
 
 	def match_and_track_across_time(self, phase_num, colony_prop_df):
 		'''
@@ -428,12 +641,13 @@ class ColonyTracker(object):
 			np.sort(np.unique(self.active_col_prop_df.timepoint))
 		# populate tracking column with unique IDs
 		self.active_col_prop_df[self.tracking_col_name] = \
-		self.active_col_prop_df[self.tracking_col_name] = \
 			["phase_{}_xy{}_col{}".format(phase_num, xy_pos, col_id) for \
 				phase_num, xy_pos, col_id in \
 				zip(self.active_col_prop_df.phase_num,
 					self.active_col_prop_df.xy_pos_idx,
 					self.active_col_prop_df.index)]
+		# set up columns for tracking satellites
+		self._set_up_satellite_track()
 		if len(_curr_phase_timepts) > 1:
 			# loop through xy positions
 			for curr_xy_pos in _xy_positions:
@@ -462,10 +676,12 @@ class ColonyTracker(object):
 		self.active_col_prop_df[self.tracking_col_name] = \
 			self.active_col_prop_df[self.tracking_col_name].astype(
 				'category')
+		# aggregate data by parent_colony
+		parent_agg_prop_df = self._aggregate_by_parent()
 		# add data for this phase to dict
 		self.single_phase_col_prop_df_dict[phase_num] = \
-			self.active_col_prop_df.copy()
-		return(self.active_col_prop_df)
+			parent_agg_prop_df
+		return(parent_agg_prop_df)
 
 	def match_and_track_across_phases(self):
 		'''
@@ -505,6 +721,8 @@ class ColonyTracker(object):
 			# being tracked in a later phase
 			self.active_col_prop_df['cross_phase_tracking_id'] = \
 				self.active_col_prop_df['time_tracking_id']
+			# set up columns for tracking satellites
+			self._set_up_satellite_track()
 			if len(phase_list) > 1:
 				# loop through timepoints
 				for curr_phase, next_phase in \
@@ -536,8 +754,10 @@ class ColonyTracker(object):
 			self.active_col_prop_df[self.tracking_col_name] = \
 				self.active_col_prop_df[self.tracking_col_name].astype(
 					'category')
+			# aggregate data by parent_colony
+			parent_agg_prop_df = self._aggregate_by_parent()
 			self.cross_phase_tracked_col_prop_df = \
-				self.active_col_prop_df.copy()
+				parent_agg_prop_df
 		else:
 			# columns need to be included type to save to parquet later
 			self.cross_phase_tracked_col_prop_df = \

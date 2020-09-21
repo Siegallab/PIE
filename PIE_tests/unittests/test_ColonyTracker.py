@@ -17,6 +17,11 @@ timecourse_colony_prop_df = \
 		'SL_170619_2_GR_small_xy0001_phase_colony_data_tracked.csv'),
 	index_col = 0)
 
+satellite_prop_df = \
+	pd.read_csv(os.path.join('PIE_tests','test_ims',
+		'test_sat_data.csv'),
+	index_col = 0)
+
 class TestGetOverlap(unittest.TestCase):
 	'''
 	Tests getting overlap of colonies between current and next timepoint
@@ -153,4 +158,135 @@ class TestFindCentroidTransform(unittest.TestCase):
 			warped_t1_data, warped_t1_data)
 		assert_allclose(expected_warp_mat, test_warp_mat, rtol = 1e-4)
 
+class TestFindSatellitesByDist(unittest.TestCase):
+	'''
+	Tests finding satellites based on distance cutoff
+	'''
 
+	@classmethod
+	def setUpClass(self):
+		self.colony_tracker = \
+			track_colonies.ColonyTracker()
+
+	def test_find_sat_by_dist(self):
+		parent_candidate_df = pd.DataFrame({
+			'cX': [11, 40, 55.4, 80, 101.3],
+			'cY': [21.5, 21.5, 30, 100, 20],
+			'major_axis_length': [30, 18, 18, 9, 21]},
+			index = [3, 2, 1, 15, 16])
+		# first colony should match both first and second parent
+		# second and fifth colony match no parent colony
+		# third colony matches only 5th parent colony
+		# fourth and sixth colonies match only 3rd parent colony
+		sat_candidate_df = pd.DataFrame({
+			'cX': [30, 20, 95.5, 51.5, 85, 59],
+			'cY': [21.5, 100, 12, 34, 50, 19],
+			'major_axis_length': [2, 4, 3, 2, 5, 4]
+			},
+			index = [21, 32, 43, 54, 11, 103])
+		expected_parent_sat_df = pd.DataFrame({
+			'satellite_idx': [43, 54, 103],
+			'parent_idx': [16, 1, 1]
+			})
+		test_parent_sat_df = \
+			self.colony_tracker._find_satellites_by_dist(
+				parent_candidate_df, sat_candidate_df)
+		assert_frame_equal(expected_parent_sat_df, test_parent_sat_df)
+
+	def test_find_sat_by_dist_real_data(self):
+		parent_candidate_df = satellite_prop_df.loc[[31,32,35,36,37]]
+		sat_candidate_df = satellite_prop_df.loc[[33,34]]
+		expected_parent_sat_df = pd.DataFrame({
+			'satellite_idx': [34],
+			'parent_idx': [35]
+			})
+		test_parent_sat_df = \
+			self.colony_tracker._find_satellites_by_dist(
+				parent_candidate_df, sat_candidate_df)
+		assert_frame_equal(expected_parent_sat_df, test_parent_sat_df)
+
+class TestAggregateByParent(unittest.TestCase):
+	'''
+	Tests aggregation of colony_tracker.active_property_df by
+	parent_colony
+	'''
+
+	def setUp(self):
+		self.colony_tracker = \
+			track_colonies.ColonyTracker()
+
+	def test_aggregation(self):
+		self.colony_tracker.tracking_col_name = 'time_tracking_id'
+		self.colony_tracker.active_col_prop_df = pd.DataFrame({
+			'phase_num': [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 1, 1, 2, 2, 2],
+			'timepoint': [1, 1, 1, 2, 2, 2, 1, 1, 2, 2, 3, 3, 1, 2, 1, 2, 3],
+			'parent_colony': [
+				'a', 'b', 'c', 'a', 'a', 'b', 'a', 'b', 'b', 'b', 'b', 'f',
+				'x', 'x', 'x', 'x', 'y'
+				],
+			'xy_pos_idx': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2],
+			'label': np.arange(1, 18).astype(str),
+			'area': [
+				1, 2.1, 3.21, 5.4321, 4.321, 6.09, 7.1, 8.19, 9.13, 10,
+				11.5, 12.43, 13.67, 14.85, 15.69, 16.9, 17
+				],
+			'perimeter': np.arange(1,18)*3+.4,
+			'time_tracking_id': [
+				'a', 'b', 'c', 'a', 'd', 'b', 'a', 'b', 'e', 'b', 'b', 'f',
+				'x', 'x', 'x', 'x', 'y'
+				]
+			}, index = range(100,117))
+		expected_property_df = pd.DataFrame({
+			'phase_num': [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2, 2],
+			'timepoint': [1, 1, 1, 2, 2, 1, 1, 2, 3, 3, 1, 2, 1, 2, 3],
+			'xy_pos_idx': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2],
+			'perimeter':
+				np.array(
+					[1, 2, 3, 4, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17]
+					)*3+.4,
+			'time_tracking_id': [
+				'a', 'b', 'c', 'a', 'b', 'a', 'b', 'b', 'b', 'f',
+				'x', 'x', 'x', 'x', 'y'
+				],
+			'label': [
+				'1', '2', '3', '4;5', '6', '7', '8', '9;10', '11', '12','13',
+				'14', '15', '16', '17'
+				],
+			'area': [
+				1, 2.1, 3.21, 4.321+5.4321, 6.09, 7.1, 8.19, 9.13+10,
+				11.5, 12.43, 13.67, 14.85, 15.69, 16.9, 17
+					]
+			},
+			index = [
+				100, 101, 102, 103, 105, 106, 107, 109, 110, 111, 112, 113,
+				114, 115, 116
+				])
+		test_property_df = self.colony_tracker._aggregate_by_parent()
+		assert_frame_equal(expected_property_df, test_property_df,
+			check_index_type = False)
+
+class TestIDSatellites(unittest.TestCase):
+	'''
+	Tests satellite identification and matching with parents
+	'''
+
+	def setUp(self):
+		self.colony_tracker = \
+			track_colonies.ColonyTracker()
+
+	def test_id_sat_real_data(self):
+		self.colony_tracker.active_col_prop_df = satellite_prop_df
+		self.colony_tracker.tracking_col_name = 'time_tracking_id'
+		match_df_filt = pd.DataFrame({
+			'curr_im_colony': [24,25,28,29,30],
+			'next_im_colony': [31,32,35,36,37]
+			})
+		expected_parent_sat_df = pd.DataFrame({
+			'satellite_idx': [34],
+			'parent_idx': [35]
+			})
+		test_parent_sat_df = \
+			self.colony_tracker._id_satellites(
+				satellite_prop_df[satellite_prop_df.timepoint == 11],
+				match_df_filt)
+		assert_frame_equal(expected_parent_sat_df, test_parent_sat_df)

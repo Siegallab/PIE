@@ -17,6 +17,7 @@ phase_tracked_properties_df = pd.DataFrame({
 			'phase_1_xy1_col1', 'phase_1_xy3_col1', 'phase_1_xy3_col1'],
 	'timepoint': [1, 1, 3, 4, 4, 3, 5],
 	'area': [100, 92, 150, 205, 140, 160, 180],
+	'label': ['3', '4', '2', '4;7', '5', '3', '5'],
 	'xy_pos_idx': [1, 1, 1, 1, 1, 3, 3],
 	'phase_num': \
 		[1]*7
@@ -60,18 +61,34 @@ class Test_CreatePropertyMat(unittest.TestCase):
 			phase_tracked_properties_df
 		self.colony_data_compiler._get_index_locations()
 
-	def test_create_property_mat_area(self):
+	def test_create_property_mat_int(self):
 		'''
-		Tests creation of an area colony property matrix
+		Tests creation of an integer-type (area) colony property matrix
 		'''
 		expected_col_property_df = pd.DataFrame(np.array([
-				[92.0, 150.0, 140.0, np.nan],
-				[100.0, np.nan, 205.0, np.nan],
-				[np.nan, 160.0, np.nan, 180.0]]),
+				[92., 150., 140., np.nan],
+				[100., np.nan, 205., np.nan],
+				[np.nan, 160., np.nan, 180.]]),
 			index = ['phase_1_xy1_col1', 'phase_1_xy1_col2', 'phase_1_xy3_col1'],
 			columns = [1,3,4,5])
 		test_col_property_df = \
 			self.colony_data_compiler._create_property_mat('area')
+		assert_frame_equal(expected_col_property_df, test_col_property_df)
+
+	def test_create_property_mat_str(self):
+		'''
+		Tests creation of a string-type (label) colony property matrix
+		'''
+		expected_col_property_df = pd.DataFrame({
+				1: ['4','3',np.nan],
+				3: ['2',np.nan,'3'],
+				4: ['5','4;7',np.nan],
+				5: [np.nan,np.nan,'5']
+				},
+			index = 
+				['phase_1_xy1_col1', 'phase_1_xy1_col2', 'phase_1_xy3_col1'])
+		test_col_property_df = \
+			self.colony_data_compiler._create_property_mat('label')
 		assert_frame_equal(expected_col_property_df, test_col_property_df)
 
 class Test_GenerateImagingInfoDf(unittest.TestCase):
