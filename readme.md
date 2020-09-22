@@ -38,7 +38,23 @@ cd PIE/
 pip install -e .
 ```
 
-If you see the error 'Permission denied (publickey) error' for git clone, that means you need to add ssh key to your github account for installation. You can do that by following steps in this [link](https://stackoverflow.com/questions/2643502/how-to-solve-permission-denied-publickey-error-when-using-git). If you need more information about how to add the ssh key to your github account via website, you can refer to this [link](https://docs.github.com/en/github/authenticating-to-github/adding-a-new-ssh-key-to-your-github-account).
+If you see the error 'Permission denied (publickey) error' for git clone, that means you need to add ssh key to your github account for installation. You can do that by following steps in this [link](https://stackoverflow.com/questions/2643502/how-to-solve-permission-denied-publickey-error-when-using-git). 
+* cd into your .ssh directory and run
+```
+cd ~/.ssh && ssh-keygen
+```
+* copy the key to your clipboard
+** on OS X system run ``` cat id_rsa.pub | pbcopy```
+** on Linux run ```cat id_rsa.pub | xclip```
+** Windows (via Cygwin/Git Bash) run ```cat id_rsa.pub | clip```
+* add the ssh key to your github account via [website](https://docs.github.com/en/github/authenticating-to-github/adding-a-new-ssh-key-to-your-github-account)
+* setup your .gitconfig
+```
+git config --global user.name "bob"
+git config --global user.email bob@...
+```
+* restart the command line to make sure the config is reloaded
+
 
 ## Running PIE
 
