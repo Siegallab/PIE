@@ -11,25 +11,16 @@ phase_1_xy11_col41,,,1.0,1.0,,,,1.0,,,
 phase_1_xy11_col47,9.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy11_col52,10.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy11_col54,10.0,,1.0,1.0,,,,1.0,,,
-phase_1_xy12_col0,,,,,,,,9.0,,all,
-phase_1_xy12_col0,,,,,,,,9.0,,all,
+phase_1_xy12_col0,,,,,,,,9.0,,some or all candidate windows,
 phase_1_xy12_col1,,,,,,,,1.0,,,
-phase_1_xy12_col2,,,,,,,,,,all,
-phase_1_xy12_col2,,,,,,,,,,all,
-phase_1_xy12_col2,,,,,,,,,,all,
-phase_1_xy12_col2,,,,,,,,,,all,
-phase_1_xy12_col3,,,,,,,,10.0,,all,
-phase_1_xy12_col3,,,,,,,,10.0,,all,
-phase_1_xy12_col3,,,,,,,,10.0,,all,
+phase_1_xy12_col2,,,,,,,,,,some or all candidate windows,
+phase_1_xy12_col3,,,,,,,,10.0,,some or all candidate windows,
 phase_1_xy12_col4,,,,,,,,8.0,,,
 phase_1_xy12_col40,5.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy12_col5,,,,,,,,10.0,,,
 phase_1_xy12_col6,,,,,,,,10.0,,,
 phase_1_xy12_col67,8.0,,1.0,1.0,,,,1.0,,,
-phase_1_xy12_col7,,,,,,,,,,all,
-phase_1_xy12_col7,,,,,,,,,,all,
-phase_1_xy12_col7,,,,,,,,,,all,
-phase_1_xy12_col7,,,,,,,,,,all,
+phase_1_xy12_col7,,,,,,,,,,some or all candidate windows,
 phase_1_xy12_col91,,,1.0,1.0,,,,1.0,,,
 phase_1_xy1_col0,,,,1.0,,,,1.0,,,
 phase_1_xy1_col1,,,,1.0,,,,1.0,,,
@@ -89,71 +80,29 @@ phase_1_xy1_col97,,,1.0,1.0,,,,1.0,,,
 phase_1_xy1_col98,,,1.0,1.0,,,,1.0,,,
 phase_1_xy1_col99,,,1.0,1.0,,10.0,,1.0,,,
 phase_1_xy2_col0,,,,,,,,9.0,,,
-phase_1_xy2_col1,,,,,,,,9.0,,all,
-phase_1_xy2_col2,,,,,,,,,,all,
-phase_1_xy2_col2,,,,,,,,,,all,
-phase_1_xy2_col2,,,,,,,,,,all,
-phase_1_xy2_col2,,,,,,,,,,all,
+phase_1_xy2_col1,,,,,,,,9.0,,some or all candidate windows,
+phase_1_xy2_col2,,,,,,,,,,some or all candidate windows,
 phase_1_xy2_col3,,,,,,,,10.0,,,
 phase_1_xy2_col38,5.0,,1.0,1.0,,,,1.0,,,
-phase_1_xy2_col4,,,,,,,,,,all,
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col5,,,,,,,,,,all,all
-phase_1_xy2_col6,,,,,,,,,,all,
-phase_1_xy2_col6,,,,,,,,,,all,
-phase_1_xy2_col6,,,,,,,,,,all,
-phase_1_xy2_col6,,,,,,,,,,all,
-phase_1_xy2_col7,,,,,,,,,,all,
-phase_1_xy2_col7,,,,,,,,,,all,
-phase_1_xy2_col7,,,,,,,,,,all,
-phase_1_xy2_col7,,,,,,,,,,all,
+phase_1_xy2_col4,,,,,,,,,,some or all candidate windows,
+phase_1_xy2_col5,,,,,,,,,,some or all candidate windows,all
+phase_1_xy2_col6,,,,,,,,,,some or all candidate windows,
+phase_1_xy2_col7,,,,,,,,,,some or all candidate windows,
 phase_1_xy2_col75,9.0,,1.0,1.0,,,,1.0,,,
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
-phase_1_xy2_col8,,,,,,,,,,all,all
+phase_1_xy2_col8,,,,,,,,,,some or all candidate windows,all
 phase_1_xy3_col0,,,,,,,,1.0,,,
 phase_1_xy3_col1,6.0,,,,,,,1.0,,,
-phase_1_xy3_col2,9.0,,,,,8.0,,9.0,,all,
+phase_1_xy3_col2,9.0,,,,,8.0,,9.0,,some or all candidate windows,
 phase_1_xy3_col21,3.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy3_col3,,,,,,,,10.0,,,
 phase_1_xy3_col38,5.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy3_col43,,,1.0,1.0,,,,1.0,,,
 phase_1_xy3_col5,,,,1.0,,3.0,,1.0,,,
 phase_1_xy3_col6,9.0,,,,,7.0,,9.0,,,
-phase_1_xy3_col7,,,,,,,,,,all,
-phase_1_xy3_col7,,,,,,,,,,all,
-phase_1_xy3_col7,,,,,,,,,,all,
+phase_1_xy3_col7,,,,,,,,,,some or all candidate windows,
 phase_1_xy3_col73,9.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy3_col74,9.0,,1.0,1.0,,,,1.0,,,
-phase_1_xy4_col0,,,,,,,,,,all,
-phase_1_xy4_col0,,,,,,,,,,all,
+phase_1_xy4_col0,,,,,,,,,,some or all candidate windows,
 phase_1_xy4_col1,,,,1.0,,,,1.0,,,
 phase_1_xy4_col2,1.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy4_col3,,,,,,,,10.0,,,
@@ -164,46 +113,17 @@ phase_1_xy4_col7,,,,,,,,10.0,,,
 phase_1_xy4_col72,10.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy4_col73,10.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy4_col77,,,1.0,1.0,,,,1.0,,,
-phase_1_xy5_col0,,,,,,,,,,all,
-phase_1_xy5_col0,,,,,,,,,,all,
+phase_1_xy5_col0,,,,,,,,,,some or all candidate windows,
 phase_1_xy5_col1,,,,,,,,9.0,,,
-phase_1_xy5_col2,,,,,,,,,,all,
-phase_1_xy5_col3,,,,,,,,,,all,all
-phase_1_xy5_col3,,,,,,,,,,all,all
-phase_1_xy5_col3,,,,,,,,,,all,all
-phase_1_xy5_col3,,,,,,,,,,all,all
-phase_1_xy5_col3,,,,,,,,,,all,all
-phase_1_xy5_col3,,,,,,,,,,all,all
-phase_1_xy5_col3,,,,,,,,,,all,all
-phase_1_xy5_col3,,,,,,,,,,all,all
+phase_1_xy5_col2,,,,,,,,,,some or all candidate windows,
+phase_1_xy5_col3,,,,,,,,,,some or all candidate windows,all
 phase_1_xy5_col34,5.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy5_col4,4.0,,,,,,,1.0,,,
 phase_1_xy5_col49,6.0,,1.0,1.0,,,,1.0,,,
-phase_1_xy5_col5,,,,,,,,9.0,,all,all
-phase_1_xy5_col5,,,,,,,,9.0,,all,all
-phase_1_xy5_col5,,,,,,,,9.0,,all,all
-phase_1_xy5_col5,,,,,,,,9.0,,all,all
+phase_1_xy5_col5,,,,,,,,9.0,,some or all candidate windows,all
 phase_1_xy5_col55,10.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy5_col59,8.0,,1.0,1.0,,,,1.0,,,
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col6,,,,,,,,,,all,all
-phase_1_xy5_col7,,,,,,,,,,,all
-phase_1_xy5_col7,,,,,,,,,,,all
-phase_1_xy5_col7,,,,,,,,,,,all
+phase_1_xy5_col6,,,,,,,,,,some or all candidate windows,all
 phase_1_xy5_col7,,,,,,,,,,,all
 phase_1_xy5_col71,9.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy5_col76,,,1.0,1.0,,,,1.0,,,
@@ -213,9 +133,7 @@ phase_1_xy6_col2,1.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy6_col3,1.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy6_col4,1.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy6_col50,,,1.0,1.0,,,,1.0,,,
-phase_1_xy6_col6,,,,,,,,10.0,,all,
-phase_1_xy6_col6,,,,,,,,10.0,,all,
-phase_1_xy6_col6,,,,,,,,10.0,,all,
+phase_1_xy6_col6,,,,,,,,10.0,,some or all candidate windows,
 phase_1_xy7_col0,4.0,,,,,,,1.0,,,
 phase_1_xy7_col1,1.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy7_col10,3.0,,1.0,1.0,,,,1.0,,,
@@ -262,7 +180,7 @@ phase_1_xy9_col43,7.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy9_col5,1.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy9_col53,8.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy9_col58,8.0,,1.0,1.0,,,,1.0,,,
-phase_1_xy9_col6,,,,,,,,,,all,
+phase_1_xy9_col6,,,,,,,,,,some or all candidate windows,
 phase_1_xy9_col61,9.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy9_col67,10.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy9_col68,,,1.0,1.0,,,,1.0,,,

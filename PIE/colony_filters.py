@@ -515,9 +515,20 @@ class PostGrowthCombinedFilter(CombinedFilterBaseClass):
 				unfilt_growth_rates, combined_filter_pass_bool)
 		# remove rows containing all NaN from self.filtered_areas
 		self.filtered_growth_rates.dropna(how = 'all', inplace = True)
-		# change non-NA values in self.removed_colonies_df to 'all' to
-		# make output more sensical
+		# self.removed_colonies_df in post-gr analysis can have
+		# duplicates due to multiple growth rate calculations per
+		# colony being present in self.df_to_filter; drop those
+		# NB: can't use drop_duplicates() because ir ignores index
+		self.removed_colonies_df = \
+			self.removed_colonies_df[
+				~self.removed_colonies_df.reset_index().duplicated().values
+				]
+		# change non-NA values in self.removed_colonies_df to make
+		# output more sensical
 		self.removed_colonies_df[self.removed_colonies_df.notnull()] = 'all'
+		self.removed_colonies_df.min_correlation[
+			self.removed_colonies_df.min_correlation.notnull()
+			] = 'some or all candidate windows'
 		return(self.filtered_growth_rates, self.removed_colonies_df)
 
 
