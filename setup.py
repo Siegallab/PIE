@@ -9,10 +9,11 @@ from setuptools import setup, find_packages
 install_requires = [
     'numpy>=1.16.0',
     'opencv-contrib-python>4.0.0.0',
-    'pandas>=0.24.1',
+    'pandas>=1.1.0',
     'Pillow>=7.2.0',
     'scipy>=1.1.0',
-    'plotnine',
+    'plotnine >= 0.7.1',
+    'pyarrow',
     'Click>=7.0'
 ]
 
