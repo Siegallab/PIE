@@ -19,8 +19,8 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		self.hole_fill_area = np.inf
 		self.cleanup = True
 		self.max_proportion_exposed_edge = 0.75
-		self.input_path = 'PIE_test_data/IN/SL_170619_2_GR_small'
-		self.output_path = 'PIE_tests/temp_out'
+		self.input_path = os.path.join('PIE_test_data','IN','SL_170619_2_GR_small')
+		self.output_path = os.path.join('PIE_tests','temp_out')
 		self.im_file_extension = 'tif'
 		self.label_order_list = ['channel', 'timepoint', 'position']
 		self.total_xy_position_num = 1000
@@ -37,16 +37,19 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		self.extended_display_positions = [1, 4, 11]
 		self.xy_position_vector = range(1,1001)
 		self.combined_gr_write_path = \
-			'PIE_tests/temp_out/growth_rates_combined.csv'
+			os.path.join(self.output_path,'growth_rates_combined.csv')
 		self.combined_tracked_properties_write_path = \
-			'PIE_tests/temp_out/colony_properties_combined.csv'
+			os.path.join(self.output_path,'colony_properties_combined.csv')
 		self.col_properties_output_folder = \
-			'PIE_tests/temp_out/positionwise_colony_properties'
-		self.phase_output_path = 'PIE_tests/temp_out/phase_1'
+			os.path.join(self.output_path,'positionwise_colony_properties')
+		self.phase_output_path = os.path.join(self.output_path,'phase_1')
 		self.phase_col_property_mats_output_folder = \
-			'PIE_tests/temp_out/phase_1/positionwise_colony_property_matrices'
+			os.path.join(self.phase_output_path,
+				'positionwise_colony_property_matrices')
 		self.phase_gr_write_path = \
-			'PIE_tests/temp_out/phase_1/growth_rates.csv'
+			os.path.join(self.phase_output_path,'growth_rates.csv')
+		self.filtered_colony_file = \
+			os.path.join(self.phase_output_path,'filtered_colonies.csv')
 		self.minimum_growth_time = 4
 		self.growth_window_timepoints = 7
 		self.max_area_pixel_decrease = 500.0
@@ -92,6 +95,8 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.phase_col_property_mats_output_folder = \
 			self.phase_col_property_mats_output_folder
 		expected_analysis_config.phase_gr_write_path = self.phase_gr_write_path
+		expected_analysis_config.filtered_colony_file = \
+			self.filtered_colony_file
 		expected_analysis_config.combined_gr_write_path = \
 			self.combined_gr_write_path
 		expected_analysis_config.combined_tracked_properties_write_path = \

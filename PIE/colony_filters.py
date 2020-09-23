@@ -353,8 +353,8 @@ class CombinedFilterBaseClass(object):
 	def __init__(self, analysis_config, df_to_filter):
 		self.analysis_config = analysis_config
 		self.df_to_filter = df_to_filter
-		# initialize dictionary of colonies removed by filtration
-		self.removed_colonies_dict = dict()
+		# initialize dataframe of colonies removed by filtration
+		self.removed_colonies_df = pd.DataFrame()
 		# TODO: It's worth rethinking a lot of the filtration steps we're performing
 
 	def _run_filtration(self, filtration_class, filtration_name, df_to_filter,
@@ -371,9 +371,11 @@ class CombinedFilterBaseClass(object):
 		# update combined_filter_pass_bool
 		combined_filter_pass_bool = \
 			np.logical_and(combined_filter_pass_bool, filter_pass_bool)
-		# update dictionary of removed colonies with current
+		# update dataframe of removed colonies with current
 		# filtration step
-		self.removed_colonies_dict[filtration_name] = removed_locations
+		removed_locations.columns = [filtration_name]
+		self.removed_colonies_df = \
+			self.removed_colonies_df.join(removed_locations, how = 'outer')
 		return(combined_filter_pass_bool)
 
 	def _filter_df_by_filter_pass_mat(self, df_to_filter, filter_pass_mat):
@@ -397,7 +399,7 @@ class CombinedFilterBaseClass(object):
 		### !!! NEEDS UNITTEST
 		for filtration_type, filtration_class in filtration_dict.items():
 			# perform filtration, update combined_filter_pass_bool, add
-			# removed colony locations to self.removed_colonies_dict
+			# removed colony locations to self.removed_colonies_df
 			combined_filter_pass_bool = \
 				self._run_filtration(filtration_class, filtration_type,
 					df_to_filter, combined_filter_pass_bool)
@@ -479,7 +481,7 @@ class PreGrowthCombinedFilter(CombinedFilterBaseClass):
 				part_1_filtered_areas, combined_filter_pass_bool)
 		# remove rows containing all NaN from self.filtered_areas
 		self.filtered_areas.dropna(how = 'all', inplace = True)
-		return(self.filtered_areas, self.removed_colonies_dict)
+		return(self.filtered_areas, self.removed_colonies_df)
 
 
 class PostGrowthCombinedFilter(CombinedFilterBaseClass):
@@ -513,7 +515,10 @@ class PostGrowthCombinedFilter(CombinedFilterBaseClass):
 				unfilt_growth_rates, combined_filter_pass_bool)
 		# remove rows containing all NaN from self.filtered_areas
 		self.filtered_growth_rates.dropna(how = 'all', inplace = True)
-		return(self.filtered_growth_rates, self.removed_colonies_dict)
+		# change non-NA values in self.removed_colonies_df to 'all' to
+		# make output more sensical
+		self.removed_colonies_df[self.removed_colonies_df.notnull()] = 'all'
+		return(self.filtered_growth_rates, self.removed_colonies_df)
 
 
 def vectorized_arange(range_start_array, range_stop_array):
@@ -570,5 +575,3 @@ def cum_sum_since_subarray_start(result_length, subarray_start_positions,
 			prev_subarray_length - inter_subarray_length
 	cumulative_sum_subarrays = np.cumsum(positionwise_increase)
 	return(cumulative_sum_subarrays)
-
-

@@ -42,9 +42,6 @@ class OutputChecker(unittest.TestCase):
 		self.phases = self.analysis_config_obj_df.index.to_numpy()
 		self.output_path = analysis_config_file_processor.output_path
 		self.expected_output_path = expected_output_path
-		self.positionwise_colony_prop_dir = \
-			os.path.join(self.output_path,
-				'positionwise_colony_properties')
 		self.expected_positionwise_colony_prop_dir = \
 			os.path.join(self.expected_output_path,
 				'positionwise_colony_properties')
@@ -69,7 +66,7 @@ class OutputChecker(unittest.TestCase):
 			current_threshold_info_file = \
 				os.path.join(
 					self.analysis_config_obj_df.at[phase, 'phase_dir'],
-					'threshold_plots', 'threshold_info.csv'
+					'threshold_plots', 'threshold_info_comb.csv'
 					)
 			try:
 				threshold_info_df = \
@@ -109,7 +106,6 @@ class OutputChecker(unittest.TestCase):
 		Check that subdirectories for each phase exist
 		'''
 		self.assertTrue(os.path.isdir(self.output_path))
-		self.assertTrue(self.positionwise_colony_prop_dir)
 #		general_output_directories = [
 #			'positionwise_colony_property_matrices',
 #			'jpgGRimages',
@@ -161,7 +157,7 @@ class OutputChecker(unittest.TestCase):
 			analysis_config.tracked_properties_write_path
 			)
 
-	def _check_single_pos_output(self, xy_pos_idx):
+	def _check_single_pos_output(self, xy_pos_idx, check_prop_file = True):
 		'''
 		Check that expected output files exist (and are correct) for
 		imaging field xy_pos_idx
@@ -179,7 +175,10 @@ class OutputChecker(unittest.TestCase):
 			# NB: having this line in the loop is redundant, since this
 			# file should exist in the output directory above the phase
 			# directories
-			self._check_single_pos_properties_file(analysis_config, xy_pos_idx)
+			if check_prop_file:
+				self._check_single_pos_properties_file(
+					analysis_config, xy_pos_idx
+					)
 			for t in analysis_config.timepoint_list:
 				# get input im path and image name for main channel
 				input_filepath, main_channel_im_name = \
@@ -210,8 +209,21 @@ class OutputChecker(unittest.TestCase):
 					# check for files in folders for 'extended display'
 					if xy_pos_idx in self.extended_display_positions:
 						# check existance in current threshold_info file
-						self.assertTrue(main_channel_im_name in threshold_info.index)
-						# check threshold file
+						self.assertTrue(
+							main_channel_im_name in threshold_info.index or
+							os.path.isfile(
+								os.path.join(
+									phase_dir,
+									'threshold_plots',
+									(
+										'threshold_info_' + 
+										main_channel_im_name + 
+										'.csv'
+										)
+									)
+								)
+							)
+						# check threshold files
 						self.assertTrue(
 							os.path.isfile(
 								os.path.join(
@@ -250,6 +262,7 @@ class OutputChecker(unittest.TestCase):
 		expected values
 		'''
 		# get list of files to check in parent directory
+		### CURRENTLY NOT CHECKING FOR EXTRA FILES
 		files_to_check = ['growth_rates_combined.csv',
 			'colony_properties_combined.csv']
 		for phase_dir in self.analysis_config_obj_df.phase_dir:
@@ -257,8 +270,18 @@ class OutputChecker(unittest.TestCase):
 			files_to_check.append(
 				os.path.join(phase_base,'growth_rates.csv')
 				)
+			files_to_check.append(
+				os.path.join(phase_base,'filtered_colonies.csv')
+				)
+			files_to_check.append(
+				os.path.join(phase_base,'threshold_plots',
+					'threshold_info_comb.csv')
+				)
+			# check for all positionwise colony matrix files found in
+			# expected dir
 			positionwise_colony_property_matrix_files = \
-				os.listdir(os.path.join(phase_dir,
+				os.listdir(os.path.join(self.expected_output_path,
+					phase_base,
 					'positionwise_colony_property_matrices'))
 			matrix_files_to_add = [
 				os.path.join(
@@ -285,7 +308,7 @@ class OutputChecker(unittest.TestCase):
 		if single_pos == None:
 			# check for outputs of every individual position
 			for xy_pos_idx in self.xy_position_vector:
-				self._check_single_pos_output(xy_pos_idx)
+				self._check_single_pos_output(xy_pos_idx, check_prop_file = False)
 			# check for combined tracking, growth rate, and positionwise
 			# property matrix outputs
 			self.check_combined_outputs()

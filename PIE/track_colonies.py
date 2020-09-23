@@ -480,10 +480,13 @@ class ColonyTracker(object):
 		Replaces replace_keys in col_to_replace of
 		self.active_col_prop_df with replace_vals
 		'''
-		replace_dict = pd.Series(
-			replace_vals,
-			index=replace_keys
-			).to_dict()
+		if len(replace_keys) > 0 and len(replace_vals) > 0:
+			replace_dict = pd.Series(
+				replace_vals,
+				index=replace_keys
+				).to_dict()
+		else:
+			replace_dict = dict()
 		self.active_col_prop_df.replace(
 			{col_to_replace: replace_dict},
 			inplace = True)

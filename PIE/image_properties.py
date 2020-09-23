@@ -119,7 +119,7 @@ class _ImageAnalyzer(object):
 		'''
 		threshold_info_file = \
 			os.path.join(self._image_output_dir_dict['threshold_plots'],
-					'threshold_info.csv')
+					'threshold_info_'+self.image_name+'.csv')
 		threshold_info = [self.image_name, threshold_method_name, threshold]
 		if os.path.exists(threshold_info_file):
 			with open(threshold_info_file, 'a') as f:

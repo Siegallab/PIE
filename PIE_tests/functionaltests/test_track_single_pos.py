@@ -7,7 +7,7 @@ import PIE
 from PIE_tests.functionaltests.check_output_files import OutputChecker, make_setup_filepath_standin
 from io import StringIO
 
-output_path = 'PIE_tests/test_functional_output_dir'
+output_path = os.path.join('PIE_tests','test_functional_output_dir')
 
 class ParentTestClass(object):
 	'''
@@ -26,7 +26,8 @@ class ParentTestClass(object):
 			'SL_170619_2_GR_small_expected_out'
 			)
 		xy_pos = 11;
-		analysis_config_filepath = 'sample_PIE_setup_files/gr_phase_setup.csv'
+		analysis_config_filepath = \
+			os.path.join('sample_PIE_setup_files','gr_phase_setup.csv')
 		self._run_test_single_pos(
 			analysis_config_filepath,
 			xy_pos,
@@ -43,7 +44,8 @@ class ParentTestClass(object):
 			'SL_170619_2_GR_small_expected_out'
 			)
 		xy_pos = 15
-		analysis_config_filepath = 'sample_PIE_setup_files/gr_phase_setup.csv'
+		analysis_config_filepath = \
+			os.path.join('sample_PIE_setup_files','gr_phase_setup.csv')
 		self._run_test_single_pos(
 			analysis_config_filepath,
 			xy_pos,
@@ -60,7 +62,26 @@ class ParentTestClass(object):
 			'SL_180519_small_expected_out'
 			)
 		xy_pos = 401
-		analysis_config_filepath = 'sample_PIE_setup_files/two_phase_setup.csv'
+		analysis_config_filepath = \
+			os.path.join('sample_PIE_setup_files','two_phase_setup.csv')
+		self._run_test_single_pos(
+			analysis_config_filepath,
+			xy_pos,
+			expected_output_path)
+
+	def test_existing_pos_postphase(self):
+		'''
+		Tests running image analysis and single colony tracking on existing
+		position in two-phase experiment
+		'''
+		expected_output_path = os.path.join(
+			'PIE_tests',
+			'expected_ft_outputs',
+			'EP_170202_small_expected_out'
+			)
+		xy_pos = 735
+		analysis_config_filepath = \
+			os.path.join('sample_PIE_setup_files','gr_with_postfluor_setup.csv')
 		self._run_test_single_pos(
 			analysis_config_filepath,
 			xy_pos,

@@ -8,6 +8,7 @@ import os
 import numpy as np
 import pandas as pd
 import re
+import shutil
 from PIE import track_colonies, analysis_configuration, colony_filters
 
 class _CompileColonyData(object):
@@ -269,7 +270,7 @@ class _GrowthMeasurer(object):
 				self.unfilt_areas)
 		# filter areas: set any value that needs to be removed in
 		# pre-growth filtration to NaN
-		self.filt_areas, self.pre_gr_removed_locations = \
+		self.filt_areas, self.pre_gr_removed_location_df = \
 			pre_growth_filter.filter()
 		# set any value that was removed from areas in pre-growth
 		# filtration to NaN in times, cX, and cY
@@ -450,7 +451,7 @@ class _GrowthMeasurer(object):
 				prefilt_growth_rate_data)
 		# filter growth: set any value that needs to be removed in
 		# post-growth filtration to NaN, and remove all-NaN rows
-		self.filt_growth_rates, self.post_gr_removed_locations = \
+		self.filt_growth_rates, self.post_gr_removed_location_df = \
 			post_growth_filter.filter()
 
 	def _select_colony_gr(self):
@@ -538,6 +539,18 @@ class _GrowthMeasurer(object):
 		# save results
 		self.final_gr.to_csv(self.analysis_config.phase_gr_write_path)
 		return(self.final_gr)
+
+	def get_filtered_colonies(self):
+		'''
+		Concatenates and returns dataframe containing which colonies
+		were filtered out at which timepoints during growth rate
+		analysis
+		'''
+		combined_filter_df = \
+			self.pre_gr_removed_location_df.join(
+				self.post_gr_removed_location_df, how = 'outer'
+				)
+		return(combined_filter_df)
 
 class _PhaseGRCombiner(object):
 	'''
@@ -697,6 +710,38 @@ def get_colony_properties(col_property_mat_df, timepoint_label,
 			col_property_mat[np.arange(0,col_property_mat.shape[0]), tp_to_use_idx]
 	return(output_vals, tp_to_use)
 
+def _concat_folder_files(dir_to_concat, extension, output_file_path):
+	'''
+	Reads all files with extension in dir_to_concat and combines them
+	into single output_filename
+	'''
+	file_list = [f for f in os.listdir(dir_to_concat) if f.endswith(extension)]
+	with open(output_file_path, 'w') as outfile:
+		for fname in file_list:
+			fpath = os.path.join(dir_to_concat,fname)
+			with open(fpath) as infile:
+				outfile.write(infile.read())
+			os.remove(fpath)
+
+def _post_analysis_file_process(output_path, phase_list,
+		col_properties_output_folder):
+	'''
+	Runs file processing post-analysis:
+	-	Deletes field-specific tracking data folder
+	-	Compiles threshold output csv files into single file and deletes them
+	'''
+	# delete field-specific tracking data
+	shutil.rmtree(col_properties_output_folder)
+	# compile threshold output files
+	for phase_num in phase_list:
+		phase_thresh_folder = \
+			os.path.join(
+				output_path, 'phase_'+str(phase_num), 'threshold_plots'
+				)
+		thresh_output_file = \
+			os.path.join(phase_thresh_folder, 'threshold_info_comb.csv')
+		_concat_folder_files(phase_thresh_folder, 'csv', thresh_output_file)
+
 def measure_growth_rate(analysis_config, postphase_analysis_config,
 	time_tracked_phase_pos_data):
 	'''
@@ -715,7 +760,8 @@ def measure_growth_rate(analysis_config, postphase_analysis_config,
 			fl_prop_mat_df_dict, analysis_config, postphase_analysis_config,
 			imaging_info_df)
 	gr_df = growth_measurer.find_growth_rates()
-	return(gr_df)
+	filtered_colony_df = growth_measurer.get_filtered_colonies()
+	return(gr_df, filtered_colony_df)
 
 def run_growth_rate_analysis(analysis_config_file = None,
 		analysis_config_obj_df = None,
@@ -732,32 +778,41 @@ def run_growth_rate_analysis(analysis_config_file = None,
 	analysis_config_obj_df = analysis_configuration.check_passed_config(
 		analysis_config_obj_df, analysis_config_file)
 	phase_gr_combiner = _PhaseGRCombiner()
-	# track colonies through time and phase at each xy position and
-	# combine results
-	# xy positions and track_colonies.track_colonies_single_pos output
-	# should be the same for every phase
+	# read in colony properties csv if it exists and
+	# repeat_image_analysis_and_tracking is False
 	temp_analysis_config = analysis_config_obj_df.iloc[0]['analysis_config']
-	time_tracked_col_props_pos_list = []
-	for xy_pos_idx in temp_analysis_config.xy_position_vector:
-		temp_analysis_config.set_xy_position(xy_pos_idx)
-		if repeat_image_analysis_and_tracking or not \
-			os.path.exists(temp_analysis_config.tracked_properties_write_path):
-			time_tracked_pos_col_props = \
-				track_colonies.track_colonies_single_pos(xy_pos_idx,
-					analysis_config_obj_df = analysis_config_obj_df)
-		else:
-			time_tracked_pos_col_props = \
-				temp_analysis_config.get_position_colony_data_tracked_df()
-		time_tracked_col_props_pos_list.append(time_tracked_pos_col_props)
-	# combine time-tracked colony properties for each position into a
-	# single df
-	time_tracked_col_props_comb = \
-		pd.concat(time_tracked_col_props_pos_list, sort = False)
-	# write output file
-	time_tracked_col_props_comb.to_csv(
-		temp_analysis_config.combined_tracked_properties_write_path)
+	tracked_prop_file = \
+		temp_analysis_config.combined_tracked_properties_write_path
+	if not repeat_image_analysis_and_tracking and \
+		os.path.isfile(tracked_prop_file):
+		time_tracked_col_props_comb = pd.read_csv(tracked_prop_file)
+	else:
+		# track colonies through time and phase at each xy position and
+		# combine results
+		# xy positions and track_colonies.track_colonies_single_pos output
+		# should be the same for every phase
+		time_tracked_col_props_pos_list = []
+		for xy_pos_idx in temp_analysis_config.xy_position_vector:
+			temp_analysis_config.set_xy_position(xy_pos_idx)
+			if repeat_image_analysis_and_tracking or not \
+				os.path.exists(temp_analysis_config.tracked_properties_write_path):
+				time_tracked_pos_col_props = \
+					track_colonies.track_colonies_single_pos(xy_pos_idx,
+						analysis_config_obj_df = analysis_config_obj_df)
+			else:
+				time_tracked_pos_col_props = \
+					temp_analysis_config.get_position_colony_data_tracked_df()
+			time_tracked_col_props_pos_list.append(time_tracked_pos_col_props)
+		# combine time-tracked colony properties for each position into a
+		# single df
+		time_tracked_col_props_comb = \
+			pd.concat(time_tracked_col_props_pos_list, sort = False)
+		# write output file
+		time_tracked_col_props_comb.to_csv(
+			tracked_prop_file, index = False)
 	# measure growth rates within each phase
-	for phase_num in analysis_config_obj_df.index:
+	phase_list = analysis_config_obj_df.index
+	for phase_num in phase_list:
 		analysis_config = \
 			analysis_config_obj_df.at[phase_num, 'analysis_config']
 		postphase_analysis_config = \
@@ -765,14 +820,20 @@ def run_growth_rate_analysis(analysis_config_file = None,
 		time_tracked_col_props_phase = \
 			time_tracked_col_props_comb[
 				time_tracked_col_props_comb.phase_num == phase_num]
-		gr_df = measure_growth_rate(analysis_config, postphase_analysis_config,
+		gr_df, filtered_colony_df = measure_growth_rate(analysis_config, postphase_analysis_config,
 			time_tracked_col_props_phase)
 		phase_gr_combiner.add_phase_data(gr_df)
+		# write filtered colony output
+		filtered_colony_df.to_csv(analysis_config.filtered_colony_file)
 	# combine growth rates across phases
 	gr_df_combined = \
 		phase_gr_combiner.track_gr_data(time_tracked_col_props_comb)
 	gr_df_combined.to_csv(temp_analysis_config.combined_gr_write_path)
-	
+	# post-analysis folder and file cleanup
+	_post_analysis_file_process(
+		temp_analysis_config.output_path,
+		phase_list,
+		temp_analysis_config.col_properties_output_folder)
 
 def run_default_growth_rate_analysis(input_path, output_path,
 	total_timepoint_num, phase_num = 1,

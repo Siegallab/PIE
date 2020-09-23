@@ -173,6 +173,10 @@ class AnalysisConfig(object):
 		# create filename for growth rate output file for current phase
 		self.phase_gr_write_path = \
 			os.path.join(self.phase_output_path, 'growth_rates.csv')
+		# create filename for filtered colony output file for current
+		# phase
+		self.filtered_colony_file = \
+			os.path.join(self.phase_output_path, 'filtered_colonies.csv')
 
 	def _set_up_timevector(self, timepoint_spacing, first_timepoint):
 		'''
@@ -337,14 +341,13 @@ class AnalysisConfig(object):
 		piece of a broken-up colony)
 		'''
 		colony_properties_df_total = \
-			pd.read_csv(self.combined_tracked_properties_write_path,
-				index_col = 0)
+			pd.read_csv(self.combined_tracked_properties_write_path)
 		if filter_by_phase:
 			colony_properties_df = colony_properties_df_total[
 				colony_properties_df_total.phase_num == self.phase_num]
 		else:
 			colony_properties_df = colony_properties_df_total
-		if remove_untracked:
+		if remove_untracked and not colony_properties_df.empty:
 			colony_properties_df = \
 				colony_properties_df[
 					colony_properties_df.time_tracking_id.notna()]
