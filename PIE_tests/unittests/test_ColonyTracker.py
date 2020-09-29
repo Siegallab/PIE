@@ -193,6 +193,76 @@ class TestFindSatellitesByDist(unittest.TestCase):
 				parent_candidate_df, sat_candidate_df)
 		assert_frame_equal(expected_parent_sat_df, test_parent_sat_df)
 
+	def test_find_sat_by_dist_no_match(self):
+		parent_candidate_df = pd.DataFrame({
+			'cX': [11, 40, 55.4, 80, 101.3],
+			'cY': [21.5, 21.5, 30, 100, 20],
+			'major_axis_length': [30, 18, 18, 9, 21]},
+			index = [3, 2, 1, 15, 16])
+		# first colony should match both first and second parent
+		# second and fifth colony match no parent colony
+		# third colony matches only 5th parent colony
+		# fourth and sixth colonies match only 3rd parent colony
+		sat_candidate_df = pd.DataFrame({
+			'cX': [20, 85],
+			'cY': [100, 50],
+			'major_axis_length': [4, 5]
+			},
+			index = [32, 11])
+		expected_parent_sat_df = pd.DataFrame({
+			'satellite_idx': [],
+			'parent_idx': []
+			})
+		test_parent_sat_df = \
+			self.colony_tracker._find_satellites_by_dist(
+				parent_candidate_df, sat_candidate_df)
+		assert_frame_equal(expected_parent_sat_df, test_parent_sat_df,
+			check_dtype=False)
+
+	def test_find_sat_by_dist_no_sat(self):
+		parent_candidate_df = pd.DataFrame({
+			'cX': [11, 40],
+			'cY': [21.5, 21.5],
+			'major_axis_length': [30, 18]},
+			index = [3, 2])
+		sat_candidate_df = pd.DataFrame({
+			'cX': [],
+			'cY': [],
+			'major_axis_length': []
+			},
+			index = [])
+		expected_parent_sat_df = pd.DataFrame({
+			'satellite_idx': [],
+			'parent_idx': []
+			})
+		test_parent_sat_df = \
+			self.colony_tracker._find_satellites_by_dist(
+				parent_candidate_df, sat_candidate_df)
+		assert_frame_equal(expected_parent_sat_df, test_parent_sat_df,
+			check_dtype=False)
+
+	def test_find_sat_by_dist_no_parent(self):
+		parent_candidate_df = pd.DataFrame({
+			'cX': [],
+			'cY': [],
+			'major_axis_length': []},
+			index = [])
+		sat_candidate_df = pd.DataFrame({
+			'cX': [30, 20],
+			'cY': [21.5, 100],
+			'major_axis_length': [2, 4]
+			},
+			index = [21, 32])
+		expected_parent_sat_df = pd.DataFrame({
+			'satellite_idx': [],
+			'parent_idx': []
+			})
+		test_parent_sat_df = \
+			self.colony_tracker._find_satellites_by_dist(
+				parent_candidate_df, sat_candidate_df)
+		assert_frame_equal(expected_parent_sat_df, test_parent_sat_df,
+			check_dtype=False)
+
 	def test_find_sat_by_dist_real_data(self):
 		parent_candidate_df = satellite_prop_df.loc[[31,32,35,36,37]]
 		sat_candidate_df = satellite_prop_df.loc[[33,34]]

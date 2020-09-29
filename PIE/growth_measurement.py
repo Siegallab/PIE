@@ -594,6 +594,8 @@ def find_column_idx(df, col_vals):
 	'''
 	Returns indices of col_vals in df.columns
 	'''
+	# sort columns of df after converting them to same type as col_vals
+	df.columns = df.columns.to_numpy().astype(type(col_vals[0]))
 	sorter = np.argsort(df.columns)
 	col_val_idx = sorter[np.searchsorted(
 		df.columns, col_vals, sorter=sorter)]

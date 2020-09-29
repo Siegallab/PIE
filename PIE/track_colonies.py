@@ -118,10 +118,6 @@ class ColonyTracker(object):
 	be only for a single xy position, etc), NOT across the whole
 	experiment
 	'''
-	# TODO: CURRENTLY DOESN'T HANDLE SATELLITES!
-	#	need to check how those are *really* dealt with in original code
-	#	it kind of seems like if they merge with main colony, it counts
-	#	as a merge?
 	def __init__(self):
 		# initialize dictionary for time-tracked col property dfs
 		self.single_phase_col_prop_df_dict = dict()
@@ -210,8 +206,6 @@ class ColonyTracker(object):
 			np.round(warped_bb_small).astype(int)
 		warped_curr_im_data[['bb_width', 'bb_height']] = \
 			np.round(warped_bb_large- warped_bb_small).astype(int)
-	#	print(warp_mat)
-	#	print(curr_im_data[['cX', 'cY', 'bb_x_left', 'bb_y_top', 'bb_width', 'bb_height']]-warped_curr_im_data[['cX', 'cY', 'bb_x_left', 'bb_y_top', 'bb_width', 'bb_height']])
 		return(warped_curr_im_data)
 
 	def _get_overlap(self, curr_im_data, next_im_data):
@@ -281,6 +275,19 @@ class ColonyTracker(object):
 			'next_im_colony': overlap_df.columns[next_im_idx]})
 		return(match_df)
 
+	def _get_matching_indices(self, df, col_name, val_to_match):
+		'''
+		Returns list of indices of df where col_name matches
+		val_to_match, even if val_to_match is NaN
+		'''
+		### !!! NEEDS UNITTEST
+		if isinstance(val_to_match, float) and np.isnan(val_to_match):
+			match_bool = df[col_name].isnull()
+		else:
+			match_bool = df[col_name] == val_to_match
+		indices = df.index[match_bool].to_list()
+		return(indices)
+
 	def _match_by_parent(self, match_df, curr_im_data, next_im_data):
 		'''
 		Removes any matches in which a satellite matches its parent
@@ -305,16 +312,28 @@ class ColonyTracker(object):
 		# based on parent-parent matches to match_df
 		match_df_list = []
 		for _, row in match_df_parent.iterrows():
-			curr_colonies = curr_im_data.index[
-				curr_im_data.parent_colony == row.curr_im_parent].to_list()
-			next_colonies = next_im_data.index[
-				next_im_data.parent_colony == row.next_im_parent].to_list()
+			curr_colonies = \
+				self._get_matching_indices(
+					curr_im_data,
+					self.tracking_col_name,
+					row.curr_im_parent
+					)
+			next_colonies = \
+				self._get_matching_indices(
+					next_im_data,
+					self.tracking_col_name,
+					row.next_im_parent
+					)
 			curr_match_df = pd.DataFrame(
 				list(itertools.product(
 					*[curr_colonies, next_colonies])),
 				columns = ['curr_im_colony', 'next_im_colony'])
 			match_df_list.append(curr_match_df)
-		match_df_by_parent = pd.concat(match_df_list, sort = False)
+		if len(match_df_list) > 0:
+			match_df_by_parent = pd.concat(match_df_list, sort = False)
+		else:
+			match_df_by_parent = \
+				pd.DataFrame(columns = ['curr_im_colony', 'next_im_colony'])
 		return(match_df_by_parent)
 
 	def _tag_merged_colonies(self, match_df):
@@ -346,14 +365,14 @@ class ColonyTracker(object):
 		colonies_that_merge_bool = \
 			match_df['curr_im_colony'].isin(colonies_that_merge)
 		merged_colonies = match_df.next_im_colony[colonies_that_merge_bool]
-		# set self.tracking_col_name to NaN for merged colonies in
-		# self.active_col_prop_df
+		# set self.tracking_col_name and parent_colony to NaN for merged
+		# colonies in self.active_col_prop_df
 		self.active_col_prop_df.loc[
 			merged_colonies, self.tracking_col_name] = np.nan
+		self.active_col_prop_df.loc[
+			merged_colonies, 'parent_colony'] = np.nan
 		# return a version of match_df that is missing merged colonies
 		match_df_nonmerging = match_df[~colonies_that_merge_bool]
-		# set self._merged_colonies_removed to True
-		self._merged_colonies_removed = True
 		return(match_df_nonmerging)
 
 	def _resolve_splits(self, match_df_nonmerging):
@@ -409,29 +428,35 @@ class ColonyTracker(object):
 		'''
 		# create distance matrix with parent colonies along columns
 		# and satellite colonies along rows
-		x_dist = \
-			parent_candidate_df.cX.to_numpy() - \
-			sat_candidate_df.cX.to_numpy()[np.newaxis].T
-		y_dist = \
-			parent_candidate_df.cY.to_numpy() - \
-			sat_candidate_df.cY.to_numpy()[np.newaxis].T
-		dist_mat = np.sqrt(x_dist**2 + y_dist**2)
-		# find positions in dist_mat within
-		# self._max_sat_major_axis_prop of major_axis_length of parent
-		cutoff_dist_array = \
-			parent_candidate_df.major_axis_length.to_numpy()*\
-			self._max_sat_major_axis_prop
-		within_cutoff_mat = dist_mat <= cutoff_dist_array
-		# find the number of 'parents' each satellite matches to
-		parent_colony_num = np.sum(within_cutoff_mat, axis = 1)
-		# only real 'satellites' are colonies that match a single parent
-		real_sat_pos_list = parent_colony_num == 1
-		# find position corresponding to parent of each real satellite
-		parent_pos_list = \
-			np.argmax(within_cutoff_mat[real_sat_pos_list,:], axis = 1)
+		if parent_candidate_df.shape[0] == 0 or sat_candidate_df.shape[0] == 0:
+			sat_indices = []
+			parent_indices = []
+		else:
+			x_dist = \
+				parent_candidate_df.cX.to_numpy() - \
+				sat_candidate_df.cX.to_numpy()[np.newaxis].T
+			y_dist = \
+				parent_candidate_df.cY.to_numpy() - \
+				sat_candidate_df.cY.to_numpy()[np.newaxis].T
+			dist_mat = np.sqrt(x_dist**2 + y_dist**2)
+			# find positions in dist_mat within
+			# self._max_sat_major_axis_prop of major_axis_length of parent
+			cutoff_dist_array = \
+				parent_candidate_df.major_axis_length.to_numpy()*\
+				self._max_sat_major_axis_prop
+			within_cutoff_mat = dist_mat <= cutoff_dist_array
+			# find the number of 'parents' each satellite matches to
+			parent_colony_num = np.sum(within_cutoff_mat, axis = 1)
+			# only real 'satellites' are colonies that match a single parent
+			real_sat_pos_list = parent_colony_num == 1
+			# find position corresponding to parent of each real satellite
+			parent_pos_list = \
+				np.argmax(within_cutoff_mat[real_sat_pos_list,:], axis = 1)
+			sat_indices = sat_candidate_df.index[real_sat_pos_list]
+			parent_indices = parent_candidate_df.index[parent_pos_list]
 		parent_sat_df = pd.DataFrame(
-			{'satellite_idx': sat_candidate_df.index[real_sat_pos_list],
-			'parent_idx': parent_candidate_df.index[parent_pos_list]})
+			{'satellite_idx': sat_indices,
+			'parent_idx': parent_indices})
 		return(parent_sat_df)
 
 	def _id_satellites(self, next_im_data, match_df_filtered):
@@ -470,7 +495,7 @@ class ColonyTracker(object):
 		# remove any parent colonies that are satellites to colonies
 		# that weren't matched successfully to previous timepoint (e.g.
 		# merged colonies)
-		parent_sat_df_filt = parent_sat_df.loc[
+		parent_sat_df_filt = parent_sat_df[
 			parent_sat_df.parent_idx.isin(match_df_filtered.next_im_colony)]
 		return(parent_sat_df_filt)
 
@@ -524,7 +549,7 @@ class ColonyTracker(object):
 		Uses parent_sat_df to replace parent_colony in
 		self.active_col_prop_df from every timepoint that have the
 		values in parent_sat_df.satellite_idx with values from
-		parent_sat_df.parnet_idx
+		parent_sat_df.parent_idx
 		'''
 		### !!! NEEDS UNITTEST
 		replace_vals = \
@@ -552,7 +577,7 @@ class ColonyTracker(object):
 			self._match_by_parent(match_df, curr_im_data, next_im_data)
 		# set self.tracking_col_name in merged colonies to NaN, and get
 		# back match_df without colonies that merge into others
-		match_df_nonmerging = self._tag_merged_colonies(match_df)
+		match_df_nonmerging = self._tag_merged_colonies(match_df_by_parent)
 		# for colonies that break into multiple pieces, track the
 		# largest piece as the main colony
 		match_df_filtered = self._resolve_splits(match_df_nonmerging)

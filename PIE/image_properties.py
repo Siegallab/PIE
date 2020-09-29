@@ -372,7 +372,9 @@ class _ColonyPropertyFinder(object):
 		colony_perim = cv2.arcLength(colony_cont, True)
 		# documentation of fitEllipse seems to give minor and major axis
 		# in reverse order, return max to be sure
-		if np.sum(single_colony_mask) > 4:
+		# fitEllipse doesn't work with <5 pixels, and produces erratic
+		# results when there are 5 pixels in the object
+		if np.sum(single_colony_mask) > 5:
 			_, (axis_0_length, axis_1_length), _ = cv2.fitEllipse(colony_cont)
 		else:
 			# fitEllipse won't work, find max number of non-overlapping
@@ -543,7 +545,6 @@ class _ColonyPropertyFinder(object):
 		self.property_df['Eroded_Background_Mask'] = None
 		# create mask of background, excluding colonies
 		background_mask = np.invert(self.colony_mask)
-		self.property_df.to_csv('~/Documents/temp.csv')
 		for idx, row in self.property_df.iterrows():
 			colony_pixel_idx_list = row['pixel_idx_list']
 			colony_bounding_box_series = \

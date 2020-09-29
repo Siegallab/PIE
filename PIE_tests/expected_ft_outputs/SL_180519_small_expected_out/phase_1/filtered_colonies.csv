@@ -53,7 +53,6 @@ phase_1_xy402_col1,,,,,,,,,,some or all candidate windows,
 phase_1_xy402_col10,,,,,,,,,,some or all candidate windows,
 phase_1_xy402_col15,,,,,,,,,,some or all candidate windows,
 phase_1_xy402_col16,,,,,,,,,,some or all candidate windows,all
-phase_1_xy402_col17,,,,,,,,4.0,,,
 phase_1_xy402_col173,5.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy402_col18,,,,,,,,,,,all
 phase_1_xy402_col183,,,1.0,,,,,1.0,,,
@@ -67,10 +66,10 @@ phase_1_xy402_col25,,,,,,,,,,,all
 phase_1_xy402_col26,,,,,,,,,,some or all candidate windows,all
 phase_1_xy402_col28,,,,,,,,,,some or all candidate windows,all
 phase_1_xy402_col29,,,,,,,,,,some or all candidate windows,
-phase_1_xy402_col3,,,,,,,,4.0,,,all
+phase_1_xy402_col3,,,,,,,,,,,all
 phase_1_xy402_col30,,,,,,,,,,some or all candidate windows,all
 phase_1_xy402_col33,,,,,,,,,,,all
-phase_1_xy402_col34,,,,,,,,5.0,,some or all candidate windows,all
+phase_1_xy402_col34,,,,,,,,,,some or all candidate windows,all
 phase_1_xy402_col36,,,,,,,,5.0,,,
 phase_1_xy402_col4,1.0,,1.0,1.0,,,,1.0,,,
 phase_1_xy402_col42,,,1.0,,,,,1.0,,,
