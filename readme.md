@@ -37,6 +37,7 @@ git clone git@github.com:Siegallab/PIE.git
 cd PIE/
 pip install -e .
 ```
+### Troubleshooting PIE installation
 
 If you see the error 'Permission denied (publickey) error' for git clone, that means you need to add ssh key to your github account for installation. You can do that by following steps in this [link](https://stackoverflow.com/questions/2643502/how-to-solve-permission-denied-publickey-error-when-using-git). 
 1. cd into your .ssh directory and run
@@ -54,7 +55,6 @@ git config --global user.name "bob"
 git config --global user.email bob@...
 ```
 5. restart the command line to make sure the config is reloaded
-
 
 ## Running PIE
 
@@ -119,8 +119,9 @@ During growth rate analysis, growth rates will be calculated independently for a
 
 ##### Setup file Examples
 
-Here are some examples of setup files for experiments commonly done in the Siegal Lab:
+Here are some examples of setup files for experiments commonly done in the Siegal Lab; each corresponds to a single test data folder located in [PIE_test_data/IN/](https://github.com/Siegallab/PIE/tree/master/PIE_test_data/IN):
  * [setup file](https://github.com/Siegallab/PIE/tree/master/sample_PIE_setup_files/gr_phase_setup.csv) for an experiment consisting of only growth rate measurements
+ * [setup file](https://github.com/Siegallab/PIE/tree/master/sample_PIE_setup_files/gr_with_postfluor_setup.csv) for an experiment consisting of growth rate measurements, followed 
  * [setup file](https://github.com/Siegallab/PIE/tree/master/sample_PIE_setup_files/two_phase_setup.csv) for an experiment consisting of two phases of growth rate measurements, the first with two fluorescent channels, the second with a single fluorescent channel
 
 #### Running the experiment
@@ -148,7 +149,7 @@ PIE.run_default_growth_rate_analysis(
     total_timepoint_num)
 ```
 
-To achieve the same results as using the provided setup file, some options need to be changed when using the default analysis; for example, the sample data can be analyzed as follows:
+To achieve the same results as using the [provided single-phase, brightfield-only experimental setup file](https://github.com/Siegallab/PIE/tree/master/sample_PIE_setup_files/gr_phase_setup.csv), some options need to be changed when using the default analysis; for example, the sample data can be analyzed as follows:
 
 ```python
 import PIE
