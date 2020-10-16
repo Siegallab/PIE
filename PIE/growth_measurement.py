@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 import re
 import shutil
-from PIE import track_colonies, analysis_configuration, colony_filters
+from PIE import track_colonies, analysis_configuration, colony_filters, \
+	fluor_threshold
 
 class _CompileColonyData(object):
 	'''
@@ -476,6 +477,41 @@ class _GrowthMeasurer(object):
 		combined_filtered_gr = filtered_gr.join(self.imaging_info_df)
 		self.final_gr = combined_filtered_gr[self.columns_to_return]
 
+	def _classify_postphase_fluor(self):
+		'''
+		Create a bool column determining whether postphase 
+		fluorescence is present based on fitting 
+		bimodal distribution to fluorescence data
+		'''
+		# set property to use for classification of post-phase 
+		# fluorescent data
+		class_prop = 'col_mean_ppix_flprop'
+		for channel in \
+			self.postphase_analysis_config.fluor_channel_df.\
+				fluor_channel_column_name:
+			channel_fluor_data_name=class_prop+'_'+channel
+			channel_bool_name = channel+'_fluorescence'
+			fluor_logistic_finder = \
+				fluor_threshold.FluorLogisticFitter(
+					self.final_gr[channel_fluor_data_name].to_numpy()
+					)
+			fluor_classification_file_path = os.path.join(
+				self.analysis_config.phase_output_path,
+				channel+'_classification_output_file.csv'
+				)
+			fluor_classification_plot_path = os.path.join(
+				self.analysis_config.phase_output_path,
+				channel+'_classification_plot.pdf'
+				)
+			self.final_gr[channel_bool_name] = \
+				fluor_logistic_finder.classify_data(
+					fluor_classification_file_path,
+					channel,
+					fluor_classification_plot_path,
+					6.5,
+					4.5
+					)
+
 	def _add_fluor_data(self):
 		'''
 		If there is measured fluorescent data, add the necessary
@@ -513,6 +549,24 @@ class _GrowthMeasurer(object):
 						timepoint_label,
 						index_names = row_indices_to_use,
 						gr_df = self.final_gr)
+		# classify fluor data
+		if self.postphase_analysis_config is not None:
+			self._classify_postphase_fluor()
+
+	def _add_center_data(self):
+		'''
+		Adds data for mean center position of each colony
+		'''
+		### !!! NEEDS UNITTEST
+		row_indices_to_use = self.final_gr.index
+		self.final_gr['cxm'], _ = get_colony_properties(
+			self.filt_cX,
+			'mean',
+			index_names = row_indices_to_use)
+		self.final_gr['cym'], _ = get_colony_properties(
+			self.filt_cY,
+			'mean',
+			index_names = row_indices_to_use)
 
 	def find_growth_rates(self):
 		'''
@@ -536,6 +590,8 @@ class _GrowthMeasurer(object):
 		self._select_colony_gr()
 		# add fluorescent data if it exists
 		self._add_fluor_data()
+		# add central position data
+		self._add_center_data()
 		# save results
 		self.final_gr.to_csv(self.analysis_config.phase_gr_write_path)
 		return(self.final_gr)
@@ -649,6 +705,7 @@ def get_colony_properties(col_property_mat_df, timepoint_label,
 		# tp_to_use_idx should be empty
 		tp_to_use_idx = np.empty([col_property_mat.shape[0],1])
 		tp_to_use_idx[:] = np.nan
+		tp_to_use = tp_to_use_idx.copy()
 	else:
 		# identify timepoint_label to be used for each index
 		if isinstance(timepoint_label, str) and \
@@ -869,8 +926,10 @@ def run_default_growth_rate_analysis(input_path, output_path,
 	# set parent_phase to empty string, since only one phase and no
 	# postphase data
 	parent_phase = ''
-	if not os.path.exists(output_path):
+	try:
 		os.makedirs(output_path)
+	except:
+		pass
 	analysis_config_file_standin = os.path.join(output_path, 'setup_file.csv')
 	parameter_list = [
 		'input_path', 'output_path', 'total_timepoint_num',

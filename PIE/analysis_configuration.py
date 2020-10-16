@@ -152,8 +152,10 @@ class AnalysisConfig(object):
 			os.path.join(self.output_path, 'colony_properties_combined.csv')
 		self.col_properties_output_folder = \
 			os.path.join(self.output_path, 'positionwise_colony_properties')
-		if not os.path.exists(self.col_properties_output_folder):
+		try:
 			os.makedirs(self.col_properties_output_folder)
+		except:
+			pass
 
 	def _create_phase_output(self):
 		'''
@@ -163,13 +165,17 @@ class AnalysisConfig(object):
 		# NEED UNITTEST FOR JUST THIS METHOD?
 		self.phase_output_path = os.path.join(self.output_path,
 			('phase_' + str(self.phase_num)))
-		if not os.path.exists(self.phase_output_path):
+		try:
 			os.makedirs(self.phase_output_path)
+		except:
+			pass
 		self.phase_col_property_mats_output_folder = \
 			os.path.join(self.phase_output_path,
 				'positionwise_colony_property_matrices')
-		if not os.path.exists(self.phase_col_property_mats_output_folder):
+		try:
 			os.makedirs(self.phase_col_property_mats_output_folder)
+		except:
+			pass
 		# create filename for growth rate output file for current phase
 		self.phase_gr_write_path = \
 			os.path.join(self.phase_output_path, 'growth_rates.csv')

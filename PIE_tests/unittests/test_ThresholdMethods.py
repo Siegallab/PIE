@@ -2,6 +2,7 @@
 
 import unittest
 import numpy as np
+import pandas as pd
 import sys
 import warnings
 from scipy.optimize import least_squares
@@ -170,8 +171,10 @@ class TestDigaussianResidualFunCalculator(unittest.TestCase):
 		self.gaussian_threshold_standin.param_idx_dict = \
 			{'lambda_1': 0, 'mu_1': 1, 'sigma_1': 2, 'lambda_2': 3, 'mu_2': 4,
 				'sigma_2': 5}
-		self.test_x = np.array([-3, -2, -1, 0, 1, 2, 3])
-		self.test_y = np.array([1, 1, 1, 1, 1, 1, 1])
+		self.gaussian_threshold_standin.data = pd.DataFrame({
+			'x':np.array([-3, -2, -1, 0, 1, 2, 3]),
+			'y':np.array([1, 1, 1, 1, 1, 1, 1])
+			})
 
 	def test_residual_calc(self):
 		'''
@@ -189,8 +192,8 @@ class TestDigaussianResidualFunCalculator(unittest.TestCase):
 		expected_resid = \
 			np.array([0.81593687, 0.59228397, 0.13212056, -0.38940039,
 				0.44818084, 0.92898475, 0.99071877])
-		test_resid = self.gaussian_threshold_standin._digaussian_residual_fun(
-			params, self.test_x, self.test_y)
+		test_resid = self.gaussian_threshold_standin._residual_fun(
+			params)
 		assert_allclose(expected_resid, test_resid)
 
 	def test_residual_calc_extreme_vals(self):
@@ -207,8 +210,8 @@ class TestDigaussianResidualFunCalculator(unittest.TestCase):
 		params = np.array([lambda_1, mu_1, sigma_1, lambda_2, mu_2, sigma_2])
 		# resid from y expected by matlab code
 		expected_resid = np.array([1, 1, 1, 0, 1, 1, 1])
-		test_resid = self.gaussian_threshold_standin._digaussian_residual_fun(
-			params, self.test_x, self.test_y)
+		test_resid = self.gaussian_threshold_standin._residual_fun(
+			params)
 		assert_allclose(expected_resid, test_resid)
 
 class TestFitGaussians(unittest.TestCase):
@@ -227,6 +230,10 @@ class TestFitGaussians(unittest.TestCase):
 		self.gaussian_threshold_standin.param_idx_dict = \
 			{'lambda_1': 0, 'mu_1': 1, 'sigma_1': 2, 'lambda_2': 3, 'mu_2': 4,
 				'sigma_2': 5}
+		self.gaussian_threshold_standin.data=pd.DataFrame({
+			'x':self.x,
+			'y':self.y
+			})
 
 	def test_digaussian_fit(self):
 		'''
@@ -234,15 +241,14 @@ class TestFitGaussians(unittest.TestCase):
 		(which finds a good fit to this data) when done with same
 		starting parameters and bounds
 		'''
-		starting_param_vals = \
+		self.gaussian_threshold_standin.starting_param_vals = \
 			np.array([10.4417048619897, 81.1428571428571, 113.90566370064,
 				4.96075048462661, 243.428571428571, 157.449461988403])
 		self.gaussian_threshold_standin.lower_bounds = \
 			np.array([1, 0, 0, 0.5, -np.inf, 0])
 		self.gaussian_threshold_standin.upper_bounds = np.array([np.inf]*6)
 		expected_sse = 0.71
-		self.gaussian_threshold_standin._fit_gaussians(starting_param_vals,
-			self.x, self.y)
+		self.gaussian_threshold_standin.fit_density()
 		test_sse = self.gaussian_threshold_standin.fit_results.cost
 		# check that the cost in the python fit is less than 1.25x of
 		# the cost of the matlab fit
@@ -251,7 +257,8 @@ class TestFitGaussians(unittest.TestCase):
 		# of applying the model to the x values
 		expected_y_hat = self.gaussian_threshold_standin._digauss_calculator(
 			self.x, *self.gaussian_threshold_standin.fit_results.x)
-		assert_allclose(expected_y_hat, self.gaussian_threshold_standin.y_hat)
+		assert_allclose(
+			expected_y_hat, self.gaussian_threshold_standin.data.y_hat)
 
 class TestCalcFitAdjRsq(unittest.TestCase):
 
@@ -263,13 +270,15 @@ class TestCalcFitAdjRsq(unittest.TestCase):
 		'''
 		Run linear model on some fake data, calculate adj r squared
 		'''
-		self.gaussian_threshold_standin.x = np.arange(0,10)
-		self.gaussian_threshold_standin.y = np.arange(0,10)*2+3
-		self.gaussian_threshold_standin.y[[3,5]] = [10,12]
+		self.gaussian_threshold_standin.data = pd.DataFrame({
+			'x':np.arange(0,10),
+			'y':np.arange(0,10)*2+3
+			})
+		self.gaussian_threshold_standin.data.y[[3,5]] = [10,12]
 		self.gaussian_threshold_standin.fit_results = \
 			least_squares(_regression_model, [2,3],
-				args=(self.gaussian_threshold_standin.x,
-					self.gaussian_threshold_standin.y))
+				args=(self.gaussian_threshold_standin.data.x,
+					self.gaussian_threshold_standin.data.y))
 		expected_adj_rsq = 0.9922558922558923
 		self.gaussian_threshold_standin._calc_fit_adj_rsq()
 		self.assertEqual(expected_adj_rsq,
@@ -285,10 +294,11 @@ class TestFindPeak(unittest.TestCase):
 		'''
 		Tests finding x-position corresponding to single peak of y_hat
 		'''
-		self.gaussian_threshold_standin.x = np.array([0, 0.3, 1, 2, 3.5])
-		self.gaussian_threshold_standin.y = \
-			np.array([1]*len(self.gaussian_threshold_standin.x))
-		self.gaussian_threshold_standin.y_hat = np.array([0, 1.5, 1.3, .9, 1.4])
+		self.gaussian_threshold_standin.data = pd.DataFrame({
+			'x':np.array([0, 0.3, 1, 2, 3.5]),
+			'y':np.array([1]*5),
+			'y_hat':np.array([0, 1.5, 1.3, .9, 1.4])
+			})
 		self.gaussian_threshold_standin._find_peak()
 		self.assertEqual(0.3, self.gaussian_threshold_standin.peak_x_pos)
 		self.assertEqual(1.5, self.gaussian_threshold_standin.y_peak_height)
@@ -297,10 +307,11 @@ class TestFindPeak(unittest.TestCase):
 		'''
 		Tests finding x-position corresponding to first peak of y_hat
 		'''
-		self.gaussian_threshold_standin.x = np.array([0, 0.3, 1, 2, 3.5])
-		self.gaussian_threshold_standin.y = \
-			np.array([1]*len(self.gaussian_threshold_standin.x))
-		self.gaussian_threshold_standin.y_hat = np.array([0, 1.5, 1.3, .9, 1.5])
+		self.gaussian_threshold_standin.data = pd.DataFrame({
+			'x':np.array([0, 0.3, 1, 2, 3.5]),
+			'y':np.array([1]*5),
+			'y_hat':np.array([0, 1.5, 1.3, .9, 1.5])
+			})
 		self.gaussian_threshold_standin._find_peak()
 		self.assertEqual(0.3, self.gaussian_threshold_standin.peak_x_pos)
 		self.assertEqual(1.5, self.gaussian_threshold_standin.y_peak_height)
@@ -708,8 +719,10 @@ class TestSampleandStrechGraph(unittest.TestCase):
 			object.__new__(_SlidingCircleThresholdMethod)
 		self.sliding_circle_standin._x_stretch_factor = 0.1
 		self.sliding_circle_standin._y_stretch_factor = 100
-		self.sliding_circle_standin.x = np.array([100, 150, 250.2, 300, 500, 550, 699.8])
-		self.sliding_circle_standin.y = np.array([5, 10, 9, 7, 6, 5.5, 4])
+		self.sliding_circle_standin.data = pd.DataFrame({
+			'x':np.array([100, 150, 250.2, 300, 500, 550, 699.8]),
+			'y':np.array([5, 10, 9, 7, 6, 5.5, 4])
+			})
 
 	def test_stretch_and_subsample_step_1(self):
 		'''
@@ -718,8 +731,8 @@ class TestSampleandStrechGraph(unittest.TestCase):
 		'''
 		self.sliding_circle_standin._xstep = 1
 		self.sliding_circle_standin._sample_and_stretch_graph()
-		expected_x_stretched = self.sliding_circle_standin.x/10
-		expected_y_stretched = self.sliding_circle_standin.y*100
+		expected_x_stretched = self.sliding_circle_standin.data.x/10
+		expected_y_stretched = self.sliding_circle_standin.data.y*100
 		expected_x_stretched_max_int = 70
 		expected_y_stretched_max_int = 1000
 		assert_allclose(expected_x_stretched,

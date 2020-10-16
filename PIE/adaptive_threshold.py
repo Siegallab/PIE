@@ -10,10 +10,10 @@ import warnings
 import sys
 import pandas as pd
 from PIE import ported_matlab
+from PIE.density_fit import DensityFitterLS
 from PIL import Image, ImageDraw
 from plotnine import *
 from scipy import signal
-from scipy.optimize import least_squares
 
 class _LogHistogramSmoother(object):
 	'''
@@ -247,6 +247,8 @@ class _ThresholdFinder(_LogHistogramSmoother):
 					threshold = threshold_method.get_threshold()
 		# save threshold method
 		self.threshold_method = threshold_method
+#		print(threshold_method.method_name)
+#		print(threshold_method.rsq_adj)
 	
 	def _perform_thresholding(self, tophat_im, threshold):
 		'''
@@ -283,8 +285,10 @@ class _ThresholdMethod(object):
 
 	def __init__(self, method_name, threshold_flag, x_vals, y_vals):
 		self.method_name = method_name
-		self.x = x_vals.astype(float)
-		self.y = y_vals.astype(float)
+		self.data = pd.DataFrame({
+			'x': x_vals.astype(float),
+			'y': y_vals.astype(float)
+			})
 		# initialize threshold flag at 0
 		self.threshold_flag = threshold_flag
 
@@ -345,7 +349,7 @@ class _ThresholdMethod(object):
 		self._id_threshold()
 		return(self.threshold)
 
-class _GaussianFitThresholdMethod(_ThresholdMethod):
+class _GaussianFitThresholdMethod(_ThresholdMethod, DensityFitterLS):
 	'''
 	Generic class for methods for finding a threshold that involve
 	fitting a mixture of two gaussians
@@ -369,7 +373,7 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		# specify the lowest x position at which a believeable
 		# histogram peak can be found, rather than a peak resulting
 		# from a pileup of 0s
-		self._min_real_peak_x_pos = 0.0025 * np.max(self.x)
+		self._min_real_peak_x_pos = 0.0025 * np.max(self.data['x'])
 		# specify a distance at which the peak of a single gaussian
 		# component is considered 'close' to the overall peak
 		self._close_to_peak_dist = 0.05 * np.max(x_vals)
@@ -387,46 +391,24 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		# good fit
 		self.good_fit_rsq = 0.85
 
-	def _check_bounds(self, bounds):
-		'''
-		Sets bounds on gaussian parameters
-		Checks that bounds is a numpy array of the correct size
-		For parameters that are required to be non-negative, sets any
-		negative parameters to 0
-		For parameters that are required to be above 0, sets any
-		parameters below the min system float to that value
-		'''
-		min_allowed_number = sys.float_info.min
-		if isinstance(bounds, np.ndarray) and \
-			len(bounds) == len(self.param_idx_dict):
-			for param in self.non_neg_params:
-				if bounds[self.param_idx_dict[param]] < 0:
-					warnings.warn(('Bound for {0} below 0; re-setting this ' +
-					'value to 0').format(param), UserWarning)
-					bounds[self.param_idx_dict[param]] = 0
-			for param in self.above_zero_params:
-				if bounds[self.param_idx_dict[param]] < min_allowed_number:
-					warnings.warn(('Bound for {0} below {1}; re-setting this ' +
-					'value to {1}').format(param, min_allowed_number),
-					UserWarning)
-					bounds[self.param_idx_dict[param]] = min_allowed_number
-		else:
-			raise TypeError('bounds must be a numpy array of length ' +
-				len(self.param_idx_dict))
-		return(bounds)
-
 	def _id_starting_vals(self):
 		'''
 		Identifies starting values for parameters
+
+		Creates self.starting_param_vals, a numpy array of starting
+		values with indices corresponding to those in
+		self.param_idx_dict
+
 		Totally heuristic; will not reproduce matlab's behavior
 		'''
 		self.starting_param_vals = np.zeros(len(self.param_idx_dict))
-		max_y = np.max(self.y)
-		min_x = np.min(self.x)
+		max_y = np.max(self.data['y'])
+		min_x = np.min(self.data['x'])
 		# identify highest x value corresponding to a y value of >5% of
 		# the max of y
 		# (effectively the distant tail of the distribution)
-		max_x_above_thresh = self.x[self.y > max_y*0.05][-1]
+		max_x_above_thresh = \
+			self.data['x'].to_numpy()[self.data['y'] > max_y*0.05][-1]
 		x_span = max_x_above_thresh-min_x
 		# first mean is ~1/20 of the way to this x value
 		self.starting_param_vals[self.param_idx_dict['mu_1']] = x_span/20
@@ -436,16 +418,14 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		self.starting_param_vals[self.param_idx_dict['lambda_1']] = max_y
 		# second highest peak is the value of y closest to mu_2
 		mu_2_closest_idx = \
-			(np.abs(self.x - self.starting_param_vals[
+			(np.abs(self.data['x'] - self.starting_param_vals[
 				self.param_idx_dict['mu_2']])).argmin()
-		self.starting_param_vals[self.param_idx_dict['lambda_2']] = self.y[mu_2_closest_idx]
+		self.starting_param_vals[self.param_idx_dict['lambda_2']] = \
+			self.data['y'][mu_2_closest_idx]
 		self.starting_param_vals[self.param_idx_dict['sigma_1']] = x_span/12
 		self.starting_param_vals[self.param_idx_dict['sigma_2']] = x_span/6
 		# check that starting parameters between bounds
-		lower_bound_fail = self.starting_param_vals < self.lower_bounds
-		upper_bound_fail = self.starting_param_vals > self.upper_bounds
-		self.starting_param_vals[lower_bound_fail] = self.lower_bounds[lower_bound_fail]
-		self.starting_param_vals[upper_bound_fail] = self.lower_bounds[upper_bound_fail]
+		self._check_starting_vals()
 
 	def _single_gauss_calculator(self, x, l, mu, sigma):
 		'''
@@ -463,7 +443,7 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 			self._single_gauss_calculator(x, lambda_2, mu_2, sigma_2)
 		return(y)
 
-	def _digaussian_residual_fun(self, params, x, y_data):
+	def _residual_fun(self, params):
 		'''
 		Calculates residuals of difference between
 		_digauss_calculator(x) and y_data 
@@ -471,35 +451,24 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		with warnings.catch_warnings():
 			warnings.simplefilter("ignore")
 			y_params = \
-				self._digauss_calculator(x,
+				self._digauss_calculator(self.data.x,
 					params[self.param_idx_dict['lambda_1']],
 					params[self.param_idx_dict['mu_1']],
 					params[self.param_idx_dict['sigma_1']],
 					params[self.param_idx_dict['lambda_2']],
 					params[self.param_idx_dict['mu_2']],
 					params[self.param_idx_dict['sigma_2']])
-		residuals = y_data - y_params
+		residuals = self.data.y - y_params
 		return(residuals)
-
-	def _fit_gaussians(self, starting_param_vals, x_vals, y_vals):
-		'''
-		Fits a mixture of two gaussians (whose combined probability
-		doesn't necessarily sum to 1, since coefficients can be anything)
-		'''
-		self.fit_results = \
-			least_squares(self._digaussian_residual_fun,
-				starting_param_vals, args=(x_vals, y_vals),
-				bounds = (self.lower_bounds, self.upper_bounds))
-		self.y_hat = y_vals - self.fit_results.fun
 
 	def _calc_fit_adj_rsq(self):
 		'''
 		Calculates adjusted r squared value for fit_results
 		'''
-		ss_tot = sum((self.y-np.mean(self.y))**2)
+		ss_tot = sum((self.data['y']-np.mean(self.data['y']))**2)
 		ss_res = sum(self.fit_results.fun**2)
 		# n is the number of points
-		n = len(self.y)
+		n = len(self.data['y'])
 		# p is the number of parameters
 		p = len(self.fit_results.x)
 		# this method does not match matlab behavior, which instead
@@ -513,15 +482,8 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		If two y values are equally high, returns x value corresponding
 		to the first
 		'''
-		self.peak_x_pos = self.x[np.argmax(self.y_hat)]
-		self.y_peak_height = np.max(self.y_hat)
-
-	def _generate_fit_result_dict(self):
-		'''
-		Generates a dict of parameters that contains fit results
-		'''
-		self.fit_result_dict = {param_name: self.fit_results.x[param_idx]
-			for param_name, param_idx in self.param_idx_dict.items()}
+		self.peak_x_pos = self.data['x'].to_numpy()[np.argmax(self.data['y_hat'])]
+		self.y_peak_height = np.max(self.data['y_hat'])
 
 	def _calc_typical_threshold(self, gaussian_number):
 		'''
@@ -553,8 +515,7 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		'''
 		# no unittest needed here
 		self._id_starting_vals()
-		self._fit_gaussians(self.starting_param_vals, self.x, self.y)
-		self._generate_fit_result_dict()
+		self.fit_density()
 		self._calc_fit_adj_rsq()
 		self._find_peak()
 
@@ -598,20 +559,20 @@ class _GaussianFitThresholdMethod(_ThresholdMethod):
 		'''
 		Plot threshold identification graph
 		'''
-		original_df = pd.DataFrame({'x': self.x, 'y': self.y,
+		original_df = pd.DataFrame({'x': self.data['x'], 'y': self.data['y'],
 			'id': 'smoothed data', 'linetype': 'solid'})
 		original_df['data_type'] = original_df['id']
-		fitted_df = pd.DataFrame({'x': self.x, 'y': self.y_hat,
+		fitted_df = pd.DataFrame({'x': self.data['x'], 'y': self.data['y_hat'],
 			'id': 'combined fit model', 'linetype': 'solid'})
 		fitted_df['data_type'] = fitted_df['id']
-		indiv_df_1 = pd.DataFrame({'x': self.x, 'y':
-			self._single_gauss_calculator(self.x,
+		indiv_df_1 = pd.DataFrame({'x': self.data['x'], 'y':
+			self._single_gauss_calculator(self.data['x'],
 				self.fit_result_dict['lambda_1'], self.fit_result_dict['mu_1'],
 				self.fit_result_dict['sigma_1']),
 			'data_type': 'individual fit gaussians', 'linetype': 'dashed',
 			'id': 'gauss1'})
-		indiv_df_2 = pd.DataFrame({'x': self.x, 'y':
-			self._single_gauss_calculator(self.x,
+		indiv_df_2 = pd.DataFrame({'x': self.data['x'], 'y':
+			self._single_gauss_calculator(self.data['x'],
 				self.fit_result_dict['lambda_2'], self.fit_result_dict['mu_2'],
 				self.fit_result_dict['sigma_2']),
 			'data_type': 'individual fit gaussians', 'linetype': 'dashed',
@@ -740,8 +701,8 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		# may be found)
 		# TODO: test lowering the lower bound to the same calculation
 		# as is used in gaussian methods for minimum peak x position
-		self._lower_bound = 0.13 * np.max(self.x)
-		self._upper_bound = 0.53 * np.max(self.x)
+		self._lower_bound = 0.13 * np.max(self.data['x'])
+		self._upper_bound = 0.53 * np.max(self.data['x'])
 		# specify radius, in number of pixels (i.e. number of points
 		# along x-axis)
 		self._radius = 100
@@ -776,9 +737,9 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		# take every x_step-th value of xData and yData, multiply by
 		# respective stretch factors
 		self._x_vals_stretched = \
-			self.x[0::self._xstep] * self._x_stretch_factor
+			self.data['x'].to_numpy()[0::self._xstep] * self._x_stretch_factor
 		self._y_vals_stretched = \
-			self.y[0::self._xstep] * self._y_stretch_factor
+			self.data['y'].to_numpy()[0::self._xstep] * self._y_stretch_factor
 		# calculate ceiling on max values of stretched x and y
 		self._x_stretched_max_int = int(np.ceil(np.max(self._x_vals_stretched)))
 		self._y_stretched_max_int = int(np.ceil(np.max(self._y_vals_stretched)))
@@ -943,7 +904,9 @@ class _DataSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod,
 		'''
 		Plot threshold identification graph
 		'''
-		original_df = pd.DataFrame({'x': self.x, 'y': self.y,
+		original_df = pd.DataFrame({
+			'x': self.data['x'],
+			'y': self.data['y'],
 			'id': 'smoothed data', 'linetype': 'solid'})
 		original_df['data_type'] = original_df['id']
 		color_dict = \
@@ -988,17 +951,17 @@ class _FitSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod):
 		### !!! NEEDS UNITTEST
 		threshold_method = _mu1ReleasedThresholdMethod(x, y)
 		threshold_method._perform_fit()
-		y_model = threshold_method.y_hat
+		y_model = threshold_method.data.y_hat
 		return(y_model)
 
 	def plot(self):
 		'''
 		Plot threshold identification graph
 		'''
-		original_df = pd.DataFrame({'x': self.x, 'y': self.y_original,
+		original_df = pd.DataFrame({'x': self.data['x'], 'y': self.y_original,
 			'id': 'smoothed data', 'linetype': 'solid'})
 		original_df['data_type'] = original_df['id']
-		fitted_df = pd.DataFrame({'x': self.x, 'y': self.y,
+		fitted_df = pd.DataFrame({'x': self.data['x'], 'y': self.data['y'],
 			'id': 'combined fit model', 'linetype': 'solid'})
 		fitted_df['data_type'] = fitted_df['id']
 		combined_df = \

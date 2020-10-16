@@ -232,7 +232,7 @@ class _FilterByColonyAppearanceTime(_FilterBaseClass):
 		timepoints = self.df_to_filter.columns.to_numpy()
 		valid_timepoint_areas = self.df_to_filter[np.min(timepoints)]
 		# identify colonies that have an area recorded at the
-		# valid timepoint
+		# first timepoint
 		filter_pass_rows = \
 			valid_timepoint_areas.notnull().to_numpy()
 		# repeat filter_pass_rows in every column

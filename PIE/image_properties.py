@@ -60,8 +60,10 @@ class _ImageAnalyzer(object):
 		for current_subdir in image_output_directories:
 			current_path = os.path.join(output_path, current_subdir)
 			self._image_output_dir_dict[current_subdir] = current_path
-			if not os.path.exists(current_path):
+			try:
 				os.makedirs(current_path)
+			except:
+				pass
 
 	def _prep_image(self):
 		'''
