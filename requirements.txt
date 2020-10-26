@@ -7,4 +7,4 @@ plotnine >= 0.7.1
 pyarrow
 scipy >= 1.1.0
 shutil
-sklearn >= 0.23
+scikit-learn >= 0.23
