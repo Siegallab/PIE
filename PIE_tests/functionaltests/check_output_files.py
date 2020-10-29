@@ -157,7 +157,7 @@ class OutputChecker(unittest.TestCase):
 			analysis_config.tracked_properties_write_path
 			)
 
-	def _check_single_pos_output(self, xy_pos_idx, check_prop_file = True):
+	def _check_single_pos_output(self, xy_pos_idx, single_pos_only = False):
 		'''
 		Check that expected output files exist (and are correct) for
 		imaging field xy_pos_idx
@@ -175,7 +175,7 @@ class OutputChecker(unittest.TestCase):
 			# NB: having this line in the loop is redundant, since this
 			# file should exist in the output directory above the phase
 			# directories
-			if check_prop_file:
+			if single_pos_only:
 				self._check_single_pos_properties_file(
 					analysis_config, xy_pos_idx
 					)
@@ -208,21 +208,22 @@ class OutputChecker(unittest.TestCase):
 						)
 					# check for files in folders for 'extended display'
 					if xy_pos_idx in self.extended_display_positions:
-						# check existance in current threshold_info file
-						self.assertTrue(
-							main_channel_im_name in threshold_info.index or
-							os.path.isfile(
-								os.path.join(
-									phase_dir,
-									'threshold_plots',
-									(
-										'threshold_info_' + 
-										main_channel_im_name + 
-										'.csv'
+						if single_pos_only:
+							# check existance in current threshold_info file
+							self.assertTrue(
+								main_channel_im_name in threshold_info.index or
+								os.path.isfile(
+									os.path.join(
+										phase_dir,
+										'threshold_plots',
+										(
+											'threshold_info_' + 
+											main_channel_im_name + 
+											'.csv'
+											)
 										)
 									)
 								)
-							)
 						# check threshold files
 						self.assertTrue(
 							os.path.isfile(
@@ -300,22 +301,40 @@ class OutputChecker(unittest.TestCase):
 				os.path.join(self.expected_output_path, f)
 				)
 
+	def _check_movies(self):
+		'''
+		Checks movie outputs for extended_display_positions
+		(which only created after full processing)
+		'''
+		for xy_pos_idx in self.extended_display_positions:
+			# check movie
+			self.assertTrue(
+				os.path.isfile(
+					os.path.join(
+						self.output_path,
+						'movies',
+						('xy'+str(xy_pos_idx)+'_growing_colonies_movie.gif')
+						)
+					)
+				)
+
 	def check_output(self, config_filepath, expected_output_path, single_pos = None):
 		self._read_config(config_filepath, expected_output_path)
 		self._check_directories()
 		self._check_first_tp()
 		# check correct output for every position
-		if single_pos == None:
+		if single_pos is None:
+			self._check_movies()
 			# check for outputs of every individual position
 			for xy_pos_idx in self.xy_position_vector:
-				self._check_single_pos_output(xy_pos_idx, check_prop_file = False)
+				self._check_single_pos_output(xy_pos_idx)
 			# check for combined tracking, growth rate, and positionwise
 			# property matrix outputs
 			self.check_combined_outputs()
 		else:
 			# check for outputs of just single_pos
 			if isinstance(single_pos, int):
-				self._check_single_pos_output(single_pos)
+				self._check_single_pos_output(single_pos, single_pos_only = True)
 			else:
 				raise TypeError('single_pos must be either None or an integer')
 

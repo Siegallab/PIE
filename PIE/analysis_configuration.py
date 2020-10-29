@@ -140,6 +140,11 @@ class AnalysisConfig(object):
 		self.extended_display_positions = extended_display_positions
 		self._run_parameter_tests()
 
+	def __eq__(self, other):
+		identical_vars = self.__dict__ == other.__dict__
+		identical_class = self.__class__ == other.__class__
+		return(identical_vars and identical_class)
+
 	def _create_output_paths(self):
 		'''
 		Creates output paths for phase data, and sets output paths for
@@ -152,6 +157,8 @@ class AnalysisConfig(object):
 			os.path.join(self.output_path, 'colony_properties_combined.csv')
 		self.col_properties_output_folder = \
 			os.path.join(self.output_path, 'positionwise_colony_properties')
+		self.movie_folder = \
+			os.path.join(self.output_path, 'movies')
 		try:
 			os.makedirs(self.col_properties_output_folder)
 		except:
@@ -358,6 +365,13 @@ class AnalysisConfig(object):
 				colony_properties_df[
 					colony_properties_df.time_tracking_id.notna()]
 		return(colony_properties_df)
+
+	def get_gr_data(self):
+		'''
+		Reads and returns dataframe of growth rates
+		'''
+		gr_df = pd.read_csv(self.combined_gr_write_path)
+		return(gr_df)
 
 	def get_property_mat_path(self, col_property):
 		'''

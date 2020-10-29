@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 import unittest
-from PIE.growth_measurement import _CompileColonyData
+from PIE.colony_prop_compilation import CompileColonyData
 from numpy.testing import assert_equal
 from pandas.testing import assert_frame_equal
 
@@ -26,7 +26,7 @@ phase_tracked_properties_df = pd.DataFrame({
 class Test_GetIndexLocations(unittest.TestCase):
 
 	def setUp(self):
-		self.colony_data_compiler = object.__new__(_CompileColonyData)
+		self.colony_data_compiler = object.__new__(CompileColonyData)
 		self.colony_data_compiler.colony_data_tracked_df = \
 			phase_tracked_properties_df
 
@@ -56,7 +56,7 @@ class Test_GetIndexLocations(unittest.TestCase):
 class Test_CreatePropertyMat(unittest.TestCase):
 
 	def setUp(self):
-		self.colony_data_compiler = object.__new__(_CompileColonyData)
+		self.colony_data_compiler = object.__new__(CompileColonyData)
 		self.colony_data_compiler.colony_data_tracked_df = \
 			phase_tracked_properties_df
 		self.colony_data_compiler._get_index_locations()
@@ -94,7 +94,7 @@ class Test_CreatePropertyMat(unittest.TestCase):
 class Test_GenerateImagingInfoDf(unittest.TestCase):
 
 	def setUp(self):
-		self.colony_data_compiler = object.__new__(_CompileColonyData)
+		self.colony_data_compiler = object.__new__(CompileColonyData)
 		self.colony_data_compiler.colony_data_tracked_df = \
 			phase_tracked_properties_df
 

@@ -79,7 +79,7 @@ class SinglePhaseSinglePosCompiler(object):
 						image_analyzer, timepoint)
 				# if there's a postphase_analysis_config, perform
 				# postphase fluor measurements (at every timepoint)
-				if self.postphase_analysis_config != None:
+				if self.postphase_analysis_config is not None:
 					self._perform_fluor_measurements(
 						self.postphase_analysis_config, image_analyzer,
 						None)

@@ -97,7 +97,6 @@ class _ImageAnalyzer(object):
 			raise ValueError(
 				"image_type must be either 'brightfield' or 'phasecontrast'")
 		
-
 	def _write_threshold_plot(self, threshold_plot):
 		'''
 		Writes plot of log intensity histogram and threshold to an image
@@ -122,15 +121,11 @@ class _ImageAnalyzer(object):
 		threshold_info_file = \
 			os.path.join(self._image_output_dir_dict['threshold_plots'],
 					'threshold_info_'+self.image_name+'.csv')
-		threshold_info = [self.image_name, threshold_method_name, threshold]
-		if os.path.exists(threshold_info_file):
-			with open(threshold_info_file, 'a') as f:
-				writer = csv.writer(f)
-				writer.writerow(threshold_info)
-		else:
-			with open(threshold_info_file, 'w') as f:
-				writer = csv.writer(f)
-				writer.writerow(threshold_info)
+		threshold_info = pd.DataFrame({
+			'method':[threshold_method_name],
+			'threshold':[threshold]
+			}, index = [self.image_name])
+		threshold_info.to_csv(threshold_info_file)
 
 	def _find_cell_centers(self):
 		'''
@@ -187,7 +182,8 @@ class _ImageAnalyzer(object):
 		'''
 		colony_boundary_mask = ported_matlab.bwperim(self.colony_mask)
 		self.boundary_im = create_color_overlay(self.norm_im_8_bit,
-			colony_boundary_mask, self._boundary_color, self._boundary_alpha)
+			colony_boundary_mask, self._boundary_color, self._boundary_alpha,
+			bitdepth = 8)
 		boundary_im_path = \
 			os.path.join(self._image_output_dir_dict['boundary_ims'],
 				self.image_name + '.jpg')
@@ -201,7 +197,8 @@ class _ImageAnalyzer(object):
 		as the cell center mask
 		'''
 		self.colony_center_overlay = create_color_overlay(self.boundary_im,
-			self.cell_centers, self._center_color, self._cell_center_alpha)
+			self.cell_centers, self._center_color, self._cell_center_alpha,
+			bitdepth = 8)
 		colony_center_overlay_path = \
 			os.path.join(self._image_output_dir_dict['colony_center_overlays'],
 				self.image_name + '.jpg')
@@ -602,20 +599,44 @@ class _ColonyPropertyFinder(object):
 			self.property_df.at[idx, channel_fluor_prop_names] = \
 				colony_fluor_prop_dict.values()
 
-def create_color_overlay(image, mask, mask_color, mask_alpha):
+def colorize_im(input_im, rgb_tuple):
+	'''
+	Colorizes grayscale image input_im so that pixel colors go from
+	black to color specified by rgb_tuple
+
+	input_im is an 8-bit cv2 image
+
+	rgb_tuple is in the format (R,G,B), with a max value of 255
+	'''
+	color_image = np.copy(input_im)
+	if len(np.shape(color_image)) == 2:
+		color_image = cv2.cvtColor(np.float32(color_image), cv2.COLOR_GRAY2RGB)
+	colorized_image = np.uint8(color_image*np.array(rgb_tuple)/255)
+	return(colorized_image)
+
+def create_color_overlay(image, mask, mask_color, mask_alpha,
+	bitdepth = None):
 	'''
 	Creates an rbg image of image with mask overlaid on it in
 	mask_color with mask_alpha
+
 	mask_color is a list of r, g, b values on a scale of 0 to 255
+
+	If bitdepth is None, uses the max of supplied image as the max
+	intensity
 	'''
-	# TODO: Doesn't work when image has a max of 0 (because of np.max(color_image) issue)
-	# check whether image is grayscale; if so, convert to rgb
+	# convert image to colot if necessary
 	color_image = np.copy(image)
 	if len(np.shape(color_image)) == 2:
 		color_image = cv2.cvtColor(np.float32(color_image), cv2.COLOR_GRAY2RGB)
+	# set max image intensity
+	if bitdepth is None:
+		max_intensity = np.max(color_image)
+	else:
+		max_intensity = 2**bitdepth-1
 	# adjust mask_color by alpha, inverse, scale to image bitdepth
 	mask_color_adjusted_tuple = \
-		tuple(float(k)/255*np.max(color_image)*mask_alpha for k in mask_color[::-1])
+		tuple(float(k)/255*max_intensity*mask_alpha for k in mask_color[::-1])
 	color_image[mask] = \
 		np.round(color_image[mask].astype(float) * (1-mask_alpha) +
 			mask_color_adjusted_tuple).astype(int)

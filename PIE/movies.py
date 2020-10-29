@@ -13,42 +13,274 @@ import random
 import warnings
 from mizani.palettes import hue_pal # installed with plotnine
 from io import BytesIO
+from itertools import chain
 from PIL import ImageColor, Image
-from PIE import process_setup_file
-from PIE.image_properties import create_color_overlay
-from PIE.growth_measurement import get_colony_properties
+from PIE.image_properties import create_color_overlay, colorize_im
+from PIE.analysis_configuration import check_passed_config, process_setup_file
+from PIE.colony_prop_compilation import get_colony_properties
 from PIE.ported_matlab import bwperim
 
 ### !!! NEEDS UNITTESTS FOR THE WHOLE THING
 
-### TODO: 	Include option to overlay fluorescence
-####		add text
-####		deal with postphase
-####		im_label in im_df not used (can im_df just be dict?)
-####		make default dict of component
-####		By default colors should be picked separately within each xy position
-####		need warning if non-unique colonies in list
-####		need way to blend fluor channels
+### TODO: 	add text
 ####		change channel to use channel name from df, not file (since file channel names can switch between phases)
+####		add scalebar
+####		way to export plot data?
+####		fix overlay to separate colony bounds and image
 
-class _PlotMovieMaker(object):
+class MovieHolder(object):
+
+	def __init__(self, global_tp_list):
+		'''
+		Generate an empty dataframe for holding output images
+		'''
+		self.im_df = pd.DataFrame(
+			columns = ['global_timepoint', 'im'])
+		self.im_df.global_timepoint = \
+			np.sort(np.unique(np.array(global_tp_list)))
+		self.im_df.set_index('global_timepoint', inplace = True)
+
+	def add_im(self, global_timepoint, im):
+		self.im_df.at[global_timepoint, 'im'] = im
+
+class _MovieSaver(object):
+	'''
+	Parent object for classes that need to save movies
+	'''
+
+	def _get_ordered_image_list(self, compiled_movie_df):
+		'''
+		Puts images from compiled_movie_df into list in correct order
+		'''
+		compiled_movie_df_sorted = compiled_movie_df.sort_index()
+		images_to_save = compiled_movie_df_sorted.im.to_list()
+		return(images_to_save)
+
+	def _write_video(self, compiled_movie_df, output_path, duration, fourcc):
+		'''
+		Writes movie of fourcc format using cv2
+		'''
+		# make sure images saved in order
+		images_to_save = self._get_ordered_image_list(compiled_movie_df)
+		images_as_cv2 = \
+			[cv2.cvtColor(np.uint8(img), cv2.COLOR_RGB2BGR)
+				for img in images_to_save]
+		fps = 1000.0/duration
+		framesize = (images_as_cv2[0].shape[1],images_as_cv2[0].shape[0])
+		# cv2 can't overwrite, so manually remove output_path if it
+		# exists
+		if os.path.isfile(output_path):
+			os.remove(output_path)
+		video = \
+			cv2.VideoWriter(
+				output_path,
+				fourcc,
+				fps,
+				framesize)
+		for image in images_as_cv2:
+			video.write(image)
+		cv2.destroyAllWindows()
+		video.release()
+
+	def _write_gif(self, compiled_movie_df, output_path, duration, loop):
+		'''
+		Writes gif to output_path from images in compiled_movie_df
+
+		duration is duration of each frame in milliseconds
+
+		loop is the number of times gif loops
+		(0 means forever, 1 means no looping)
+		'''
+		# make sure images saved in order
+		images_to_save = self._get_ordered_image_list(compiled_movie_df)
+		# solution to background noise from
+		# https://medium.com/@Futong/how-to-build-gif-video-from-images-with-python-pillow-opencv-c3126ce89ca8
+		byteframes = []
+		for img in images_to_save:
+		    byte = BytesIO()
+		    byteframes.append(byte)
+		    img.save(byte, format="GIF")
+		gifs = [Image.open(byteframe) for byteframe in byteframes]
+		gifs[0].save(
+			output_path,
+			save_all=True,
+			append_images=gifs[1:],
+			duration=duration,
+			loop=loop)
+
+	def _write_jpeg(self, compiled_movie_df, output_dir, jpeg_quality):
+		'''
+		Saves movie as jpegs in output_dir
+		'''
+		for tp_idx, row in compiled_movie_df.iterrows():
+			filename = os.path.join(output_dir, str(tp_idx)+'.jpg')
+			row.im.save(filename, quality = jpeg_quality)
+
+	def _write_tiff(self, compiled_movie_df, output_dir):
+		'''
+		Saves movie as tiffs in output_dir
+		'''
+		for tp_idx, row in compiled_movie_df.iterrows():
+			filename = os.path.join(output_dir, str(tp_idx)+'.tif')
+			row.im.save(filename)
+
+	def _save_movie(self, compiled_movie_df, movie_output_path, movie_name, movie_format,
+		duration, loop, jpeg_quality):
+		'''
+		Saves movie for each movie_name in format specificed by
+		movie_format, which can be 'jpeg'/'jpg', 'tiff'/'tif', 'gif',
+		or video codecs ('h264' or 'mjpg'/'mjpeg', which both save to 
+		.mov format)
+		'''
+		movie_format = movie_format.lower()
+		if movie_format in ['tiff', 'tif', 'jpeg', 'jpg']:
+			output_dir = os.path.join(movie_output_path, str(movie_name))
+			if not os.path.isdir(output_dir):
+				os.makedirs(output_dir)
+			if movie_format in ['tiff', 'tif']:
+				self._write_tiff(compiled_movie_df, output_dir)
+			elif movie_format in ['jpg', 'jpeg']:
+				self._write_jpeg(
+					compiled_movie_df, output_dir, jpeg_quality)
+		elif movie_format == 'gif':
+			output_path = \
+				os.path.join(self.movie_output_path,
+					str(movie_name) + '.gif')
+			self._write_gif(
+				compiled_movie_df, output_path, duration, loop)
+		elif movie_format == 'h264':
+			output_path = \
+				os.path.join(self.movie_output_path,
+					str(movie_name) + '.mov')
+			fourcc = cv2.VideoWriter_fourcc(*'H264')
+			self._write_video(
+				compiled_movie_df, output_path, duration, fourcc)
+		elif movie_format in ['mjpeg', 'mjpg']:
+			output_path = \
+				os.path.join(self.movie_output_path,
+					str(movie_name) + '.mov')
+			fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+			self._write_video(
+				compiled_movie_df, output_path, duration, fourcc)
+		else:
+			raise ValueError('Unrecognized movie format ' + movie_format)
+
+	def _calc_inherent_size(self):
+		'''
+		Calculates default size of movie images
+		'''
+		self.inherent_size = (None, None)
+
+	def generate_movie_ims(self, width, height, blank_color):
+		'''
+		Generate a dictionary of movie images with global timepoints 
+		as keys
+		'''
+		pass
+
+	def write_movie(self,
+		movie_format, movie_output_path, movie_name,
+		movie_width, movie_height,
+		blank_color = 'white', duration = 1000, loop = 0,
+		jpeg_quality = 95):
+		'''
+		Combine movies
+
+		movie_width is the width (in pixels) of the final movie images; 
+		if None, defaults to inherent movie width
+
+		movie_height is the height (in pixels) of the final movie images;
+		if None, defaults to inherent movie height
+
+		blank_color is the color of empty spaces between movies 
+		(default is white)
+
+		movie_format can be 'jpeg', 'tiff', 'gif', 'h264', or 'mjpeg'
+
+		If movie_format is jpeg or mjpeg, can pass option jpeg_quality
+		(default = 95)
+
+		movie_format can be a string or a list (for multiple output
+		formats)
+
+		If movie_format is gif, 'h264', or 'mjpeg', can pass optional 
+		duration (time in milliseconds; default is 1000)
+
+		For gif, can also pass loop (number of loops; 0 means forever, 
+		None means no looping)
+
+		movie_output_path is the folder in which the movie will be saved
+
+		For video/gif outputs, file will be saved in 
+		movie_output_path/movie_name.ext
+		(e.g. movie_output_path/movie_name.gif); for tif/jpeg outputs,
+		individual images will be saved inside
+		movie_output_path/movie_name/
+		'''
+		# create movie output path
+		if not os.path.isdir(movie_output_path):
+			os.makedirs(movie_output_path)
+		self.movie_output_path = movie_output_path
+		if movie_height is None:
+			if self.inherent_size[1] is None:
+				raise ValueError('Must pass movie_height parameter')
+			else:
+				movie_height = self.inherent_size[1]
+		if movie_width is None:
+			if self.inherent_size[1] is None:
+				raise ValueError('Must pass movie_width parameter')
+			else:
+				movie_width = self.inherent_size[0]
+		compiled_movie_df = \
+			self.generate_movie_ims(movie_width, movie_height, blank_color)
+		if isinstance(movie_format, list):
+			for format in movie_format:
+				self._save_movie(compiled_movie_df, movie_output_path, movie_name, format,
+					duration, loop, jpeg_quality)
+		else:
+			self._save_movie(compiled_movie_df, movie_output_path, movie_name, movie_format,
+				duration, loop, jpeg_quality)
+
+class _MovieMaker(_MovieSaver):
+	'''
+	Parent class for objects that make movies
+	'''
+	def __init__(self, global_timepoints, analysis_config_obj_df):
+		self.analysis_config_obj_df = analysis_config_obj_df
+		# set up movie_holder
+		self.global_timepoints = global_timepoints
+		# set up inherent movie size
+		self._calc_inherent_size()
+#		# set up _MovieGrid options
+#		_MovieGrid.__init__(
+#			self,
+#			pd.DataFrame(
+#				{'movie_maker':self,
+#				'row_prop':1,
+#				'col_prop':1,
+#				'left_pos':0,
+#				'top_pos':0},
+#				Index = [0]
+#				)
+#			)
+
+class _PlotMovieMaker(_MovieMaker):
 	'''
 	Plots required timepoints based on data in col_prop_df
 
 	If facet_override is a bool, it overrides self._facet_phase_default
 	w.r.t. whether plot should be faceted by phase
 	'''
-	def __init__(self, plot_prop, col_prop_df, analysis_config_obj_df,
-		width, height,
+	def __init__(self, plot_prop, col_prop_df,
+		analysis_config_obj_df,
 		facet_override = None, y_label_override = None):
 		self.plot_prop = plot_prop
-		self.width = width
-		self.height = height
-		self.analysis_config_obj_df = analysis_config_obj_df
+		super(_PlotMovieMaker, self).__init__(
+			col_prop_df.global_timepoint,
+			analysis_config_obj_df
+			)
 		# add first timepoint time to col_prop_df
 		self.col_prop_df = self._add_first_timepoint_data(col_prop_df)
-		# set up output_im_holder
-		self.output_im_holder = OutputIMHolder(self.col_prop_df)
 		# add time in hours to self.col_prop_df
 		self.col_prop_df['time_in_hours'] = \
 			(self.col_prop_df['time_in_seconds'] - \
@@ -136,10 +368,9 @@ class _PlotMovieMaker(object):
 					y = self.plot_prop,
 					color = 'hex_color',
 					shape = 'phase_num'),
-				size = 2,
+				size = 1,
 				) + \
 			p9.scale_colour_identity() + \
-			p9.guides(shape = self._facet_phase) + \
 			p9.theme(legend_position="bottom",
 				plot_margin = 0) + \
 			p9.theme_bw()
@@ -147,6 +378,11 @@ class _PlotMovieMaker(object):
 		if self._facet_phase:
 			ggplot_obj = ggplot_obj + \
 				p9.facet_wrap('~phase_num')
+		# if faceting by phase, or number of phases is 1, remove shape
+		# legend
+		if self._facet_phase or len(df_to_plot.phase_num.unique()) == 1:
+			ggplot_obj = ggplot_obj + \
+				p9.guides(shape = False)
 		# add x and y axis properties
 		ggplot_obj = ggplot_obj + \
 			p9.scale_x_continuous(
@@ -165,12 +401,12 @@ class _PlotMovieMaker(object):
 				)
 		return(ggplot_obj)
 
-	def _plot_to_np(self, ggplot_obj):
+	def _plot_to_im(self, ggplot_obj, width, height):
 		'''
-		Returns rgb numpy array of ggplot_obj plot
+		Returns Image object of ggplot_obj plot
 
-		Warning: height and width are not exactly self.height and
-		self.width (consistent with ggplot issues)
+		Warning: height and width are not exactly provided height and
+		width (consistent with ggplot issues)
 		'''
 		# modified from https://stackoverflow.com/a/58641662/8082611
 		buf = BytesIO()
@@ -181,31 +417,36 @@ class _PlotMovieMaker(object):
 			ggplot_obj.save(
 				filename=buf,
 				format='png',
-				width=self.width/fake_dpi,
-				height=self.height/fake_dpi,
+				width=width/fake_dpi,
+				height=height/fake_dpi,
 				units='in', dpi=fake_dpi,
 				limitsize=False)
 		buf.seek(0)
-		img_arr = np.frombuffer(buf.getvalue(), dtype=np.uint8)
+		img_cv2 = cv2.imdecode(
+			np.frombuffer(buf.getvalue(), dtype=np.uint8), 1
+			)
+		img = Image.fromarray(img_cv2, 'RGB')
+#		img = Image.frombuffer('RGB', (width, height), buf.getvalue(), 'raw', 'RGB', 0, 1)
 		buf.close()
-		img = cv2.imdecode(img_arr, 1)
+#		img = cv2.imdecode(img_arr, 1)
 #		img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 		return img
 
-	def _create_plot(self, last_glob_tp):
+	def _create_plot(self, last_glob_tp, width, height):
 		'''
 		Creates plot as image, plotting all points up to and including
 		last_glob_tp
 		'''
 		ggplot_obj = self._plot_property(last_glob_tp)
-		plot_im = self._plot_to_np(ggplot_obj)
+		plot_im = self._plot_to_im(ggplot_obj, width, height)
 		return(plot_im)
 
-	def generate_movie_ims(self):
+	def generate_movie_ims(self, width, height, blank_color):
+		self.movie_holder = MovieHolder(self.global_timepoints)
 		for global_tp in self.col_prop_df.global_timepoint:
-			plot_im = self._create_plot(global_tp)
-			self.output_im_holder.add_im(global_tp, plot_im, '')
-		return(self.output_im_holder.im_df)
+			plot_im = self._create_plot(global_tp, width, height)
+			self.movie_holder.add_im(global_tp, plot_im)
+		return(self.movie_holder.im_df)
 
 class _GrowthPlotMovieMaker(_PlotMovieMaker):
 	'''
@@ -215,15 +456,15 @@ class _GrowthPlotMovieMaker(_PlotMovieMaker):
 	w.r.t. whether plot should be faceted by phase
 	'''
 
-	def __init__(self, col_prop_df, analysis_config_obj_df,
-		width, height, color_df,
+	def __init__(self, col_prop_df, color_df,
+		analysis_config_obj_df,
 		facet_override = None, add_growth_line = True, add_lag_line = True):
 		self.add_growth_line = add_growth_line
 		self.add_lag_line = add_lag_line
 		self.color_df = color_df
 		super(_GrowthPlotMovieMaker, self).__init__(
 			'ln_area', col_prop_df, analysis_config_obj_df,
-			width, height, facet_override, y_label_override = 'ln(area)')
+			facet_override, y_label_override = 'ln(area)')
 
 	def _set_start_end_times_and_log_areas(self, gr_df):
 		'''
@@ -331,16 +572,44 @@ class _GrowthPlotMovieMaker(_PlotMovieMaker):
 						linetype = 'dashed')
 		return(ggplot_obj)
 
-	def _create_plot(self, last_glob_tp):
+	def _create_plot(self, last_glob_tp, width, height):
 		'''
 		Creates plot as image, plotting all points up to and including
 		last_glob_tp
 		'''
 		ggplot_obj = self._plot_growth_rate(last_glob_tp)
-		plot_im = self._plot_to_np(ggplot_obj)
+		plot_im = self._plot_to_im(ggplot_obj, width, height)
 		return(plot_im)
 
-class _PositionMovieMaker(object):
+class _ImMovieMaker(_MovieMaker):
+	'''
+	Parent class for _MovieMaker classes that generate movies from
+	images (rather than plots)
+	'''
+	def __init__(self, global_timepoints, analysis_config_obj_df):
+		super(_ImMovieMaker, self).__init__(
+			global_timepoints,
+			analysis_config_obj_df
+			)
+		# check data
+		self._perform_data_checks()
+
+	def _perform_data_checks():
+		pass
+
+	def generate_postphase_frame(self, phase):
+		'''
+		Generates a boundary image for postphase fluorescent image
+		'''
+		pass
+
+	def generate_frame(self, global_timepoint):
+		'''
+		Generates a boundary image for global_timepoint
+		'''
+		pass
+
+class _PositionMovieMaker(_ImMovieMaker):
 	'''
 	Makes movies of colonies in col_prop_df across time/phases
 	Colonies in col_prop_df must represent a single xy position
@@ -356,6 +625,13 @@ class _PositionMovieMaker(object):
 	(if 0, no bounds shown; otherwise, width is in pixels, but on the
 	scale of the original image)
 
+	main_phase_color and postphase_color are the colors in which the 
+	maximum-intensity pixels will be displayed for the main channel
+	and the postphase channel; all other pixels will be displayed in
+	a gradient from black to that color. Can be specified as a hex 
+	code, or as a color name for many colors (e.g. 'white', 'magenta', 
+	etc)
+
 	base_fluor_channel is the fluorescent channel name to use for images;
 	if None (default) uses main_channel_label
 
@@ -364,13 +640,17 @@ class _PositionMovieMaker(object):
 
 	bitdepth is an optional argument for the bitdepth of the input image
 	'''
-	def __init__(self, analysis_config_obj_df, col_prop_df,
+	def __init__(self, col_prop_df,
 		col_shading_alpha, bound_width, normalize_intensity,
-		expansion_pixels, base_fluor_channel = None, bitdepth = None,
+		expansion_pixels, 
+		analysis_config_obj_df,
+		main_phase_color = 'white',
+		postphase_color = 'white',
+		base_fluor_channel = None, bitdepth = None,
 		postphase_fluor_channel = None):
 		self.col_prop_df = col_prop_df
-		self.xy_pos_idx = self._get_single_val_from_df('xy_pos_idx', col_prop_df)
-		self.analysis_config_obj_df = analysis_config_obj_df
+		self.xy_pos_idx = \
+			self._get_single_val_from_df('xy_pos_idx', col_prop_df)
 		self.normalize_intensity = bool(normalize_intensity)
 		self.base_fluor_channel = base_fluor_channel
 		self.postphase_fluor_channel = postphase_fluor_channel
@@ -378,13 +658,17 @@ class _PositionMovieMaker(object):
 		self.col_shading_alpha = col_shading_alpha
 		self.bound_width = bound_width
 		self.bitdepth = bitdepth
-		# check data
-		self._perform_data_checks()
+		self.main_phase_color = ImageColor.getcolor(main_phase_color, "RGB")
+		self.postphase_color = ImageColor.getcolor(postphase_color, "RGB")
 		# identify bounds of movie in image
 		# (assume all images are the same size)
-		self._id_im_bounds()
-		# initialize output im holder object
-		self.output_im_holder = OutputIMHolder(col_prop_df)
+		self._id_im_bounds(analysis_config_obj_df)
+		# calculate inherent size and set up MovieHolder
+		_ImMovieMaker.__init__(
+			self,
+			self.col_prop_df.global_timepoint,
+			analysis_config_obj_df
+			)
 
 	def _get_single_val_from_df(self, param, df):
 		'''
@@ -409,11 +693,11 @@ class _PositionMovieMaker(object):
 			raise ValueError('If normalize_intensity is set to False, input '
 				'image bitdepth must be passed as an integer')
 
-	def _id_im_bounds(self):
+	def _id_im_bounds(self, analysis_config_obj_df):
 		'''
 		Identifies bounding pixels of movie
 		'''
-		temp_analysis_config = self.analysis_config_obj_df.iloc[0]['analysis_config']
+		temp_analysis_config = analysis_config_obj_df.iloc[0]['analysis_config']
 		self.y_start = np.max([
 			0, np.min(self.col_prop_df['bb_y_top'].astype(int) - self.expansion_pixels)
 			])
@@ -430,8 +714,14 @@ class _PositionMovieMaker(object):
 			np.max((self.col_prop_df['bb_x_left'] + 
 				self.col_prop_df['bb_width']).astype(int) + self.expansion_pixels + 1)
 			])
-		self.im_width = self.x_range_end - self.x_start
-		self.im_height = self.y_range_end - self.y_start
+
+	def _calc_inherent_size(self):
+		'''
+		Calculates default size of movie images
+		'''
+		im_width = self.x_range_end - self.x_start
+		im_height = self.y_range_end - self.y_start
+		self.inherent_size = (im_width, im_height)
 
 	def _color_colony(self, col_row, input_im, labeled_mask,
 		override_shading = False):
@@ -451,7 +741,7 @@ class _PositionMovieMaker(object):
 		else:
 			# draw overlay for current colony on input_im
 			shaded_im = create_color_overlay(input_im, colony_mask,
-				col_row.rgb_color, self.col_shading_alpha)
+				col_row.rgb_color, self.col_shading_alpha, bitdepth = 8)
 		# draw boundary of current colony on input_im
 		if self.bound_width > 0:
 			colony_boundary_mask = \
@@ -467,7 +757,7 @@ class _PositionMovieMaker(object):
 					np.logical_and(np.invert(colony_boundary_mask),
 						colony_mask)
 			output_im = create_color_overlay(shaded_im, colony_boundary_mask,
-				col_row.rgb_color, 1)
+				col_row.rgb_color, 1, bitdepth = 8)
 		else:
 			output_im = shaded_im
 		return(output_im)
@@ -480,113 +770,58 @@ class _PositionMovieMaker(object):
 			frame[self.y_start:self.y_range_end, self.x_start:self.x_range_end]
 		return(subframe)
 
-	def _generate_frame(self, tp_col_prop_df, analysis_config, timepoint,
-		channel_label):
+	def _get_fluor_property(self, channel_name, analysis_config, fluor_property):
 		'''
-		Generates a boundary image for global timepoint global_tp
+		Gets the fluor_property corresponding to channel_name in 
+		analysis_config
 		'''
-		global_tp = \
-			self._get_single_val_from_df('global_timepoint', tp_col_prop_df)
-		# get labeled colony mask and input file
-		mask_image_name = analysis_config.create_file_label(
-			timepoint,
-			analysis_config.xy_position_idx,
-			analysis_config.main_channel_label)
-		colony_mask_path = \
-			os.path.join(
-				analysis_config.phase_output_path,
-				'colony_masks',
-				mask_image_name + '.tif'
-				)
-		labeled_mask_full = cv2.imread(colony_mask_path, cv2.IMREAD_ANYDEPTH)
-		input_im_full, im_name, _ = \
-			analysis_config.get_image(timepoint, channel_label)
-		if input_im_full is None:
-			raise ValueError(
-				'Missing input im for timepoint '+str(timepoint)+
-				'and channel ' + channel)
-		# subframe mask and input im
-		input_im = self._create_subframe(input_im_full)
-		labeled_mask = self._create_subframe(labeled_mask_full)
-		# convert input_im to 8-bit, normalizing if necessary
-		if self.normalize_intensity:
-			im_8_bit = cv2.normalize(input_im, None, alpha=0, beta=(2**8-1),
-				norm_type=cv2.NORM_MINMAX)
+		fluor_df = analysis_config.fluor_channel_df.copy()
+		if channel_name in fluor_df.fluor_channel_column_name.to_list():
+			fluor_df.set_index('fluor_channel_column_name', inplace = True)
+			prop = fluor_df.at[channel_name, fluor_property]
 		else:
-			# change bitdepth to 8-bit
-			im_8_bit = \
-				np.uint8(np.round(input_im.astype(float)/(2**(self.bitdepth - 8))))
-		# initialize image with overlay
-		im_with_overlay = cv2.cvtColor(im_8_bit, cv2.COLOR_GRAY2RGB)
-		# loop over colonies in tp_col_prop_df, add colored overlay for
-		# each one
-		for col_row in tp_col_prop_df.itertuples():
-			im_with_overlay = \
-				self._color_colony(col_row, im_with_overlay, labeled_mask)
-		# add image with overlay to output_im_holder
-		self.output_im_holder.add_im(global_tp, im_with_overlay, im_name)
+			prop = None
+		return(prop)
 
-	def _generate_postphase_frame(self, phase_col_prop_df, analysis_config,
-		postphase_analysis_config, channel_label):
+	def _create_blank_subframe(self):
 		'''
-		Generates a boundary image for postphase fluorescent image
+		Creates a black cv2 8-bit image of self.inherent_size
 		'''
-		# get timepoint at which to draw boundary for each colony
-		timepoint_label = \
-			postphase_analysis_config.fluor_channel_df[
-				postphase_analysis_config.fluor_channel_df.fluor_channel_label==
-					channel_label]['fluor_timepoint'][0]
-		# need to import label colony property mat dataframe
-		label_property_mat_path = \
-			analysis_config.get_property_mat_path('label')
-		label_property_mat_df = pd.read_csv(label_property_mat_path, index_col = 0)
-		# make df that holds label, timepoint to use, and
-		# cross_phase_tracking_id for each colony
-		colony_df = phase_col_prop_df[
-			['time_tracking_id', 'cross_phase_tracking_id', 'rgb_color']
-			].drop_duplicates()
-		# read in growth rate df if necessary
-		if isinstance(timepoint_label, str) and \
-			timepoint_label in ['first_gr', 'last_gr']:
-			gr_df = pd.read_csv(analysis_config.phase_gr_write_path, index_col = 0)
-			indices_to_get = list(
-				set(gr_df.index).intersection(
-					set(colony_df.time_tracking_id.to_list())))
-			colony_df = colony_df[colony_df.time_tracking_id.isin(indices_to_get)]
-		else:
-			gr_df = None
-		# get timepoint labels from current phase corresponding to self.
-		colony_df['label'], colony_df['timepoint'] = \
-			get_colony_properties(
-				label_property_mat_df,
-				timepoint_label,
-				index_names = colony_df.time_tracking_id.to_list(),
-				gr_df = gr_df
+		blank_subframe = np.uint8(np.zeros(
+			shape = (
+				self.inherent_size[1],
+				self.inherent_size[0]
 				)
-		# get input image for postphase fluorescent channel
-		input_im_full, im_name, _ = \
-			postphase_analysis_config.get_image(None, channel_label)
-		# subframe input im
-		input_im = self._create_subframe(input_im_full)
-		# convert input_im to 8-bit, normalizing if necessary
-		if self.normalize_intensity:
-			im_8_bit = cv2.normalize(input_im, None, alpha=0, beta=(2**8-1),
-				norm_type=cv2.NORM_MINMAX)
-		else:
-			# change bitdepth to 8-bit
-			im_8_bit = \
-				np.uint8(np.round(input_im.astype(float)/(2**(self.bitdepth - 8))))
-		# initialize image with overlay
-		im_with_overlay = cv2.cvtColor(im_8_bit, cv2.COLOR_GRAY2RGB)
-		# loop through timepoints in colony_df and draw bounds on
-		# colonies corresponding to each
-		for timepoint in colony_df.timepoint.unique():
-			# get part of colony_df corresponding to the current
-			# timepoint
-			tp_col_prop_df = colony_df[colony_df.timepoint == timepoint]
+			))
+		return(blank_subframe)
+
+	def generate_frame(self, global_timepoint):
+		'''
+		Generates a boundary image for global_timepoint
+		'''
+		if global_timepoint in self.col_prop_df.global_timepoint.values:
+			tp_col_prop_df = self.col_prop_df[
+				self.col_prop_df.global_timepoint == global_timepoint
+				]
+			phase = self._get_single_val_from_df('phase_num', tp_col_prop_df)
+			timepoint = int(
+				self._get_single_val_from_df('timepoint', tp_col_prop_df)
+				)
+			analysis_config = \
+				self.analysis_config_obj_df.at[phase, 'analysis_config']
+			analysis_config.set_xy_position(self.xy_pos_idx)
+			# get channel label to use for main image analysis
+			if self.base_fluor_channel is None:
+				channel_label = analysis_config.main_channel_label
+			else:
+				channel_label = self._get_fluor_property(
+					self.base_fluor_channel,
+					analysis_config,
+					'fluor_channel_label'
+					)
 			# get labeled colony mask and input file
 			mask_image_name = analysis_config.create_file_label(
-				int(timepoint),
+				timepoint,
 				analysis_config.xy_position_idx,
 				analysis_config.main_channel_label)
 			colony_mask_path = \
@@ -596,286 +831,538 @@ class _PositionMovieMaker(object):
 					mask_image_name + '.tif'
 					)
 			labeled_mask_full = cv2.imread(colony_mask_path, cv2.IMREAD_ANYDEPTH)
+			if channel_label is None:
+				input_im_full = None
+			else:
+				input_im_full, _, _ = \
+					analysis_config.get_image(timepoint, channel_label)
 			if input_im_full is None:
-				raise ValueError(
-					'Missing input im for timepoint '+str(timepoint)+
-					'and channel ' + channel)
-			# subframe mask
+				im_8_bit = self._create_blank_subframe()
+			else:
+				# subframe mask and input im
+				input_im = self._create_subframe(input_im_full)
+				# convert input_im to 8-bit, normalizing if necessary
+				if self.normalize_intensity:
+					im_8_bit = cv2.normalize(
+						input_im,
+						None,
+						alpha=0,
+						beta=(2**8-1),
+						norm_type=cv2.NORM_MINMAX
+						)
+				else:
+					# change bitdepth to 8-bit
+					im_8_bit = \
+						np.uint8(np.round(
+							input_im.astype(float)/(2**(self.bitdepth - 8))
+							))
 			labeled_mask = self._create_subframe(labeled_mask_full)
+			# initialize image to overlay and colorize if necessary
+			im_with_overlay = colorize_im(im_8_bit, self.main_phase_color)
 			# loop over colonies in tp_col_prop_df, add colored overlay for
 			# each one
 			for col_row in tp_col_prop_df.itertuples():
 				im_with_overlay = \
-					self._color_colony(col_row, im_with_overlay, labeled_mask,
-						override_shading = True)
-		# add image with overlay to output_im_holder
-		global_tp = phase_col_prop_df.global_timepoint.max() + 0.1
-		self.output_im_holder.add_im(global_tp, im_with_overlay, im_name)
-
-	def generate_movie_ims(self):
-		for phase in self.analysis_config_obj_df.index:
-			analysis_config = \
-				self.analysis_config_obj_df.at[phase, 'analysis_config']
-			analysis_config.set_xy_position(self.xy_pos_idx)
-			postphase_analysis_config = \
-				self.analysis_config_obj_df.at[phase,
-					'postphase_analysis_config']
-			# get channel label to use for main image analysis
-			if self.base_fluor_channel is None:
-				channel_label = analysis_config.main_channel_label
-			else:
-				channel_label = self.base_fluor_channel
-			phase_col_prop_df = self.col_prop_df[
-				self.col_prop_df.phase_num == phase]
-			for timepoint in phase_col_prop_df.timepoint.unique():
-				tp_col_prop_df = \
-					phase_col_prop_df[phase_col_prop_df.timepoint == 
-						timepoint]
-				self._generate_frame(tp_col_prop_df, analysis_config,
-					int(timepoint), channel_label)
-			# get postphase image if necessary
-			if postphase_analysis_config != None and \
-				self.postphase_fluor_channel != None:
-				postphase_analysis_config.set_xy_position(self.xy_pos_idx)
-				self._generate_postphase_frame(
-					phase_col_prop_df,
-					analysis_config,
-					postphase_analysis_config,
-					self.postphase_fluor_channel)
-		return(self.output_im_holder.im_df)
-
-class OutputIMHolder(object):
-
-	def __init__(self, col_prop_df):
-		'''
-		Generate an empty dataframe for holding output images
-		'''
-		self.im_df = pd.DataFrame(
-			columns = ['global_timepoint', 'im', 'im_name'])
-		self.im_df.global_timepoint = \
-			np.sort(col_prop_df.global_timepoint.unique())
-		self.im_df.set_index('global_timepoint', inplace = True)
-
-	def add_im(self, global_timepoint, im, im_name):
-		self.im_df.at[global_timepoint, 'im'] = im
-		self.im_df.at[global_timepoint, 'im_name'] = im_name
-
-class _SubframeCombiner(object):
-	'''
-	Concatenates parts of movie images (e.g. cell movie, plots, etc)
-	into single set of movie images
-
-	im_width is the width of the final movie images
-
-	im_height is the height of the final movie images
-
-	ordered_component_string is a string of movie labels with commas
-	separating components in the same row of the movie frame and
-	semicolons separating rows, and blank representing empty spaces
-	(e.g. 'bf_movie | blank; rfp_movie|gfp_movie; growth_plot' has 3
-	rows, with bf_movie in the upper left and nothing in the upper
-	right, rfp_movie and gfp_movie in the second row, and growth_plot
-	taking up the entire bottom row
-
-	component_size_dict is a dict with keys as labeled movie components
-	and values being (w, h) tuples for the size of each component
-	row and column values must add up to im_height and im_width,
-	respectively, although blank spacers will be used to take up any
-	blank space (multiple blank values per row, or multiple instances of
-	blank values taking up entire rows, will be sized equally in the x-
-	or y-direction, respectively)
-
-	blank_color is the hex value for the color of empty spaces between
-	movies (default is white, #FFFFFF)
-
-	'''
-	def __init__(self, im_width, im_height, ordered_components,
-		component_size_dict, blank_color = '#FFFFFF'):
-		self.im_height = im_height
-		self.im_width = im_width
-		self.blank_color = blank_color
-		self.component_size_dict = component_size_dict
-		self._parse_subframe_positions(ordered_components)
-
-	def _set_x_offsets_subframe_row(self, subframe_row):
-		'''
-		Checks that elements in subframe row add up in size to
-		self.im_width, and are the same height
-
-		Populates x offsets for non-blank elements of subframe_row in
-		self._offset_df
-
-		Returns column height
-		'''
-		blank_number = subframe_row.count('blank')
-		real_elements = [x for x in subframe_row if x != 'blank']
-		# check that real_elements all have associated sizes
-		if not set(real_elements).issubset(
-			set(self.component_size_dict.keys())):
-			raise ValueError(
-				'row ' + str(subframe_row) +
-				'contains elements not found in keys of compnent_size_dict: ' +
-				str(self.component_size_dict.keys()))
-		real_element_num = len(real_elements)
-		if real_element_num > 0:
-			real_element_widths = \
-				[self.component_size_dict[x][0] for x in real_elements]
-			real_element_heights = \
-				[self.component_size_dict[x][1] for x in real_elements]
-			# assume column height is the height of the first real
-			# element and then check
-			column_height = real_element_heights[0]
-			# check that column_height appears in every position in
-			# real_element_heights
-			if real_element_heights.count(column_height) != real_element_num:
-				raise ValueError(
-					'Different heights passed for ' + str(real_elements) +
-					' although they are listed in the same row'
-					)
-			# check element widths and calculate size of any blanks
-			combined_element_width = sum(real_element_widths)
-			width_diff = self.im_width - combined_element_width
-			if width_diff < 0:
-				raise ValueError(
-					'Combined width of row ' + str(subframe_row) +
-					' is ' + str(combined_element_width) +
-					', which exceeds the width of the full movie image (' +
-					str(self.im_width) + ')'
-					)
-			elif width_diff > 0:
-				if blank_number == 0:
-					raise ValueError(
-						'Combined width of row ' +str(subframe_row) +
-						' is ' + str(combined_element_width) +
-						', which is below the width of the full movie image (' +
-						str(self.im_width) + '); pad row with blank elements'
-						)
-				else:
-					blank_width = width_diff/blank_number
-			else:
-				blank_width = 0
-				### TODO: Raise warning if blank_number > 0
-			# loop through elements, setting offsets
-			current_offset = 0
-			for subframe in subframe_row:
-				if subframe == 'blank':
-					current_offset = current_offset + blank_width
-				else:
-					self._offset_df.at[subframe, 'x'] = current_offset
-					current_offset = \
-						current_offset + self.component_size_dict[subframe][0]
-		return(column_height)
-
-	def _set_y_offsets_subframe_row(self, subframe_row, y_offset):
-		'''
-		Populates y offsets for non-blank elements of subframe_row in
-		self._offset_df
-		'''
-		for subframe in subframe_row:
-			if subframe != 'blank':
-				self._offset_df.at[subframe, 'y'] = int(y_offset)
-
-	def _parse_subframe_positions(self, ordered_components):
-		'''
-		Parses order and size of components to create a df of x- and
-		y-offsets for each component
-		'''
-		parsed_component_order = \
-			[[col.strip() for col in row.split('|')]
-				for row in ordered_components.split(';')]
-		self._offset_df = pd.DataFrame(
-			index = self.component_size_dict.keys(),
-			columns = ['x', 'y'])
-		# determine the number of rows containing only blanks
-		blank_row_number = parsed_component_order.count(['blank'])
-		if len(parsed_component_order) == blank_row_number:
-			raise ValueError('No non-blank rows in ordered_components: ' +
-				str(ordered_components))
-		# loop through rows in ordered_components, filling in x offsets
-		col_height_list = []
-		for subframe_row in parsed_component_order:
-			if subframe_row == ['blank']:
-				col_height = 0
-			else:
-				col_height = self._set_x_offsets_subframe_row(subframe_row)
-			col_height_list.append(col_height)
-		combined_col_height = sum(col_height_list)
-		height_diff = self.im_height - combined_col_height
-		if height_diff < 0:
-			raise ValueError(
-				'Combined height of rows is ' + str(combined_col_height) +
-				', which exceeds the height of the full movie image (' +
-				str(self.im_height) + ')'
-				)
-		elif height_diff > 0:
-			if blank_row_number == 0:
-				raise ValueError(
-					'Combined height of rows is ' + str(combined_col_height) +
-					', which is below the height of the full movie image (' +
-					str(self.im_height) + '); pad row with blank elements'
-					)
-			else:
-				blank_row_height = height_diff/blank_row_number
+					self._color_colony(col_row, im_with_overlay, labeled_mask)
+			# convert im_with_overlay to Pillow Image object
+			im_with_overlay_pil = \
+				Image.fromarray(im_with_overlay.astype('uint8'), 'RGB')
 		else:
-			blank_row_height = 0
-			### TODO: Raise warning if blank_number > 0
-		# loop through rows, setting y offsets
-		current_y_offset = 0
-		for subframe_row, col_height in \
-			zip(parsed_component_order, col_height_list):
-			if subframe_row == ['blank']:
-				current_y_offset = current_y_offset + blank_row_height
-			else:
-				self._set_y_offsets_subframe_row(
-					subframe_row, current_y_offset
+			im_with_overlay_pil = \
+				_create_blank_im(
+					self.inherent_size[0],
+					self.inherent_size[1],
+					'black'
 					)
-				current_y_offset = current_y_offset + col_height
+		return(im_with_overlay_pil)
 
-	def _create_blank_im(self):
+	def generate_postphase_frame(self, phase):
 		'''
-		Returns blank image of correct color and size
+		Generates a boundary image for postphase fluorescent image
 		'''
-		blank_im = \
-			Image.new('RGB', (self.im_width, self.im_height), self.blank_color)
-		return(blank_im)
-
-	def _place_subframe(self, subframe_label, subframe, main_im):
-		'''
-		Resizes subframe and places it on main_im
-		'''
-		# convert subframe to Pillow Image object
-		subframe_image = Image.fromarray(subframe.astype('uint8'), 'RGB')
-		# resize subframe
-		required_size = self.component_size_dict[subframe_label]
-		if subframe_image.size != required_size:
-			print(subframe_image.size)
-			subframe_image = subframe_image.resize(required_size)
-		# place subframe
-		offset_position = tuple(self._offset_df.loc[subframe_label,['x','y']].astype(int))
-		main_im.paste(subframe_image, offset_position)
-		return(main_im)
-
-	def combine_subframes(self, subframe_dict):
-		'''
-		Combine sets of images in subframe_dict into single list of images
-		'''
-		full_movie_dict = dict()
-		for subframe_label, subframe_im_df in subframe_dict.items():
-			# loop through global_timepoints in movie_im_df and place
-			# movie image subframes
-			for tp in subframe_im_df.index:
-				subframe = subframe_im_df.at[tp, 'im']
-				# if the current timepoint is already in
-				# full_movie_dict, use that image; otherwise, create
-				# new blank image
-				if tp in full_movie_dict:
-					main_im = full_movie_dict[tp]
+		postphase_analysis_config = \
+			self.analysis_config_obj_df.at[phase,
+				'postphase_analysis_config']
+		# get postphase image if necessary
+		if postphase_analysis_config is None or \
+			self.postphase_fluor_channel is None:
+			global_tp = None
+			im_with_overlay_pil = None
+		else:
+			analysis_config = \
+				self.analysis_config_obj_df.at[phase,
+					'analysis_config']
+			postphase_analysis_config.set_xy_position(self.xy_pos_idx)
+			analysis_config.set_xy_position(self.xy_pos_idx)
+			phase_col_prop_df = self.col_prop_df[
+				self.col_prop_df.phase_num == phase
+				]
+			# get timepoint at which to draw boundary for each colony
+			timepoint_label = \
+				self._get_fluor_property(
+					self.postphase_fluor_channel,
+					postphase_analysis_config,
+					'fluor_timepoint'
+					)
+			# need to import label colony property mat dataframe
+			label_property_mat_path = \
+				analysis_config.get_property_mat_path('label')
+			label_property_mat_df = pd.read_csv(label_property_mat_path, index_col = 0)
+			# make df that holds label, timepoint to use, and
+			# cross_phase_tracking_id for each colony
+			colony_df = phase_col_prop_df[
+				['time_tracking_id', 'cross_phase_tracking_id', 'rgb_color']
+				].drop_duplicates()
+			# read in growth rate df if necessary
+			if isinstance(timepoint_label, str) and \
+				timepoint_label in ['first_gr', 'last_gr']:
+				gr_df = pd.read_csv(analysis_config.phase_gr_write_path, index_col = 0)
+				indices_to_get = list(
+					set(gr_df.index).intersection(
+						set(colony_df.time_tracking_id.to_list())))
+				colony_df = colony_df[colony_df.time_tracking_id.isin(indices_to_get)]
+			else:
+				gr_df = None
+			# get timepoint labels from current phase corresponding to self.
+			colony_df['label'], colony_df['timepoint'] = \
+				get_colony_properties(
+					label_property_mat_df,
+					timepoint_label,
+					index_names = colony_df.time_tracking_id.to_list(),
+					gr_df = gr_df
+					)
+			# get input image for postphase fluorescent channel
+			postphase_fluor_channel_label = \
+				self._get_fluor_property(
+					self.postphase_fluor_channel,
+					postphase_analysis_config,
+					'fluor_channel_label'
+					)
+			if postphase_fluor_channel_label is None:
+				input_im_full = None
+			else:
+				input_im_full, _, _ = \
+					postphase_analysis_config.get_image(
+						None,
+						postphase_fluor_channel_label
+						)
+			if input_im_full is None:
+				im_8_bit = self._create_blank_subframe()
+			else:
+				# subframe mask and input im
+				input_im = self._create_subframe(input_im_full)
+				# convert input_im to 8-bit, normalizing if necessary
+				if self.normalize_intensity:
+					im_8_bit = cv2.normalize(input_im, None, alpha=0, beta=(2**8-1),
+						norm_type=cv2.NORM_MINMAX)
 				else:
-					main_im = self._create_blank_im()
-				# place subframe on main_im and save it in dict
-				full_movie_dict[tp] = \
-					self._place_subframe(subframe_label, subframe, main_im)
-		return(full_movie_dict)
+					# change bitdepth to 8-bit
+					im_8_bit = \
+						np.uint8(np.round(input_im.astype(float)/(2**(self.bitdepth - 8))))
+			# initialize image to overlay and colorize if necessary
+			im_with_overlay = colorize_im(im_8_bit, self.postphase_color)
+			# loop through timepoints in colony_df and draw bounds on
+			# colonies corresponding to each
+			for timepoint in colony_df.timepoint.unique():
+				# get part of colony_df corresponding to the current
+				# timepoint
+				tp_col_prop_df = colony_df[colony_df.timepoint == timepoint]
+				# get labeled colony mask and input file
+				mask_image_name = analysis_config.create_file_label(
+					int(timepoint),
+					analysis_config.xy_position_idx,
+					analysis_config.main_channel_label)
+				colony_mask_path = \
+					os.path.join(
+						analysis_config.phase_output_path,
+						'colony_masks',
+						mask_image_name + '.tif'
+						)
+				labeled_mask_full = cv2.imread(colony_mask_path, cv2.IMREAD_ANYDEPTH)
+				if input_im_full is None:
+					raise ValueError(
+						'Missing input im for timepoint '+str(timepoint)+
+						'and channel ' + channel)
+				# subframe mask
+				labeled_mask = self._create_subframe(labeled_mask_full)
+				# loop over colonies in tp_col_prop_df, add colored overlay for
+				# each one
+				for col_row in tp_col_prop_df.itertuples():
+					im_with_overlay = \
+						self._color_colony(col_row, im_with_overlay, labeled_mask,
+							override_shading = True)
+			# add image with overlay to movie_holder
+			global_tp = phase_col_prop_df.global_timepoint.max() + 0.1
+			# convert im_with_overlay to Pillow Image object
+			im_with_overlay_pil = \
+				Image.fromarray(im_with_overlay.astype('uint8'), 'RGB')
+		return(global_tp, im_with_overlay_pil)
+
+	def generate_movie_ims(self, width, height, blank_color):
+		self.movie_holder = MovieHolder(self.global_timepoints)
+		# first add the regular images, then the postphase images
+		for global_tp in self.col_prop_df.global_timepoint.unique():
+			im_with_overlay = self.generate_frame(global_tp)
+			# add image with overlay to movie_holder
+			im_resized = \
+				_ratio_resize_convert(
+					im_with_overlay, width, height, blank_color
+					)
+			self.movie_holder.add_im(global_tp, im_resized)
+		# add postphase analysis images if necessary
+		for phase in self.analysis_config_obj_df.index:			
+			global_tp, im_with_overlay = \
+				self.generate_postphase_frame(phase)
+			if im_with_overlay != None:
+				# add image with overlay to movie_holder
+				im_resized = \
+					_ratio_resize_convert(
+						im_with_overlay, width, height, blank_color
+						)
+				self.movie_holder.add_im(global_tp, im_resized)
+		return(self.movie_holder.im_df)
+
+class _OverlayMovieMaker(_ImMovieMaker):
+	'''
+	Overlays movies in self.overlay_df.movie_obj using relative 
+	intensities in rel_gain_list
+
+	self.overlay_df.movie_obj must all be _PositionMovieMaker class
+	objects with identical inherent_size
+
+	intens_mult_list is a list of multipliers for intensities with 
+	which to display the pixels of every 'channel' in the blended 
+	image; if None, sets all intensity multipliers to be 1
+
+	If elements of self.overlay_df.movie_obj differ in their
+	global_timepoints, missing global_timepoints will be treated as
+	empty (all-black) images
+	'''
+	def __init__(self, movie_obj_list, intens_mult_list):
+		if len(movie_obj_list) < 2:
+			raise IndexError('movie_obj_list must contain 2 or more objects')
+		intens_mult_list = self._check_intensity_multipliers(
+			intens_mult_list, movie_obj_list
+			)
+		self.overlay_df = pd.DataFrame({
+			'movie_obj':movie_obj_list,
+			'intens_mult':intens_mult_list
+			})
+		global_timepoints = self._get_full_global_tp_list(movie_obj_list)
+		analysis_config_obj_df = \
+			self._get_analysis_config_obj_df(movie_obj_list)
+		super(_OverlayMovieMaker, self).__init__(
+			global_timepoints,
+			analysis_config_obj_df,
+			)
+	def _check_intensity_multipliers(self, intens_mult_list, movie_obj_list):
+		movie_obj_num = len(movie_obj_list)
+		if intens_mult_list is None:
+			intens_mult_list = \
+				np.ones(shape = (1, movie_obj_num), dtype = float)
+		else:
+			if len(intens_mult_list) != movie_obj_num:
+				raise IndexError(
+					'Length of intensity multipliers and movie objects must '
+					'have the same length'
+					)
+			intens_mult_list = np.array(intens_mult_list)
+		return(intens_mult_list)
+
+	def _get_full_global_tp_list(self, movie_obj_list):
+		'''
+		Gets full list of global timepoints across all objects in
+		movie_obj_list
+		'''
+		global_timepoints_nested = \
+			[x.movie_holder.im_df.index.to_list() for x in movie_obj_list]
+		global_timepoints = list(chain(*global_timepoints_nested))
+		return(global_timepoints)
+
+	def _get_analysis_config_obj_df(self, movie_obj_list):
+		'''
+		Checks that analysis_config_obj_df is identical in all objects
+		in movie_obj_list, and returns the df
+		'''
+		analysis_config_obj_df_list = \
+			[x.analysis_config_obj_df for x in movie_obj_list]
+		analysis_config_obj_df = analysis_config_obj_df_list[0]
+		if not all([analysis_config_obj_df.equals(a)
+			for a in analysis_config_obj_df_list[1:]]):
+			raise ValueError('All objects in movie_obj_list must have '
+				'identical analysis_config_obj dataframes')
+		return(analysis_config_obj_df)
+
+	def _perform_data_checks(self):
+		movie_obj_list = self.overlay_df.movie_obj.to_list()
+		intens_mult_list = self.overlay_df.intens_mult.to_numpy()
+		if np.any(intens_mult_list < 0):
+			raise ValueError('intensity multipliers must be >= 0')
+		# check that movie_obj instances are of correct type
+		if not all([isinstance(x,_PositionMovieMaker) for x in movie_obj_list]):
+			raise TypeError(
+				'All objects in movie_obj_list must be movie objects generated'
+				' directly from images')
+
+	def _calc_inherent_size(self):
+		'''
+		Calculates default size of movie images
+		'''
+		unique_inherent_sizes = list(set(
+			[x.inherent_size for x in self.overlay_df.movie_obj.to_list()]
+			))
+		if len(unique_inherent_sizes) != 1:
+			raise ValueError('inherent_size for all objects in movie_obj_list '
+				'must be identical')
+		else:
+			self.inherent_size = unique_inherent_sizes[0]
+
+	def generate_movie_ims(self, width, height, blank_color):
+		# first add the regular images, then the postphase images
+		self.movie_holder = MovieHolder(self.global_timepoints)
+		im_empty = np.zeros(
+			shape = (self.inherent_size[1], self.inherent_size[0], 3)
+			)
+		for global_tp in self.movie_holder.im_df.index:
+			im_combined = im_empty.copy()
+			for overlay_idx in self.overlay_df.index:
+				mov_obj = self.overlay_df.at[overlay_idx, 'movie_obj']
+				intens_mult = self.overlay_df.at[overlay_idx, 'intens_mult']
+				im_with_overlay = mov_obj.generate_frame(global_tp)
+				if im_with_overlay != None:
+					im_combined = im_combined + im_with_overlay*intens_mult
+			im_combined_8bit = safe_uint8_convert(im_combined)
+			# add image with overlay to movie_holder
+			# convert to Pillow Image format first
+			im_combined_pil = Image.fromarray(im_combined_8bit, 'RGB')
+			im_resized = \
+				_ratio_resize_convert(
+					im_combined_pil, width, height, blank_color
+					)
+			self.movie_holder.add_im(global_tp, im_resized)
+		# add postphase analysis images if necessary
+		for phase in self.analysis_config_obj_df.index:
+			im_combined = None
+			for overlay_idx in self.overlay_df.index:
+				mov_obj = self.overlay_df.at[overlay_idx, 'movie_obj']
+				intens_mult = self.overlay_df.at[overlay_idx, 'intens_mult']
+				global_tp, im_with_overlay = \
+					mov_obj.generate_postphase_frame(phase)
+				if im_with_overlay != None:
+					im_combined_current = im_with_overlay*intens_mult
+					if im_combined is None:
+						im_combined = im_combined_current
+					else:
+						im_combined = im_combined_current + im_combined
+			if im_combined != None:
+				# add image with overlay to movie_holder
+				im_resized = \
+					_ratio_resize_convert(
+						im_combined, width, height, blank_color
+						)
+				self.movie_holder.add_im(global_tp, im_resized)
+		return(self.movie_holder.im_df)
+
+class _MovieGrid(_MovieSaver):
+	'''
+	Creates a _MovieGrid object from a list of _MovieGrid- or 
+	_MovieMaker-inheriting objects arranged in a single direction 
+	(row or column)
+
+	movie_obj_list can contain _MovieGrid or _MovieMaker objects
+
+	grid_axis is the direction along which the grid is created; can be 
+	either "row" or "column"
+
+	grid_ratios contains a list of relative ratios of frame sizes along
+	grid_axis; if None, relative ratios are identical for all 
+	components of movie_obj_list
+	'''
+	def __init__(self, movie_obj_list, grid_axis, grid_ratios):
+		# set up grid_ratios
+		self.grid_ratios = _check_rel_ratios(grid_ratios, movie_obj_list)
+		# set columns to modify along current grid_axis
+		self._set_grid_prop_names(grid_axis)
+		# create self.movie_maker_df and get data for inherent size calc
+		self._create_grid(movie_obj_list)
+		# calculate inherent size: the default is for the object with
+		# the smallest image to be displayed at full resolution
+		self._calc_inherent_size()
+
+	def _set_grid_prop_names(self, grid_axis):
+		self.grid_axis = grid_axis
+		if self.grid_axis == 'row':
+			self.grid_prop_name = 'width_prop'
+			self.non_grid_prop_name = 'height_prop'
+			self.grid_pos_name = 'left_pos'
+			self.non_grid_pos_name = 'top_pos'
+			self.grid_dim = 'width'
+			self.non_grid_dim = 'height'
+		elif self.grid_axis == 'column':
+			self.non_grid_prop_name = 'width_prop'
+			self.grid_prop_name = 'height_prop'
+			self.non_grid_pos_name = 'left_pos'
+			self.grid_pos_name = 'top_pos'
+			self.non_grid_dim = 'width'
+			self.grid_dim = 'height'
+		else:
+			raise ValueError('grid_axis must be "row" or "column"')
+
+	def _create_grid(self, movie_obj_list):
+		'''
+		Creates grid going in one direction (either horizontally or 
+		vertically)
+		'''
+		# add objects to grid df one by one
+		grid_pos = 0
+		width_list = []
+		height_list = []
+		movie_maker_df_list = []
+		for movie_obj, grid_prop in zip(movie_obj_list, self.grid_ratios):
+			if isinstance(movie_obj, _MovieMaker) or \
+				isinstance(movie_obj, _MovieGrid):
+				current_df = \
+					self._get_df_movie_saver(movie_obj, grid_prop, grid_pos)
+#			elif isinstance(movie_obj, _MovieGrid):
+#				current_df = \
+#					self._get_df_movie_grid(movie_obj, grid_prop, grid_pos)
+			else:
+				raise TypeError('movie objects must be _MovieMaker or '
+					'_MovieGrid type objects')
+			movie_maker_df_list.append(current_df)
+			# update lists of movie object widths and heights
+			width_list.append(movie_obj.inherent_size[0])
+			height_list.append(movie_obj.inherent_size[1])
+			# update starting position of image along grid
+			grid_pos = grid_pos + grid_prop
+		# create dataframe containing movie_maker objects, their grid 
+		# proportions, and their starting positions on the grid
+		self.movie_maker_df = \
+			pd.concat(movie_maker_df_list, ignore_index = True)
+		# set up df for inherent size calculation
+		self._inherent_dim_df = \
+			pd.DataFrame({'width': width_list, 'height': height_list})
+		# replace None with NaN to aid further processing
+		self._inherent_dim_df.fillna(value = np.nan, inplace = True)
+
+	def _get_df_movie_saver(self, movie_maker_obj, grid_prop, grid_pos):
+		'''
+		Get dataframe containing _MovieMaker class object, the 
+		proportion of the grid it takes up, and its start positions
+		'''
+		movie_maker_obj_df = pd.DataFrame({
+			'movie_maker': movie_maker_obj,
+			self.grid_prop_name: grid_prop,
+			self.non_grid_prop_name: 1,
+			self.grid_pos_name: grid_pos,
+			self.non_grid_pos_name: 0
+			},
+			index = [0])
+		return(movie_maker_obj_df)
+
+#	def _get_df_movie_grid(self, movie_grid_obj, grid_prop, grid_pos):
+#		'''
+#		Get dataframe from _MovieGrid class object, and update the 
+#		proportion of the full grid it takes up and its start positions
+#		'''
+#		movie_grid_obj_df = movie_grid_obj.movie_maker_df.copy()
+#		movie_grid_obj_df[self.grid_prop_name] = \
+#			movie_grid_obj_df[self.grid_prop_name]*grid_prop
+#		movie_grid_obj_df[self.grid_pos_name] = \
+#			movie_grid_obj_df[self.grid_pos_name]*grid_prop + grid_pos
+#		return(movie_grid_obj_df)
+
+	def _calc_inherent_size(self):
+		'''
+		Calculates default size of movie images
+		'''
+		inherent_size_ser = pd.Series(dtype=float)
+		# along the grid dimension, each object in movie_grid_obj must 
+		# fit within the ratio alotted to it
+		inherent_size_ser[self.grid_dim] = \
+			self._calc_max_single_dim_size(
+				self._inherent_dim_df[self.grid_dim].to_numpy(),
+				self.grid_ratios
+				)
+		# along the non-grid dimension, the inherent size is just the 
+		# size of the largest object
+		inherent_size_ser[self.non_grid_dim] = \
+			self._calc_max_single_dim_size(
+				self._inherent_dim_df[self.non_grid_dim].to_numpy(),
+				1.0
+				)
+		# convert to (width, height) tuple
+		self.inherent_size = \
+			tuple(inherent_size_ser[['width','height']].to_list())
+
+	def _calc_max_single_dim_size(self, inherent_sizes, grid_ratios):
+		'''
+		Calculates the max size along a dimension accounting for grid 
+		ratios
+		'''
+		if np.all(np.isnan(inherent_sizes)):
+			max_size = None
+		else:
+			max_size = np.nanmax(inherent_sizes/grid_ratios)
+		return(max_size)
+		
+	def generate_movie_ims(self, width, height, blank_color):
+		'''
+		Generates movie images with supplied width and height, and
+		returns them in pd dataframe
+		'''
+		# It's necessary to do this in two loop steps because we don't 
+		# know that global_timepoint will be the same for every 
+		# movie_maker in self.movie_maker_df, so we need to generate a 
+		# dataframe that includes all possible global timepoints first
+		####
+		# Create a dataframe that will combine image dfs for every 
+		# movie_maker in self.movie_maker_df, with indices being 
+		# global_timepoint and columns being the indices of 
+		# self.movie_maker_df
+		self.movie_maker_df.reset_index(inplace = True)
+		im_df_list = []
+		for idx, row in self.movie_maker_df.iterrows():
+			curr_width = int(float(width)*row.width_prop)
+			curr_height = int(float(height)*row.height_prop)
+			current_im_df = \
+				row.movie_maker.generate_movie_ims(
+					curr_width, curr_height, blank_color
+					)
+			current_im_df.columns = [idx]
+			im_df_list.append(current_im_df)
+		combined_im_df = pd.concat(im_df_list, join = 'outer', axis = 1)
+		# place images on common background at each global timepoint,
+		# and add to MovieHolder object
+		self.movie_holder = MovieHolder(combined_im_df.index)
+		for global_tp, im_row in combined_im_df.iterrows():
+			# create background image
+			main_im = _create_blank_im(width, height, blank_color)
+			# loop through images created by different movie_makers at
+			# this global timepoint, placing them on main_im
+			# note that indices of row match indices of
+			# self.movie_maker_df
+			for movie_maker_idx in im_row.index:
+				subframe_im = im_row[movie_maker_idx]
+				if subframe_im != None:
+					curr_width = int(float(width)*\
+						self.movie_maker_df.at[movie_maker_idx, 'width_prop'])
+					curr_height = int(float(height)*\
+						self.movie_maker_df.at[movie_maker_idx, 'height_prop'])
+					curr_top_offset = int(float(height)*\
+						self.movie_maker_df.at[movie_maker_idx, 'top_pos'])
+					curr_left_offset = int(float(width)*\
+						self.movie_maker_df.at[movie_maker_idx, 'left_pos'])
+					main_im = _place_im(
+						subframe_im,
+						main_im,
+						curr_width,
+						curr_height,
+						curr_top_offset,
+						curr_left_offset
+						)
+			self.movie_holder.add_im(global_tp, main_im)
+		return(self.movie_holder.im_df)
 
 class MovieGenerator(object):
 	'''
@@ -890,16 +1377,18 @@ class MovieGenerator(object):
 	crossphase_colony_id_list is a list of crossphase_colony_ids for
 	which movies should be generated
 
-	movie_output_path is the location in which movies will be saved
-
 	colony_colors is a set of HEX code strings for colors of every
 	colony in crossphase_colony_id_list (in order); if None (default)
 	will auto-generate colors using p9 scheme instead
 	'''
-	def __init__(self, analysis_config_file, crossphase_colony_id_list,
-				movie_output_path, colony_colors = None):
+	def __init__(self,
+				crossphase_colony_id_list,
+				analysis_config_file = None,
+				analysis_config_obj_df = None,
+				colony_colors = None
+				):
 		self.analysis_config_obj_df = \
-			process_setup_file(analysis_config_file)
+			check_passed_config(analysis_config_obj_df, analysis_config_file)
 		# read in colony properties df
 		temp_analysis_config_standin = \
 			self.analysis_config_obj_df.iloc[0]['analysis_config']
@@ -909,34 +1398,24 @@ class MovieGenerator(object):
 		# add 'global' cross-phase timepoint to col property df
 		comb_colony_prop_df_glob_tp = \
 			self._add_global_timepoints(comb_colony_prop_df)
-		# add color columns to comb_colony_prop_df
-		self.color_df = _generate_colony_colors(crossphase_colony_id_list,
-			colony_colors)
+		# check that colony ids exist
+		if not crossphase_colony_id_list:
+			raise ValueError('crossphase_colony_id_list contains no entries')
+		# check that colony ids are unique
+		if len(crossphase_colony_id_list) != \
+			len(set(crossphase_colony_id_list)):
+			raise ValueError(
+				'crossphase_colony_id_list contains non-unique colony IDs'
+				)
+		# add colors
+		self.color_df = _generate_colony_colors(
+			crossphase_colony_id_list,
+			colony_colors
+			)
 		comb_colony_prop_df_final = \
 			pd.merge(left = comb_colony_prop_df_glob_tp, right = self.color_df)
-		# generate dictionary of colony properties for
-		# crossphase_colony_id_list, separated by xy position
 		self._subset_colony_prop_df(comb_colony_prop_df_final,
 			crossphase_colony_id_list)
-		# make dict of folders into which movies for each xy position
-		# will be saved
-		self._prep_movie_folders(movie_output_path)
-		# create a df that will contain movies for every position
-		self.movie_obj_df = pd.DataFrame(index = self.xy_positions)
-
-	def _prep_movie_folders(self, movie_output_path):
-		'''
-		Creates a subfolder in movie_output_path for every xy position
-		Creates a dictionary with xy positions and corresponding subfolders
-		'''
-		if not os.path.isdir(movie_output_path):
-			os.makedirs(movie_output_path)
-		self.movie_output_path = movie_output_path
-		self.movie_subfolder_dict = dict()
-		for xy_pos_idx in self.xy_positions:
-			current_subfolder = \
-				os.path.join(movie_output_path, 'xy_' + str(xy_pos_idx))
-			self.movie_subfolder_dict[xy_pos_idx] = current_subfolder
 
 	def _add_global_timepoints(self, comb_colony_prop_df):
 		'''
@@ -953,9 +1432,12 @@ class MovieGenerator(object):
 			# add all previous timepoints to current timepoint to make
 			# global_timepoint column
 			comb_colony_prop_df.loc[
-				comb_colony_prop_df.phase_num == phase, 'global_timepoint'] = \
+				comb_colony_prop_df.phase_num == phase, 'global_timepoint'
+				] = \
 				comb_colony_prop_df.timepoint[
-					comb_colony_prop_df.phase_num == phase] + prev_phases_tps
+					comb_colony_prop_df.phase_num == phase
+					] + \
+				prev_phases_tps
 			# update the number of timepoints to add to the next phase
 			prev_phases_tps = prev_phases_tps + \
 				self.analysis_config_obj_df.at[phase,
@@ -968,340 +1450,105 @@ class MovieGenerator(object):
 		Creates dict of dataframes containing only colony properties of
 		colonies in crossphase_colony_id_list, separated by xy position
 		'''
-		col_prop_df = \
+		self.col_prop_df = \
 			comb_colony_prop_df[
 				comb_colony_prop_df.cross_phase_tracking_id.isin(
 					crossphase_colony_id_list)].copy()
-		self.xy_positions = col_prop_df.xy_pos_idx.unique()
-		self.xy_pos_col_prop_dict = dict()
-		for xy_pos_idx in self.xy_positions:
-			self.xy_pos_col_prop_dict[xy_pos_idx] = \
-				col_prop_df[col_prop_df.xy_pos_idx == xy_pos_idx].copy()
+		xy_positions = self.col_prop_df.xy_pos_idx.unique()
+		if len(xy_positions) > 1:
+			raise ValueError('crossphase_colony_id_list must contain colonies '
+				'from a single imaging field (xy position)')
 
-	def _check_movie_label(self, movie_label):
-		'''
-		Checks that movie label is allowed
-		'''
-		if not isinstance(movie_label, str):
-			raise TypeError('movie_label must be a string')
-		if movie_label == 'blank':
-			raise ValueError('blank is a reserved name and may not be '
-				'used for movie component labels')
-
-	def _get_ordered_image_list(self, compiled_movie_dict):
-		'''
-		Puts images from compiled_movie_dict into list in correct order
-		'''
-		ordered_timepoints = np.sort(list(compiled_movie_dict.keys()))
-		images_to_save = [compiled_movie_dict[tp] for tp in ordered_timepoints]
-		return(images_to_save)
-
-	def _write_movie(self, compiled_movie_dict, output_path, duration, fourcc):
-		'''
-		Writes movie of fourcc format using cv2
-		'''
-		# make sure images saved in order
-		images_to_save = self._get_ordered_image_list(compiled_movie_dict)
-		images_as_cv2 = \
-			[cv2.cvtColor(np.uint8(img), cv2.COLOR_RGB2BGR)
-				for img in images_to_save]
-		fps = 1000.0/duration
-		framesize = (images_as_cv2[0].shape[1],images_as_cv2[0].shape[0])
-		# cv2 can't overwrite, so manually remove output_path if it
-		# exists
-		if os.path.isfile(output_path):
-			os.remove(output_path)
-		video = \
-			cv2.VideoWriter(
-				output_path,
-				fourcc,
-				fps,
-				framesize)
-		for image in images_as_cv2:
-			video.write(image)
-		cv2.destroyAllWindows()
-		video.release()
-
-	def _write_gif(self, compiled_movie_dict, output_path, duration, loop):
-		'''
-		Writes gif to output_path from images in compiled_movie_dict
-
-		duration is duration of each frame in milliseconds
-
-		loop is the number of times gif loops
-		(0 means forever, 1 means no looping)
-		'''
-		# make sure images saved in order
-		images_to_save = self._get_ordered_image_list(compiled_movie_dict)
-		# solution to background noise from
-		# https://medium.com/@Futong/how-to-build-gif-video-from-images-with-python-pillow-opencv-c3126ce89ca8
-		byteframes = []
-		for img in images_to_save:
-		    byte = BytesIO()
-		    byteframes.append(byte)
-		    img.save(byte, format="GIF")
-		gifs = [Image.open(byteframe) for byteframe in byteframes]
-		gifs[0].save(
-			output_path,
-			save_all=True,
-			append_images=gifs[1:],
-			duration=duration,
-			loop=loop)
-
-	def _write_jpeg(self, compiled_movie_dict, output_dir, jpeg_quality):
-		'''
-		Saves movie as jpegs in output_dir
-		'''
-		for tp, im in compiled_movie_dict.items():
-			filename = os.path.join(output_dir, str(tp)+'.jpg')
-			im.save(filename, quality = jpeg_quality)
-
-	def _write_tiff(self, compiled_movie_dict, output_dir):
-		'''
-		Saves movie as tiffs in output_dir
-		'''
-		for tp, im in compiled_movie_dict.items():
-			filename = os.path.join(output_dir, str(tp)+'.tif')
-			im.save(filename)
-
-	def _save_movie(self, compiled_movie_dict, xy_pos_idx, movie_format,
-		duration, loop, jpeg_quality):
-		'''
-		Saves movie for each xy_pos_idx in format specificed by
-		movie_format, which can be 'jpeg'/'jpg', 'tiff'/'tif', 'gif',
-		or video codecs ('h264' or 'mjpg', which both save to .mov
-		format)
-		'''
-		movie_format = movie_format.lower()
-		if movie_format in ['tiff', 'tif', 'jpeg', 'jpg']:
-			output_dir = self.movie_subfolder_dict[xy_pos_idx]
-			if not os.path.isdir(output_dir):
-				os.makedirs(output_dir)
-			if movie_format in ['tiff', 'tif']:
-				self._write_tiff(compiled_movie_dict, output_dir)
-			elif movie_format in ['jpg', 'jpeg']:
-				self._write_jpeg(
-					compiled_movie_dict, output_dir, jpeg_quality)
-		elif movie_format == 'gif':
-			output_path = \
-				os.path.join(self.movie_output_path,
-					'xy' + str(xy_pos_idx) + '.gif')
-			self._write_gif(
-				compiled_movie_dict, output_path, duration, loop)
-		elif movie_format == 'h264':
-			output_path = \
-				os.path.join(self.movie_output_path,
-					'xy' + str(xy_pos_idx) + '.mov')
-			fourcc = cv2.VideoWriter_fourcc(*'H264')
-			self._write_movie(
-				compiled_movie_dict, output_path, duration, fourcc)
-		elif movie_format == 'mjpeg':
-			output_path = \
-				os.path.join(self.movie_output_path,
-					'xy' + str(xy_pos_idx) + '.mov')
-			fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-			self._write_movie(
-				compiled_movie_dict, output_path, duration, fourcc)
-		else:
-			raise ValueError('Unrecognized movie format ' + movie_format)
-
-	def make_cell_movie(self, movie_label, col_shading_alpha,
-		bound_width,
-		normalize_intensity, expansion_pixels = 10, bitdepth = None):
+	def make_cell_movie(self, col_shading_alpha, bound_width,
+		normalize_intensity = True,
+		expansion_pixels = 10, bitdepth = None
+		):
 		'''
 		Sets up movies for main (brightfield or phase contrast) channel
-
-		movie_label must be a string that isn't 'blank'		
 		'''
-		self._check_movie_label(movie_label)
-		# initialize column in movie_obj_df for images for this movie
-		self.movie_obj_df[movie_label] = None
-		for xy_pos_idx in self.xy_positions:
-			movie_maker = _PositionMovieMaker(
-				self.analysis_config_obj_df,
-				self.xy_pos_col_prop_dict[xy_pos_idx],
-				col_shading_alpha,
-				bound_width,
-				normalize_intensity,
-				expansion_pixels,
-				bitdepth = bitdepth)
-			# Keep movie_maker object in current df position
-			# movies will be generated in combine_movie
-			self.movie_obj_df.at[xy_pos_idx, movie_label] = movie_maker
+		movie_maker = _PositionMovieMaker(
+			self.col_prop_df,
+			col_shading_alpha,
+			bound_width,
+			normalize_intensity,
+			expansion_pixels,
+			self.analysis_config_obj_df,
+			bitdepth = bitdepth)
+		return(movie_maker)
 
-	def make_postfluor_movie(self, movie_label, fluor_channel,
-		col_shading_alpha,
+	def make_postfluor_movie(self, col_shading_alpha,
+		fluor_channel,
 		bound_width,
-		normalize_intensity, expansion_pixels = 10, bitdepth = None):
+		normalize_intensity = True,
+		fluor_color = 'white',
+		expansion_pixels = 10, bitdepth = None):
 		'''
 		Sets up movies for main (brightfield or phase contrast) channel 
 		followed by postphase fluorescence whose channel_label is
-		fluor_channel
-
-		movie_label must be a string that isn't 'blank'		
+		fluor_channel	
 		'''
-		self._check_movie_label(movie_label)
-		# initialize column in movie_obj_df for images for this movie
-		self.movie_obj_df[movie_label] = None
-		for xy_pos_idx in self.xy_positions:
-			movie_maker = _PositionMovieMaker(
-				self.analysis_config_obj_df,
-				self.xy_pos_col_prop_dict[xy_pos_idx],
-				col_shading_alpha,
-				bound_width,
-				normalize_intensity,
-				expansion_pixels,
-				postphase_fluor_channel = fluor_channel,
-				bitdepth = bitdepth)
-			# Keep movie_maker object in current df position
-			# movies will be generated in combine_movie
-			self.movie_obj_df.at[xy_pos_idx, movie_label] = movie_maker
+		movie_maker = _PositionMovieMaker(
+			self.col_prop_df,
+			col_shading_alpha,
+			bound_width,
+			normalize_intensity,
+			expansion_pixels,
+			self.analysis_config_obj_df,
+			postphase_color = fluor_color,
+			postphase_fluor_channel = fluor_channel,
+			bitdepth = bitdepth)
+		return(movie_maker)
 
-	def make_fluor_movie(self, movie_label, fluor_channel, bound_width,
-		normalize_intensity, expansion_pixels = 10, bitdepth = None):
+	def make_fluor_movie(self, fluor_channel, bound_width,
+		normalize_intensity = True, fluor_color = 'white',
+		expansion_pixels = 10, bitdepth = None):
 		'''
 		Sets up movies for fluorescent channel whose channel_label is
 		fluor_channel
-
-		movie_label must be a string that isn't 'blank'		
 		'''
-		self._check_movie_label(movie_label)
-		# initialize column in movie_obj_df for images for this movie
-		self.movie_obj_df[movie_label] = None
 		# set col_shading_alpha to 0 (don't shade over fluorescent images)
 		col_shading_alpha = 0
-		for xy_pos_idx in self.xy_positions:
-			movie_maker = _PositionMovieMaker(
-				self.analysis_config_obj_df,
-				self.xy_pos_col_prop_dict[xy_pos_idx],
-				col_shading_alpha,
-				bound_width,
-				normalize_intensity,
-				expansion_pixels,
-				base_fluor_channel = fluor_channel,
-				bitdepth = bitdepth)
-			# Keep movie_maker object in current df position
-			# movies will be generated in combine_movie
-			self.movie_obj_df.at[xy_pos_idx, movie_label] = movie_maker
+		movie_maker = _PositionMovieMaker(
+			self.col_prop_df,
+			col_shading_alpha,
+			bound_width,
+			normalize_intensity,
+			expansion_pixels,
+			self.analysis_config_obj_df,
+			main_phase_color = fluor_color,
+			base_fluor_channel = fluor_channel,
+			bitdepth = bitdepth)
+		return(movie_maker)
 
-	def make_growth_plot_movie(self, movie_label, im_width, im_height,
+	def make_growth_plot_movie(self,
 		facet_override = None, add_growth_line = True, add_lag_line = True):
 		'''
 		Sets up movies for plot of growth over time
-
-		movie_label must be a string that isn't 'blank'
-
-		im_width is the (approx) width of the plot in pixels
-
-		im_height is the (approx) height of the plot in pixels	
 		'''
-		self._check_movie_label(movie_label)
-		# initialize column in movie_obj_df for images for this movie
-		self.movie_obj_df[movie_label] = None
-		for xy_pos_idx in self.xy_positions:
-			movie_maker = _GrowthPlotMovieMaker(
-				self.xy_pos_col_prop_dict[xy_pos_idx],
-				self.analysis_config_obj_df,
-				im_width,
-				im_height,
-				self.color_df,
-				facet_override = facet_override,
-				add_growth_line = add_growth_line,
-				add_lag_line = add_lag_line)
-			# Keep movie_maker object in current df position
-			# movies will be generated in combine_movie
-			self.movie_obj_df.at[xy_pos_idx, movie_label] = movie_maker
+		movie_maker = _GrowthPlotMovieMaker(
+			self.col_prop_df,
+			self.color_df,
+			self.analysis_config_obj_df,
+			facet_override = facet_override,
+			add_growth_line = add_growth_line,
+			add_lag_line = add_lag_line)
+		return(movie_maker)
 
-	def make_property_plot_movie(self, movie_label, im_width, im_height,
+	def make_property_plot_movie(self,
 		plot_prop, facet_override = None, y_label_override = None):
 		'''
 		Sets up movies for plot of plot_prop over time
 
-		movie_label must be a string that isn't 'blank'
-
 		plot_prop can be the name of any column in
 		colony_properties_combined file
-
-		im_width is the (approx) width of the plot in pixels
-
-		im_height is the (approx) height of the plot in pixels	
 		'''
-		self._check_movie_label(movie_label)
-		# initialize column in movie_obj_df for images for this movie
-		self.movie_obj_df[movie_label] = None
-		for xy_pos_idx in self.xy_positions:
-			movie_maker = _PlotMovieMaker(
-				plot_prop,
-				self.xy_pos_col_prop_dict[xy_pos_idx],
-				self.analysis_config_obj_df,
-				im_width,
-				im_height,
-				facet_override = facet_override,
-				y_label_override = y_label_override)
-			# Keep movie_maker object in current df position
-			# movies will be generated in combine_movie
-			self.movie_obj_df.at[xy_pos_idx, movie_label] = movie_maker
-
-	def combine_movie(self, movie_width, movie_height,
-		ordered_movie_components, component_size_dict, movie_format,
-		blank_color = '#FFFFFF', duration = 1000, loop = 1,
-		jpeg_quality = 95):
-		'''
-		Combine movies
-
-		movie_width is the width (in pixels) of the final movie images
-
-		movie_height is the height (in pixels) of the final movie images
-
-		ordered_component_string is a string of movie labels with commas
-		separating components in the same row of the movie frame and
-		semicolons separating rows, and blank representing empty spaces
-		(e.g. 'bf_movie | blank; rfp_movie|gfp_movie; growth_plot' has 3
-		rows, with bf_movie in the upper left and nothing in the upper
-		right, rfp_movie and gfp_movie in the second row, and growth_plot
-		taking up the entire bottom row
-
-		component_size_dict is a dict with keys as labeled movie components
-		and values being (w, h) tuples for the size of each component
-		row and column values must add up to im_height and im_width,
-		respectively, although blank spacers will be used to take up any
-		blank space (multiple blank values per row, or multiple instances of
-		blank values taking up entire rows, will be sized equally in the x-
-		or y-direction, respectively)
-
-		blank_color is the hex value for the color of empty spaces between
-		movies (default is white, #FFFFFF)
-
-		movie_format can be 'jpeg', 'tiff', or 'gif'
-
-		If movie_format is jpeg, can provide option jpeg_quality
-		(default = 100)
-
-		movie_format can be a sting or a list (for multiple output
-		formats)
-		If movie_format is gif, can provide options duration (time in
-		milliseconds; default is 1000) and loop (number of loops; 0
-		means forever, None means no looping)
-		'''
-		subframe_combiner = _SubframeCombiner(movie_width, movie_height,
-			ordered_movie_components, component_size_dict, blank_color)
-		# create movie for every xy position
-		for xy_pos_idx in self.xy_positions:
-			current_subframe_dict = dict()
-			for movie_label in self.movie_obj_df.columns:
-				movie_maker = \
-					self.movie_obj_df.at[xy_pos_idx, movie_label]
-				current_subframe_dict[movie_label] = \
-					movie_maker.generate_movie_ims()
-			compiled_movie_dict = \
-				subframe_combiner.combine_subframes(current_subframe_dict)
-			if isinstance(movie_format, list):
-				for format in movie_format:
-					self._save_movie(compiled_movie_dict, xy_pos_idx, format,
-						duration, loop, jpeg_quality)
-			else:
-				self._save_movie(compiled_movie_dict, xy_pos_idx, movie_format,
-					duration, loop, jpeg_quality)
+		movie_maker = _PlotMovieMaker(
+			plot_prop,
+			self.col_prop_df,
+			self.analysis_config_obj_df,
+			facet_override = facet_override,
+			y_label_override = y_label_override)
+		return(movie_maker)
 
 def _generate_colony_colors(unique_colony_id_list,
 	unique_colony_hex_color_list, randomize_order = True):
@@ -1321,13 +1568,270 @@ def _generate_colony_colors(unique_colony_id_list,
 			hex_col = ['#fab514']
 		else:
 			hex_col = color_generator(color_num)
+			if randomize_order:
+				random.shuffle(hex_col)
 	else:
 		hex_col = unique_colony_hex_color_list
-	if randomize_order:
-		random.shuffle(hex_col)
 	color_df = pd.DataFrame({
 		'cross_phase_tracking_id': unique_colony_id_list,
 		'hex_color': hex_col,
 		'rgb_color': [ImageColor.getcolor(c, "RGB") for c in hex_col]
 		})
 	return(color_df)
+
+def _create_blank_im(width, height, blank_color):
+	'''
+	Returns blank image of correct color and size
+	'''
+	required_size = (int(width), int(height))
+	blank_im = \
+		Image.new('RGB', required_size, blank_color)
+	return(blank_im)
+
+def _place_im(subframe_im, main_im, width, height, top_offset, left_offset):
+	'''
+	Resizes Pillow Image object subframe and places it on Pillow 
+	Image object main_im
+	'''
+	# resize subframe
+	required_size = (int(width), int(height))
+	if subframe_im.size != required_size:
+		subframe_im = subframe_im.resize(required_size)
+	# place subframe on main_im
+	offset_position = (int(left_offset), int(top_offset))
+	main_im.paste(subframe_im, offset_position)
+	return(main_im)
+
+def _ratio_resize_convert(im, width, height, blank_color):
+	'''
+	Resizes im (which is an Image object) into an image with given 
+	width and height, but maintaining original aspect ratio; if 
+	the aspect ratio of the desired output image differs from the 
+	original, blank space in the output image is filled with 
+	blank_color
+	'''
+	# calculate resizing ratios
+	width_ori = im.width
+	height_ori = im.height
+	width_ratio = float(width)/float(width_ori)
+	height_ratio = float(height)/float(height_ori)
+	resize_ratio = np.min([width_ratio, height_ratio])
+	if np.all(resize_ratio == np.array([width_ratio, height_ratio])):
+		# aspect ratio of image is maintained
+		if resize_ratio == 1:
+			resized_im = im
+		else:
+			resized_im = \
+				im.resize(
+					(width*width_ratio, height*height_ratio)
+					)
+	else:
+		blank_im = _create_blank_im(width, height, blank_color)
+		x_offset = (1-resize_ratio/width_ratio)*float(width)/2
+		y_offset = (1-resize_ratio/height_ratio)*float(height)/2
+		resized_im = _place_im(
+			im,
+			blank_im,
+			resize_ratio*width_ori,
+			resize_ratio*height_ori,
+			y_offset,
+			x_offset
+			)
+	return(resized_im)
+
+def _check_rel_ratios(rel_ratio_list, obj_list):
+	# Converts ratio_list into a numpy array of relative ratios that 
+	# sum to 1
+	obj_num = len(obj_list)
+	if rel_ratio_list is None:
+		rel_ratio_list = np.array([1.0/obj_num]*obj_num)
+	else:
+		if not isinstance(rel_ratio_list, list) or \
+			len(rel_ratio_list) != obj_num:
+			raise TypeError('rel_ratio_list must be a list with the same '
+				'number of elements as obj_list')
+		rel_ratio_list = np.array(rel_ratio_list)
+		if not np.all(rel_ratio_list > 0):
+			raise ValueError('relative ratios must be greater than 0')
+		rel_ratio_list = rel_ratio_list/np.sum(rel_ratio_list)
+	return(rel_ratio_list)
+
+def safe_uint8_convert(im):
+	'''
+	Converts im to uint8, but sets oversaturated pixels to max 
+	intensity and throws oversaturation warning
+	'''
+	input_im = im.copy()
+	oversat_bool = input_im > 255
+	if np.sum(oversat_bool) > 0:
+		with warnings.catch_warnings():
+			warnings.simplefilter("always")
+			warnings.warn('Some pixels are oversaturated', UserWarning)
+	input_im[oversat_bool] = 255
+	input_im = np.uint8(input_im)
+	return(input_im)
+
+def merge_movie_channels(*movie_objects, intens_mult_list = None):
+	'''
+	Wrapper function for creating an object of _OverlayMovieMaker class
+	'''
+	# make movie_objects into unnested list
+	if isinstance(movie_objects[0],list):
+		movie_obj_list = list(chain.from_iterable(movie_objects))
+	else:
+		movie_obj_list = list(movie_objects)
+	overlay_movie_maker = \
+		_OverlayMovieMaker(movie_obj_list, intens_mult_list)
+	return(overlay_movie_maker)
+
+def make_movie_grid(*movie_objects, nrow = None, ncol = None, rel_widths = None, rel_heights = None):
+	'''
+	Creates a grid of movies from movie_objects, which can be either 
+	individual movies or other movie grids
+
+	In the case of multiple rows, movies are filled in along each row,
+	then moving on to the next row
+
+	nrow is the number of rows movies are arranged in
+
+	ncol (optional) is the number of columns movies are arranged in
+
+	If neither nrow or ncol is passed, make_movie_grid defaults to a 
+	single row
+
+	rel_widths is a vector of relative column widths; for example, in 
+	a two-column grid, rel_widths = [2, 1] would make the first column 
+	twice as wide as the second column. Default is None, in which case 
+	column widths are identical
+
+	rel_heights is a vector of relative row heights; works like 
+	rel_widths. Default is None, in which case column widths are 
+	identical
+	'''
+	# make movie_objects into unnested list
+	if isinstance(movie_objects[0],list):
+		movie_obj_list = list(chain.from_iterable(movie_objects))
+	else:
+		movie_obj_list = list(movie_objects)
+	movie_obj_num = len(movie_obj_list)
+	# check row and column numbers
+	if nrow is None and ncol is None:
+		nrow = 1
+	if ncol is None:
+		ncol = int(movie_obj_num/nrow)
+	elif nrow is None:
+		nrow = int(movie_obj_num/ncol)
+	else:
+		expected_obj_num = nrow*ncol
+		if movie_obj_num != expected_obj_num:
+			raise ValueError(
+				'Number of movie objects is '+str(movie_obj_num)+
+				', but expected number is nrow*ncol, '+str(expected_obj_num)
+				)
+	if not isinstance(nrow, int):
+		raise TypeError('nrow must be an integer')
+	if not isinstance(ncol, int):
+		raise TypeError('ncol must be an integer')
+	# create movie grids for every row, then combine them into a 
+	# single grid
+	row_grid_list = []
+	for curr_row in range(0, nrow):
+		start_idx = curr_row*ncol
+		end_idx = start_idx+ncol
+		curr_movie_obj_list = movie_obj_list[start_idx:end_idx]
+		row_grid = _MovieGrid(curr_movie_obj_list, 'row', rel_widths)
+		row_grid_list.append(row_grid)
+	# combine row_grids
+	full_grid = _MovieGrid(row_grid_list, 'column', rel_heights)
+	return(full_grid)
+
+def save_movie(movie_saver_obj,
+		movie_output_path, movie_name, movie_format,
+		movie_width = None, movie_height = None,
+		blank_color = 'white', duration = 1000, loop = 0,
+		jpeg_quality = 95):
+	'''
+	Saves movie
+	'''
+	movie_saver_obj.write_movie(
+		movie_format, movie_output_path, movie_name,
+		movie_width, movie_height,
+		blank_color, duration, loop, jpeg_quality)
+
+def make_position_movie(
+	xy_pos_idx,
+	analysis_config_file = None,
+	analysis_config_obj_df = None,
+	colony_subset = 'growing'
+	):
+	'''
+	Creates a movie for a single imaging field numbered xy_pos_idx, 
+	showing the colony outlines on the background of the main imaging 
+	channel, and the change in log area over time
+
+	xy_pos_idx is the integer of the position for which the movie 
+	should be made
+
+	Either analysis_config_file or an existing analysis_config_obj_df 
+	must be passed
+
+	colony_subset can be:
+	-	'growing': to label only those colonies that receive a growth 
+		rate measurement after filtration
+	-	'tracked': to label all colonies that were tracked, but not 
+		include those that were recognized but then removed because
+		they were e.g. a minor part of a broken-up colony
+	-	'all': to label all colonies detected by PIE
+	(default is 'growing')
+	'''
+	# check that only analysis_config_obj_df or
+	# analysis_config_file is passed, and get analysis_config_obj_df
+	analysis_config_obj_df = check_passed_config(
+		analysis_config_obj_df, analysis_config_file
+		)
+	# read in colony properties df
+	temp_analysis_config_standin = \
+		analysis_config_obj_df.iloc[0]['analysis_config']
+	if colony_subset == 'growing':
+		colony_df = temp_analysis_config_standin.get_gr_data()
+	elif colony_subset == 'tracked':
+		colony_df = \
+			temp_analysis_config_standin.get_colony_data_tracked_df(
+				remove_untracked = True, filter_by_phase = False)
+	elif colony_subset == 'all':
+		colony_df = \
+			temp_analysis_config_standin.get_colony_data_tracked_df(
+				remove_untracked = False, filter_by_phase = False)
+	crossphase_colony_id_list = \
+		list(
+			colony_df[
+				colony_df.xy_pos_idx == xy_pos_idx
+				].cross_phase_tracking_id.unique()
+			)
+	if crossphase_colony_id_list:
+		# generate movies
+		movie_generator = MovieGenerator(
+			crossphase_colony_id_list,
+			analysis_config_obj_df = analysis_config_obj_df,
+			)
+		col_shading_alpha = 0.5
+		normalize_intensity = True
+		bound_width = 2
+		# set expansion pixels to ridiculously large number so code 
+		# defaults to showing full frame
+		cells = \
+			movie_generator.make_cell_movie(
+				col_shading_alpha,
+				bound_width,
+				normalize_intensity,
+				expansion_pixels = 10**10)
+		gr_plot = \
+			movie_generator.make_growth_plot_movie()
+		# write movie (try to ensure plot is a square for prettyness)
+		cell_hw_ratio = float(cells.inherent_size[1])/float(cells.inherent_size[1])
+		movie_grid = \
+			make_movie_grid(cells, gr_plot, rel_widths = [1, cell_hw_ratio])
+		movie_output_path = temp_analysis_config_standin.movie_folder
+		movie_name = 'xy'+str(xy_pos_idx)+'_'+colony_subset+'_colonies_movie'
+		save_movie(movie_grid, movie_output_path, movie_name, 'gif')
+

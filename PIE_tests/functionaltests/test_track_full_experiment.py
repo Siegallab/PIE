@@ -149,7 +149,7 @@ class TestPythonRun(SetupTeardown, ParentTestClass):
 		input_path = os.path.join('PIE_test_data','IN','SL_170619_2_GR_small')
 		PIE.run_default_growth_rate_analysis(input_path, output_path,
 			total_timepoint_num = 10, total_xy_position_num = 1000,
-			timepoint_spacing = 3600, extended_display_positions = [1, 4, 11],
+			timepoint_spacing = 3600, extended_display_positions = [4, 11],
 			growth_window_timepoints = 7,
 			max_area_pixel_decrease = 500, min_colony_area = 30,
 			max_colony_area = np.inf, min_correlation = 0.9, min_neighbor_dist = 100)

@@ -42,6 +42,8 @@ class TestAnalysisConfigInit(unittest.TestCase):
 			os.path.join(self.output_path,'colony_properties_combined.csv')
 		self.col_properties_output_folder = \
 			os.path.join(self.output_path,'positionwise_colony_properties')
+		self.movie_folder = \
+			os.path.join(self.output_path,'movies')
 		self.phase_output_path = os.path.join(self.output_path,'phase_1')
 		self.phase_col_property_mats_output_folder = \
 			os.path.join(self.phase_output_path,
@@ -103,6 +105,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 			self.combined_tracked_properties_write_path
 		expected_analysis_config.col_properties_output_folder = \
 			self.col_properties_output_folder
+		expected_analysis_config.movie_folder = self.movie_folder
 		expected_analysis_config.timepoint_list = range(1,11)
 		expected_analysis_config.timepoint_dict = \
 			dict(zip(range(1,11), np.arange(1,11)*3600.0))
