@@ -251,18 +251,6 @@ class _MovieMaker(_MovieSaver):
 		self.global_timepoints = global_timepoints
 		# set up inherent movie size
 		self._calc_inherent_size()
-#		# set up _MovieGrid options
-#		_MovieGrid.__init__(
-#			self,
-#			pd.DataFrame(
-#				{'movie_maker':self,
-#				'row_prop':1,
-#				'col_prop':1,
-#				'left_pos':0,
-#				'top_pos':0},
-#				Index = [0]
-#				)
-#			)
 
 class _PlotMovieMaker(_MovieMaker):
 	'''
@@ -350,27 +338,39 @@ class _PlotMovieMaker(_MovieMaker):
 		If property_label is not None, y axis is relabeled with
 		property_label
 		'''
+		# set up dataframe for plotting
 		# convert phase_num to string for plotting
-		mod_col_prop = self.col_prop_df.copy()
-		mod_col_prop.phase_num = mod_col_prop.phase_num.astype(str)
-		df_to_plot = \
-			self.col_prop_df[
-				self.col_prop_df.global_timepoint <= last_glob_tp
-				].copy()
+		df_to_plot = self.col_prop_df.copy()
 		df_to_plot.phase_num = df_to_plot.phase_num.astype(str)
+		# set up transparency column based on timepoint
+		# make current value solid, previous values opaque, future 
+		# values invisible
+		df_to_plot['pt_time'] = 'future'
+		df_to_plot.loc[
+			df_to_plot.global_timepoint < last_glob_tp, 'pt_time'
+			] = 'past'
+		df_to_plot.loc[
+			df_to_plot.global_timepoint == last_glob_tp, 'pt_time'
+			] = 'present'
 		# pass full data to ggplot for scales
 		ggplot_obj = \
-			p9.ggplot(data = mod_col_prop) + \
+			p9.ggplot(data = df_to_plot) + \
 			p9.geom_point(
-				data = df_to_plot,
 				mapping = p9.aes(
 					x = 'time_in_hours',
 					y = self.plot_prop,
 					color = 'hex_color',
-					shape = 'phase_num'),
-				size = 1,
+					shape = 'phase_num',
+					alpha = 'pt_time'),
+				stroke = 0,
+				size = 3,
 				) + \
 			p9.scale_colour_identity() + \
+			p9.scale_alpha_manual(
+#				breaks=['future','past'],
+				values={'future':0,'past':0.25, 'present':1}
+				) + \
+			p9.guides(alpha = False) + \
 			p9.theme(legend_position="bottom",
 				plot_margin = 0) + \
 			p9.theme_bw()
@@ -411,7 +411,9 @@ class _PlotMovieMaker(_MovieMaker):
 		# modified from https://stackoverflow.com/a/58641662/8082611
 		buf = BytesIO()
 		# create fake width and height based on pixels
-		fake_dpi = 300 # this parameter doesn't matter at all
+		# this parameter actually ends up affecting text size on the 
+		# plot...... and so needs to be kept relatively consistent
+		fake_dpi = 300
 		with warnings.catch_warnings():
 			warnings.simplefilter("ignore")
 			ggplot_obj.save(
@@ -437,13 +439,15 @@ class _PlotMovieMaker(_MovieMaker):
 		Creates plot as image, plotting all points up to and including
 		last_glob_tp
 		'''
-		ggplot_obj = self._plot_property(last_glob_tp)
+		with warnings.catch_warnings():
+			warnings.simplefilter("ignore")
+			ggplot_obj = self._plot_property(last_glob_tp)
 		plot_im = self._plot_to_im(ggplot_obj, width, height)
 		return(plot_im)
 
 	def generate_movie_ims(self, width, height, blank_color):
 		self.movie_holder = MovieHolder(self.global_timepoints)
-		for global_tp in self.col_prop_df.global_timepoint:
+		for global_tp in self.col_prop_df.global_timepoint.unique():
 			plot_im = self._create_plot(global_tp, width, height)
 			self.movie_holder.add_im(global_tp, plot_im)
 		return(self.movie_holder.im_df)
@@ -577,7 +581,9 @@ class _GrowthPlotMovieMaker(_PlotMovieMaker):
 		Creates plot as image, plotting all points up to and including
 		last_glob_tp
 		'''
-		ggplot_obj = self._plot_growth_rate(last_glob_tp)
+		with warnings.catch_warnings():
+			warnings.simplefilter("ignore")
+			ggplot_obj = self._plot_growth_rate(last_glob_tp)
 		plot_im = self._plot_to_im(ggplot_obj, width, height)
 		return(plot_im)
 
@@ -1074,9 +1080,10 @@ class _OverlayMovieMaker(_ImMovieMaker):
 		Gets full list of global timepoints across all objects in
 		movie_obj_list
 		'''
-		global_timepoints_nested = \
-			[x.movie_holder.im_df.index.to_list() for x in movie_obj_list]
-		global_timepoints = list(chain(*global_timepoints_nested))
+		global_timepoints = \
+			list(set(chain(
+				*[x.global_timepoints for x in movie_obj_list]
+				)))
 		return(global_timepoints)
 
 	def _get_analysis_config_obj_df(self, movie_obj_list):
