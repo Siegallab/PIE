@@ -10,6 +10,7 @@ import numpy as np
 import os
 import pandas as pd
 from PIE import adaptive_threshold, ported_matlab, colony_edge_detect
+from PIE.image_coloring import create_color_overlay
 
 class _ImageAnalyzer(object):
 	'''
@@ -598,49 +599,6 @@ class _ColonyPropertyFinder(object):
 			# add colony fluorescent properties to current row
 			self.property_df.at[idx, channel_fluor_prop_names] = \
 				colony_fluor_prop_dict.values()
-
-def colorize_im(input_im, rgb_tuple):
-	'''
-	Colorizes grayscale image input_im so that pixel colors go from
-	black to color specified by rgb_tuple
-
-	input_im is an 8-bit cv2 image
-
-	rgb_tuple is in the format (R,G,B), with a max value of 255
-	'''
-	color_image = np.copy(input_im)
-	if len(np.shape(color_image)) == 2:
-		color_image = cv2.cvtColor(np.float32(color_image), cv2.COLOR_GRAY2RGB)
-	colorized_image = np.uint8(color_image*np.array(rgb_tuple)/255)
-	return(colorized_image)
-
-def create_color_overlay(image, mask, mask_color, mask_alpha,
-	bitdepth = None):
-	'''
-	Creates an rbg image of image with mask overlaid on it in
-	mask_color with mask_alpha
-
-	mask_color is a list of r, g, b values on a scale of 0 to 255
-
-	If bitdepth is None, uses the max of supplied image as the max
-	intensity
-	'''
-	# convert image to colot if necessary
-	color_image = np.copy(image)
-	if len(np.shape(color_image)) == 2:
-		color_image = cv2.cvtColor(np.float32(color_image), cv2.COLOR_GRAY2RGB)
-	# set max image intensity
-	if bitdepth is None:
-		max_intensity = np.max(color_image)
-	else:
-		max_intensity = 2**bitdepth-1
-	# adjust mask_color by alpha, inverse, scale to image bitdepth
-	mask_color_adjusted_tuple = \
-		tuple(float(k)/255*max_intensity*mask_alpha for k in mask_color[::-1])
-	color_image[mask] = \
-		np.round(color_image[mask].astype(float) * (1-mask_alpha) +
-			mask_color_adjusted_tuple).astype(int)
-	return(color_image)
 
 def analyze_single_image(input_im_path, output_path,
 	image_type, hole_fill_area, cleanup, max_proportion_exposed_edge,

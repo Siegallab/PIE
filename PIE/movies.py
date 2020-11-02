@@ -15,7 +15,7 @@ from mizani.palettes import hue_pal # installed with plotnine
 from io import BytesIO
 from itertools import chain
 from PIL import ImageColor, Image
-from PIE.image_properties import create_color_overlay, colorize_im
+from PIE.image_coloring import paint_by_numbers, colorize_im, overlay_color_im
 from PIE.analysis_configuration import check_passed_config, process_setup_file
 from PIE.colony_prop_compilation import get_colony_properties
 from PIE.ported_matlab import bwperim
@@ -427,7 +427,7 @@ class _PlotMovieMaker(_MovieMaker):
 		img_cv2 = cv2.imdecode(
 			np.frombuffer(buf.getvalue(), dtype=np.uint8), 1
 			)
-		img = Image.fromarray(img_cv2, 'RGB')
+		img = Image.fromarray(cv2.cvtColor(img_cv2, cv2.COLOR_BGR2RGB), 'RGB')
 #		img = Image.frombuffer('RGB', (width, height), buf.getvalue(), 'raw', 'RGB', 0, 1)
 		buf.close()
 #		img = cv2.imdecode(img_arr, 1)
@@ -729,45 +729,6 @@ class _PositionMovieMaker(_ImMovieMaker):
 		im_height = self.y_range_end - self.y_start
 		self.inherent_size = (im_width, im_height)
 
-	def _color_colony(self, col_row, input_im, labeled_mask,
-		override_shading = False):
-		'''
-		Adds overlay (with opacity dependent on self.col_shading_alpha)
-		and boundary (with width dependent on
-		self.bound_width) to a single colony
-		'''
-		current_label = col_row.label
-		if isinstance(current_label, str):
-			label_list = [int(l) for l in current_label.split(';')]
-		else:
-			label_list = [int(current_label)]
-		colony_mask = np.isin(labeled_mask, label_list)
-		if override_shading or self.col_shading_alpha == 0:
-			shaded_im = input_im
-		else:
-			# draw overlay for current colony on input_im
-			shaded_im = create_color_overlay(input_im, colony_mask,
-				col_row.rgb_color, self.col_shading_alpha, bitdepth = 8)
-		# draw boundary of current colony on input_im
-		if self.bound_width > 0:
-			colony_boundary_mask = \
-				np.zeros(colony_mask.shape, dtype = bool)
-			for bound_counter in range(0,self.bound_width):
-				# boundary is previous boundary combined with outline of
-				# previous colony_mask
-				colony_boundary_mask = np.logical_or(colony_boundary_mask,
-					bwperim(colony_mask))
-				# next colony_mask is previous colony_mask minus current
-				# boundary
-				colony_mask = \
-					np.logical_and(np.invert(colony_boundary_mask),
-						colony_mask)
-			output_im = create_color_overlay(shaded_im, colony_boundary_mask,
-				col_row.rgb_color, 1, bitdepth = 8)
-		else:
-			output_im = shaded_im
-		return(output_im)
-
 	def _create_subframe(self, frame):
 		'''
 		Crops frame based on values created in self._id_im_bounds
@@ -775,6 +736,31 @@ class _PositionMovieMaker(_ImMovieMaker):
 		subframe = \
 			frame[self.y_start:self.y_range_end, self.x_start:self.x_range_end]
 		return(subframe)
+
+	def _subframe_and_colorize(self, im, im_color):
+		'''
+		Crops im based on bounds and returns normalized, colorized 
+		8-bit np array
+
+		color of image is black for 0 intensity and im_color for max 
+		possible intensity
+		'''
+		if im is None:
+			im_8_bit = self._create_blank_subframe()
+		else:
+			# subframe mask and input im
+			input_im = self._create_subframe(im)
+			# convert input_im to 8-bit, normalizing if necessary
+			if self.normalize_intensity:
+				im_8_bit = cv2.normalize(input_im, None, alpha=0, beta=(2**8-1),
+					norm_type=cv2.NORM_MINMAX)
+			else:
+				# change bitdepth to 8-bit
+				im_8_bit = \
+					np.uint8(np.round(input_im.astype(float)/(2**(self.bitdepth - 8))))
+		# initialize image to overlay and colorize if necessary
+		im_colorized = colorize_im(im_8_bit, im_color)
+		return(im_colorized)
 
 	def _get_fluor_property(self, channel_name, analysis_config, fluor_property):
 		'''
@@ -789,9 +775,11 @@ class _PositionMovieMaker(_ImMovieMaker):
 			prop = None
 		return(prop)
 
-	def _create_blank_subframe(self):
+	def _create_blank_subframe(self, third_dim = False):
 		'''
 		Creates a black cv2 8-bit image of self.inherent_size
+
+		If third_dim is True, adds third dimension
 		'''
 		blank_subframe = np.uint8(np.zeros(
 			shape = (
@@ -799,24 +787,119 @@ class _PositionMovieMaker(_ImMovieMaker):
 				self.inherent_size[0]
 				)
 			))
+		if third_dim:
+			blank_subframe = np.dstack([blank_subframe]*3)
 		return(blank_subframe)
 
-	def generate_frame(self, global_timepoint):
+	def _get_glob_tp_data(self, global_timepoint):
 		'''
-		Generates a boundary image for global_timepoint
+		Returns timepoint and analysis_config associated with 
+		global_timepoint
 		'''
+		tp_col_prop_df = self.col_prop_df[
+			self.col_prop_df.global_timepoint == global_timepoint
+			]
+		phase = self._get_single_val_from_df('phase_num', tp_col_prop_df)
+		timepoint = int(
+			self._get_single_val_from_df('timepoint', tp_col_prop_df)
+			)
+		analysis_config = \
+			self.analysis_config_obj_df.at[phase, 'analysis_config']
+		analysis_config.set_xy_position(self.xy_pos_idx)
+		return(timepoint, analysis_config)
+
+	def _make_label_key_dict(self, col_prop_df):
+		'''
+		Makes a dict with keys from col_prop_df.label and values 
+		(r,g,b) tuples from self.col_prop_df.rgb_color
+		'''
+		# get col_prop_df for current timepoint
+		label_color_dict = {}
+		for col_row in col_prop_df.itertuples():
+			# create list of labels
+			current_label = col_row.label
+			if isinstance(current_label, str):
+				label_list = [int(l) for l in current_label.split(';')]
+			else:
+				label_list = [int(current_label)]
+			# get rgb tuple
+			rgb_val = col_row.rgb_color
+			rgb_val_list = [rgb_val]*len(label_list)
+			# make dict of labels and copies of current rgb tuple
+			current_dict = dict(zip(label_list, rgb_val_list))
+			# add dict to full dictionary
+			label_color_dict.update(current_dict)
+		return(label_color_dict)
+
+	def _generate_color_overlays_confirmed(self, timepoint, analysis_config, 
+		tp_col_prop_df):
+		'''
+		Returns colony and boundary overlay for timepoint from 
+		analysis_config, for colonies in tp_col_prop_df
+		'''
+		# read in mask
+		mask_image_name = analysis_config.create_file_label(
+			int(timepoint),
+			analysis_config.xy_position_idx,
+			analysis_config.main_channel_label)
+		colony_mask_path = \
+			os.path.join(
+				analysis_config.phase_output_path,
+				'colony_masks',
+				mask_image_name + '.tif'
+				)
+		labeled_mask_full = \
+			cv2.imread(colony_mask_path, cv2.IMREAD_ANYDEPTH)
+		# crop mask
+		labeled_mask = self._create_subframe(labeled_mask_full)
+		# create labeled mask of boundaries
+		bool_mask = labeled_mask > 0
+		boundary_mask = get_boundary(bool_mask, self.bound_width)
+		labeled_boundary_mask = labeled_mask*np.uint8(boundary_mask)
+		# get dictionary of labels and colors
+		label_key_dict = self._make_label_key_dict(tp_col_prop_df)
+		# get colored colony and boundary masks
+		colored_colony_mask = \
+			paint_by_numbers(labeled_mask, label_key_dict)
+		colored_boundary_mask = \
+			paint_by_numbers(labeled_boundary_mask, label_key_dict)
+		return(colored_colony_mask, colored_boundary_mask)
+
+	def generate_color_overlays(self, global_timepoint):
+		'''
+		Returns colony and boundary overlay for global_timepoint
+		'''
+		# get labeled colony mask and input file
 		if global_timepoint in self.col_prop_df.global_timepoint.values:
+			# get timepoint and analysis_config
+			timepoint, analysis_config = \
+				self._get_glob_tp_data(global_timepoint)
+			# get col_prop_df for current timepoint
 			tp_col_prop_df = self.col_prop_df[
 				self.col_prop_df.global_timepoint == global_timepoint
 				]
-			phase = self._get_single_val_from_df('phase_num', tp_col_prop_df)
-			timepoint = int(
-				self._get_single_val_from_df('timepoint', tp_col_prop_df)
-				)
-			analysis_config = \
-				self.analysis_config_obj_df.at[phase, 'analysis_config']
-			analysis_config.set_xy_position(self.xy_pos_idx)
-			# get channel label to use for main image analysis
+			colored_colony_mask, colored_boundary_mask = \
+				self._generate_color_overlays_confirmed(
+					timepoint, analysis_config, tp_col_prop_df
+					)
+		else:
+			colored_colony_mask = self._create_blank_subframe(third_dim = True)
+			colored_boundary_mask = colored_colony_mask.copy()
+		return(colored_colony_mask, colored_boundary_mask)
+
+	def generate_raw_frame(self, global_timepoint):
+		'''
+		Generates image subframe for global_timepoint without colony 
+		recognition image overlay, and colorizes it based on 
+		self.main_phase_color
+
+		returns np.uint8 array
+		'''
+		if global_timepoint in self.col_prop_df.global_timepoint.values:
+			# get timepoint and analysis_config
+			timepoint, analysis_config = \
+				self._get_glob_tp_data(global_timepoint)
+			# get channel_label to use
 			if self.base_fluor_channel is None:
 				channel_label = analysis_config.main_channel_label
 			else:
@@ -825,118 +908,64 @@ class _PositionMovieMaker(_ImMovieMaker):
 					analysis_config,
 					'fluor_channel_label'
 					)
-			# get labeled colony mask and input file
-			mask_image_name = analysis_config.create_file_label(
-				timepoint,
-				analysis_config.xy_position_idx,
-				analysis_config.main_channel_label)
-			colony_mask_path = \
-				os.path.join(
-					analysis_config.phase_output_path,
-					'colony_masks',
-					mask_image_name + '.tif'
-					)
-			labeled_mask_full = cv2.imread(colony_mask_path, cv2.IMREAD_ANYDEPTH)
+			# get input image
 			if channel_label is None:
 				input_im_full = None
 			else:
 				input_im_full, _, _ = \
 					analysis_config.get_image(timepoint, channel_label)
-			if input_im_full is None:
-				im_8_bit = self._create_blank_subframe()
-			else:
-				# subframe mask and input im
-				input_im = self._create_subframe(input_im_full)
-				# convert input_im to 8-bit, normalizing if necessary
-				if self.normalize_intensity:
-					im_8_bit = cv2.normalize(
-						input_im,
-						None,
-						alpha=0,
-						beta=(2**8-1),
-						norm_type=cv2.NORM_MINMAX
-						)
-				else:
-					# change bitdepth to 8-bit
-					im_8_bit = \
-						np.uint8(np.round(
-							input_im.astype(float)/(2**(self.bitdepth - 8))
-							))
-			labeled_mask = self._create_subframe(labeled_mask_full)
-			# initialize image to overlay and colorize if necessary
-			im_with_overlay = colorize_im(im_8_bit, self.main_phase_color)
-			# loop over colonies in tp_col_prop_df, add colored overlay for
-			# each one
-			for col_row in tp_col_prop_df.itertuples():
-				im_with_overlay = \
-					self._color_colony(col_row, im_with_overlay, labeled_mask)
-			# convert im_with_overlay to Pillow Image object
-			im_with_overlay_pil = \
-				Image.fromarray(im_with_overlay.astype('uint8'), 'RGB')
+			# get cropped, normalized, colorized image
+			im_colorized = self._subframe_and_colorize(
+				input_im_full, self.main_phase_color
+				)
 		else:
-			im_with_overlay_pil = \
-				_create_blank_im(
-					self.inherent_size[0],
-					self.inherent_size[1],
-					'black'
-					)
+			im_colorized = self._create_blank_subframe(third_dim = True)
+		return(im_colorized)
+
+	def generate_frame(self, global_timepoint):
+		'''
+		Generates a boundary image for global_timepoint
+		'''	
+		# initialize image subframe and colorize if necessary
+		im = self.generate_raw_frame(global_timepoint)
+		colored_colony_mask, colored_boundary_mask = \
+			self.generate_color_overlays(global_timepoint)
+		# shade colonies
+		if self.col_shading_alpha == 0:
+			shaded_im = im
+		else:
+			shaded_im = overlay_color_im(
+				im,
+				colored_colony_mask,
+				self.col_shading_alpha
+				)
+		# add colony boundary
+		im_with_overlay = overlay_color_im(
+			shaded_im,
+			colored_boundary_mask,
+			1
+			)
+		# convert im_with_overlay to Pillow Image object
+		im_with_overlay_pil = \
+			Image.fromarray(im_with_overlay.astype('uint8'), 'RGB')
 		return(im_with_overlay_pil)
 
-	def generate_postphase_frame(self, phase):
+	def generate_postphase_raw_frame(self, phase):
 		'''
-		Generates a boundary image for postphase fluorescent image
+		Generates image subframe for postphase fluorescence for phase, 
+		and colorizes it based on self.main_phase_color
+
+		returns np.uint8 array
 		'''
 		postphase_analysis_config = \
 			self.analysis_config_obj_df.at[phase,
 				'postphase_analysis_config']
-		# get postphase image if necessary
 		if postphase_analysis_config is None or \
 			self.postphase_fluor_channel is None:
 			global_tp = None
-			im_with_overlay_pil = None
+			im_colorized = None
 		else:
-			analysis_config = \
-				self.analysis_config_obj_df.at[phase,
-					'analysis_config']
 			postphase_analysis_config.set_xy_position(self.xy_pos_idx)
-			analysis_config.set_xy_position(self.xy_pos_idx)
-			phase_col_prop_df = self.col_prop_df[
-				self.col_prop_df.phase_num == phase
-				]
-			# get timepoint at which to draw boundary for each colony
-			timepoint_label = \
-				self._get_fluor_property(
-					self.postphase_fluor_channel,
-					postphase_analysis_config,
-					'fluor_timepoint'
-					)
-			# need to import label colony property mat dataframe
-			label_property_mat_path = \
-				analysis_config.get_property_mat_path('label')
-			label_property_mat_df = pd.read_csv(label_property_mat_path, index_col = 0)
-			# make df that holds label, timepoint to use, and
-			# cross_phase_tracking_id for each colony
-			colony_df = phase_col_prop_df[
-				['time_tracking_id', 'cross_phase_tracking_id', 'rgb_color']
-				].drop_duplicates()
-			# read in growth rate df if necessary
-			if isinstance(timepoint_label, str) and \
-				timepoint_label in ['first_gr', 'last_gr']:
-				gr_df = pd.read_csv(analysis_config.phase_gr_write_path, index_col = 0)
-				indices_to_get = list(
-					set(gr_df.index).intersection(
-						set(colony_df.time_tracking_id.to_list())))
-				colony_df = colony_df[colony_df.time_tracking_id.isin(indices_to_get)]
-			else:
-				gr_df = None
-			# get timepoint labels from current phase corresponding to self.
-			colony_df['label'], colony_df['timepoint'] = \
-				get_colony_properties(
-					label_property_mat_df,
-					timepoint_label,
-					index_names = colony_df.time_tracking_id.to_list(),
-					gr_df = gr_df
-					)
 			# get input image for postphase fluorescent channel
 			postphase_fluor_channel_label = \
 				self._get_fluor_property(
@@ -952,53 +981,119 @@ class _PositionMovieMaker(_ImMovieMaker):
 						None,
 						postphase_fluor_channel_label
 						)
-			if input_im_full is None:
-				im_8_bit = self._create_blank_subframe()
+			# get cropped, normalized, colorized image
+			im_colorized = self._subframe_and_colorize(
+				input_im_full, self.postphase_color)
+		return(im_colorized)
+
+	def generate_postphase_color_bounds(self, phase):
+		'''
+		Returns boundary overlay for postphase
+		'''
+		postphase_analysis_config = \
+			self.analysis_config_obj_df.at[phase,
+				'postphase_analysis_config']
+		# get postphase image if necessary
+		if postphase_analysis_config is None or \
+			self.postphase_fluor_channel is None:
+			colored_boundary_mask = \
+				self._create_blank_subframe(third_dim = True)
+		else:
+			analysis_config = \
+				self.analysis_config_obj_df.at[phase,
+					'analysis_config']
+#			postphase_analysis_config.set_xy_position(self.xy_pos_idx)
+			analysis_config.set_xy_position(self.xy_pos_idx)
+			# get timepoint at which to draw boundary for each colony
+			timepoint_label = \
+				self._get_fluor_property(
+					self.postphase_fluor_channel,
+					postphase_analysis_config,
+					'fluor_timepoint'
+					)			
+			# make df that holds label, timepoint to use, and
+			# cross_phase_tracking_id for each colony in current phase
+			phase_col_prop_df = self.col_prop_df[
+				self.col_prop_df.phase_num == phase
+				]
+			colony_df = phase_col_prop_df[
+				['time_tracking_id', 'cross_phase_tracking_id', 'rgb_color']
+				].drop_duplicates()
+			# get timepoint at which to draw boundary for each colony
+			timepoint_label = \
+				self._get_fluor_property(
+					self.postphase_fluor_channel,
+					postphase_analysis_config,
+					'fluor_timepoint'
+					)
+			# read in growth rate df if necessary
+			if isinstance(timepoint_label, str) and \
+				timepoint_label in ['first_gr', 'last_gr']:
+				gr_df = pd.read_csv(analysis_config.phase_gr_write_path, index_col = 0)
+				indices_to_get = list(
+					set(gr_df.index).intersection(
+						set(colony_df.time_tracking_id.to_list())))
+				colony_df = colony_df[colony_df.time_tracking_id.isin(indices_to_get)]
 			else:
-				# subframe mask and input im
-				input_im = self._create_subframe(input_im_full)
-				# convert input_im to 8-bit, normalizing if necessary
-				if self.normalize_intensity:
-					im_8_bit = cv2.normalize(input_im, None, alpha=0, beta=(2**8-1),
-						norm_type=cv2.NORM_MINMAX)
-				else:
-					# change bitdepth to 8-bit
-					im_8_bit = \
-						np.uint8(np.round(input_im.astype(float)/(2**(self.bitdepth - 8))))
-			# initialize image to overlay and colorize if necessary
-			im_with_overlay = colorize_im(im_8_bit, self.postphase_color)
-			# loop through timepoints in colony_df and draw bounds on
-			# colonies corresponding to each
+				gr_df = None
+			# get timepoint labels from current phase
+			# need to import label colony property mat dataframe
+			label_property_mat_path = \
+				analysis_config.get_property_mat_path('label')
+			label_property_mat_df = pd.read_csv(label_property_mat_path, index_col = 0)
+			colony_df['label'], colony_df['timepoint'] = \
+				get_colony_properties(
+					label_property_mat_df,
+					timepoint_label,
+					index_names = colony_df.time_tracking_id.to_list(),
+					gr_df = gr_df
+					)
+			colored_boundary_mask = self._create_blank_subframe(third_dim = True)
 			for timepoint in colony_df.timepoint.unique():
 				# get part of colony_df corresponding to the current
 				# timepoint
-				tp_col_prop_df = colony_df[colony_df.timepoint == timepoint]
-				# get labeled colony mask and input file
-				mask_image_name = analysis_config.create_file_label(
-					int(timepoint),
-					analysis_config.xy_position_idx,
-					analysis_config.main_channel_label)
-				colony_mask_path = \
-					os.path.join(
-						analysis_config.phase_output_path,
-						'colony_masks',
-						mask_image_name + '.tif'
+				current_col_prop_df = \
+					colony_df[
+						colony_df.timepoint == timepoint
+						]
+				_, current_boundary_mask = \
+					self._generate_color_overlays_confirmed(
+						timepoint,
+						analysis_config,
+						current_col_prop_df
 						)
-				labeled_mask_full = cv2.imread(colony_mask_path, cv2.IMREAD_ANYDEPTH)
-				if input_im_full is None:
-					raise ValueError(
-						'Missing input im for timepoint '+str(timepoint)+
-						'and channel ' + channel)
-				# subframe mask
-				labeled_mask = self._create_subframe(labeled_mask_full)
-				# loop over colonies in tp_col_prop_df, add colored overlay for
-				# each one
-				for col_row in tp_col_prop_df.itertuples():
-					im_with_overlay = \
-						self._color_colony(col_row, im_with_overlay, labeled_mask,
-							override_shading = True)
-			# add image with overlay to movie_holder
+				# add current colony boundary mask to full boundary mask
+				colored_boundary_mask = overlay_color_im(
+					colored_boundary_mask, current_boundary_mask, 1
+					)
+		return(colored_boundary_mask)
+
+	def generate_postphase_frame(self, phase):
+		'''
+		Generates a boundary image for postphase fluorescent image
+		'''
+		# get modified global_timepoint
+		postphase_analysis_config = \
+			self.analysis_config_obj_df.at[phase,
+				'postphase_analysis_config']
+		if postphase_analysis_config is None or \
+			self.postphase_fluor_channel is None:
+			global_tp = None
+			im_with_overlay_pil = None
+		else:
+			phase_col_prop_df = self.col_prop_df[
+				self.col_prop_df.phase_num == phase
+				]
 			global_tp = phase_col_prop_df.global_timepoint.max() + 0.1
+			# get raw fluor image
+			colorized_im = self.generate_postphase_raw_frame(phase)
+			colored_boundary_mask = self.generate_postphase_color_bounds(phase)
+			# add colony boundary
+			im_with_overlay = overlay_color_im(
+				colorized_im,
+				colored_boundary_mask,
+				1
+				)
 			# convert im_with_overlay to Pillow Image object
 			im_with_overlay_pil = \
 				Image.fromarray(im_with_overlay.astype('uint8'), 'RGB')
@@ -1124,6 +1219,19 @@ class _OverlayMovieMaker(_ImMovieMaker):
 		else:
 			self.inherent_size = unique_inherent_sizes[0]
 
+	def generate_frame(self, global_tp):
+		im_combined = im_empty.copy()
+		for overlay_idx in self.overlay_df.index:
+			mov_obj = self.overlay_df.at[overlay_idx, 'movie_obj']
+			intens_mult = self.overlay_df.at[overlay_idx, 'intens_mult']
+			im_with_overlay = mov_obj.generate_frame(global_tp)
+			if im_with_overlay != None:
+				im_combined = im_combined + im_with_overlay*intens_mult
+		im_combined_8bit = safe_uint8_convert(im_combined)
+		# add image with overlay to movie_holder
+		# convert to Pillow Image format first
+		im_combined_pil = Image.fromarray(im_combined_8bit, 'RGB')
+
 	def generate_movie_ims(self, width, height, blank_color):
 		# first add the regular images, then the postphase images
 		self.movie_holder = MovieHolder(self.global_timepoints)
@@ -1131,17 +1239,7 @@ class _OverlayMovieMaker(_ImMovieMaker):
 			shape = (self.inherent_size[1], self.inherent_size[0], 3)
 			)
 		for global_tp in self.movie_holder.im_df.index:
-			im_combined = im_empty.copy()
-			for overlay_idx in self.overlay_df.index:
-				mov_obj = self.overlay_df.at[overlay_idx, 'movie_obj']
-				intens_mult = self.overlay_df.at[overlay_idx, 'intens_mult']
-				im_with_overlay = mov_obj.generate_frame(global_tp)
-				if im_with_overlay != None:
-					im_combined = im_combined + im_with_overlay*intens_mult
-			im_combined_8bit = safe_uint8_convert(im_combined)
-			# add image with overlay to movie_holder
-			# convert to Pillow Image format first
-			im_combined_pil = Image.fromarray(im_combined_8bit, 'RGB')
+			im_combined_pil = self.generate_frame(global_tp)
 			im_resized = \
 				_ratio_resize_convert(
 					im_combined_pil, width, height, blank_color
@@ -1662,6 +1760,23 @@ def _check_rel_ratios(rel_ratio_list, obj_list):
 			raise ValueError('relative ratios must be greater than 0')
 		rel_ratio_list = rel_ratio_list/np.sum(rel_ratio_list)
 	return(rel_ratio_list)
+
+def get_boundary(bool_mask, bound_width):
+	'''
+	Returns image with boundaries of thickness bound_width for all 
+	True objects in bool_mask; boundaries start inside bounds of 
+	original objects
+
+	bool_mask is a 2-D boolean np array
+
+	bound_width is an integer
+	'''
+	mask_im = np.uint8(bool_mask)
+	kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+	eroded_mask_im = cv2.erode(mask_im,kernel,iterations=bound_width)
+	bound_mask_im = mask_im-eroded_mask_im
+	bound_mask_bool = bound_mask_im.astype(bool)
+	return(bound_mask_bool)
 
 def safe_uint8_convert(im):
 	'''
