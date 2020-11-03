@@ -497,12 +497,13 @@ PIE.save_movie(
   simple_grid,
   '/local/path/to/PIE/sample_images/movies',
   'simple_grid_movie',
-  'gif')
+  'gif',
+  movie_height=900)
 ```
 
 ![simple movie grid with brightfield movie and the growth rate plot in one row, and the gfp fluorescence and gfp plot in the row below](sample_images/simple_grid_movie.gif)
 
-(The plots are vertically squished here, but this can be ammended by passing a 'movie_height' parameter to `save_movie`)
+(Note that we passed a 'movie_height' parameter here to prevent the plots from being vertically squished here)
 
 We can use additional options in `make_movie_grid`, as well as combinations of movie grids, to make more complex plots. For example, we can make a movie where the left column is our two fluorescent movies, and our right column is just the brightfield movie. We can also set relative widths of the columns via the *rel_widths* argument (or their relative heights using *rel_heights*); here, we will make the brightfield movie panel 1.5 times as wide as the fluorescent movie panel.
 
