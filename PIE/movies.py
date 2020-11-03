@@ -600,6 +600,22 @@ class _ImMovieMaker(_MovieMaker):
 		# check data
 		self._perform_data_checks()
 
+	def _create_blank_subframe(self, third_dim = False):
+		'''
+		Creates a black cv2 8-bit image of self.inherent_size
+
+		If third_dim is True, adds third dimension
+		'''
+		blank_subframe = np.uint8(np.zeros(
+			shape = (
+				self.inherent_size[1],
+				self.inherent_size[0]
+				)
+			))
+		if third_dim:
+			blank_subframe = np.dstack([blank_subframe]*3)
+		return(blank_subframe)
+
 	def _perform_data_checks():
 		pass
 
@@ -775,22 +791,6 @@ class _PositionMovieMaker(_ImMovieMaker):
 			prop = None
 		return(prop)
 
-	def _create_blank_subframe(self, third_dim = False):
-		'''
-		Creates a black cv2 8-bit image of self.inherent_size
-
-		If third_dim is True, adds third dimension
-		'''
-		blank_subframe = np.uint8(np.zeros(
-			shape = (
-				self.inherent_size[1],
-				self.inherent_size[0]
-				)
-			))
-		if third_dim:
-			blank_subframe = np.dstack([blank_subframe]*3)
-		return(blank_subframe)
-
 	def _get_glob_tp_data(self, global_timepoint):
 		'''
 		Returns timepoint and analysis_config associated with 
@@ -945,9 +945,10 @@ class _PositionMovieMaker(_ImMovieMaker):
 			colored_boundary_mask,
 			1
 			)
+		im_8bit = safe_uint8_convert(im_with_overlay)
 		# convert im_with_overlay to Pillow Image object
 		im_with_overlay_pil = \
-			Image.fromarray(im_with_overlay.astype('uint8'), 'RGB')
+			Image.fromarray(im_8bit, 'RGB')
 		return(im_with_overlay_pil)
 
 	def generate_postphase_raw_frame(self, phase):
@@ -1068,23 +1069,32 @@ class _PositionMovieMaker(_ImMovieMaker):
 					)
 		return(colored_boundary_mask)
 
-	def generate_postphase_frame(self, phase):
+	def get_postphase_global_tp(self, phase):
 		'''
-		Generates a boundary image for postphase fluorescent image
+		Returns global_timepoint for postphase of current phase
 		'''
-		# get modified global_timepoint
 		postphase_analysis_config = \
 			self.analysis_config_obj_df.at[phase,
 				'postphase_analysis_config']
 		if postphase_analysis_config is None or \
 			self.postphase_fluor_channel is None:
 			global_tp = None
-			im_with_overlay_pil = None
 		else:
 			phase_col_prop_df = self.col_prop_df[
 				self.col_prop_df.phase_num == phase
 				]
 			global_tp = phase_col_prop_df.global_timepoint.max() + 0.1
+		return(global_tp)
+
+	def generate_postphase_frame(self, phase):
+		'''
+		Generates a postphase fluorescent image with boundaries
+		'''
+		# get modified global_timepoint
+		global_tp = self.get_postphase_global_tp(phase)
+		if global_tp is None:
+			im_with_overlay_pil = None
+		else:
 			# get raw fluor image
 			colorized_im = self.generate_postphase_raw_frame(phase)
 			colored_boundary_mask = self.generate_postphase_color_bounds(phase)
@@ -1094,9 +1104,10 @@ class _PositionMovieMaker(_ImMovieMaker):
 				colored_boundary_mask,
 				1
 				)
+			im_8bit = safe_uint8_convert(im_with_overlay)
 			# convert im_with_overlay to Pillow Image object
 			im_with_overlay_pil = \
-				Image.fromarray(im_with_overlay.astype('uint8'), 'RGB')
+				Image.fromarray(im_8bit, 'RGB')
 		return(global_tp, im_with_overlay_pil)
 
 	def generate_movie_ims(self, width, height, blank_color):
@@ -1219,25 +1230,113 @@ class _OverlayMovieMaker(_ImMovieMaker):
 		else:
 			self.inherent_size = unique_inherent_sizes[0]
 
-	def generate_frame(self, global_tp):
-		im_combined = im_empty.copy()
+	def generate_frame(self, global_timepoint):
+		'''
+		generates frame for global_tp
+		'''
+		# initialize blank images to accumulate onto
+		comb_im = self._create_blank_subframe(third_dim = True).astype(float)
+		comb_col_mask = comb_im.copy()
+		comb_bound_mask = comb_im.copy()
+		# create a multiplier for colony shading and boundaries
+		equal_multiplier = 1.0/self.overlay_df.shape[0]
+		mean_col_shading_alpha = 0
 		for overlay_idx in self.overlay_df.index:
 			mov_obj = self.overlay_df.at[overlay_idx, 'movie_obj']
 			intens_mult = self.overlay_df.at[overlay_idx, 'intens_mult']
-			im_with_overlay = mov_obj.generate_frame(global_tp)
-			if im_with_overlay != None:
-				im_combined = im_combined + im_with_overlay*intens_mult
-		im_combined_8bit = safe_uint8_convert(im_combined)
-		# add image with overlay to movie_holder
+			im = mov_obj.generate_raw_frame(global_timepoint)
+			curr_colony_mask, curr_boundary_mask = \
+				mov_obj.generate_color_overlays(global_timepoint)
+			# blend background frames in correct proportions
+			comb_im = comb_im + im.astype(float)*intens_mult
+			# blend colony and boundary masks in equal proportions
+			comb_col_mask = \
+				comb_col_mask + curr_colony_mask.astype(float)*equal_multiplier
+			comb_bound_mask = \
+				comb_bound_mask + curr_boundary_mask.astype(float)*equal_multiplier
+			# accumulate mean colony shading alpha
+			mean_col_shading_alpha = \
+				mean_col_shading_alpha + \
+				mov_obj.col_shading_alpha*equal_multiplier
+		shaded_im = overlay_color_im(
+			comb_im,
+			comb_col_mask,
+			mean_col_shading_alpha
+			)
+		# add colony boundary
+		im_comb_with_overlay = overlay_color_im(
+			shaded_im,
+			comb_bound_mask,
+			1
+			)
+		im_combined_8bit = safe_uint8_convert(im_comb_with_overlay)
 		# convert to Pillow Image format first
 		im_combined_pil = Image.fromarray(im_combined_8bit, 'RGB')
+		return(im_combined_pil)
+
+	def generate_postphase_frame(self, phase):
+		'''
+		Generates a boundary image for postphase fluorescent image
+		'''
+		# initialize blank images to accumulate onto
+		comb_im = self._create_blank_subframe(third_dim = True).astype(float)
+		comb_bound_mask = comb_im.copy()
+		# create a multiplier for colony shading and boundaries
+		equal_multiplier = 1.0/self.overlay_df.shape[0]
+		# set up global_tp accumulator
+		comb_global_tp = None
+		for overlay_idx in self.overlay_df.index:
+			mov_obj = self.overlay_df.at[overlay_idx, 'movie_obj']
+			intens_mult = self.overlay_df.at[overlay_idx, 'intens_mult']
+			# get modified global_timepoint
+			global_tp = mov_obj.get_postphase_global_tp(phase)
+			if global_tp is None:
+				if comb_im is not None or comb_bound_mask is not None:
+					if np.sum(comb_im) != 0 or np.sum(comb_bound_mask) != 0:
+						warnings.warn(
+							'Trying to merge movies with and without a '
+							'postphase fluorescence experiment; removing '
+							'postphase data',
+							UserWarning
+							)
+				comb_im = None
+				im = None
+				comb_bound_mask = None
+				curr_boundary_mask = None
+			else:
+				if comb_global_tp is None:
+					comb_global_tp = global_tp
+				else:
+					if comb_global_tp != global_tp:
+						raise ValueError(
+							'surmised global postphase timepoint for '
+							'postphase images not identical in merged movies'
+							)
+				# get raw fluor image
+				im = mov_obj.generate_postphase_raw_frame(phase)
+				curr_boundary_mask = mov_obj.generate_postphase_color_bounds(phase)
+				# blend background frames in correct proportions
+				comb_im = comb_im + im.astype(float)*intens_mult
+				# blend boundary masks in equal proportions
+				comb_bound_mask = \
+					comb_bound_mask + curr_boundary_mask.astype(float)*equal_multiplier
+		if comb_im is None:
+			im_combined_pil = None
+		else:
+			# add colony boundary
+			im_comb_with_overlay = overlay_color_im(
+				comb_im,
+				comb_bound_mask,
+				1
+				)
+			im_combined_8bit = safe_uint8_convert(im_comb_with_overlay)
+			# convert to Pillow Image format first
+			im_combined_pil = Image.fromarray(im_combined_8bit, 'RGB')
+		return(global_tp, im_combined_pil)
 
 	def generate_movie_ims(self, width, height, blank_color):
 		# first add the regular images, then the postphase images
 		self.movie_holder = MovieHolder(self.global_timepoints)
-		im_empty = np.zeros(
-			shape = (self.inherent_size[1], self.inherent_size[0], 3)
-			)
 		for global_tp in self.movie_holder.im_df.index:
 			im_combined_pil = self.generate_frame(global_tp)
 			im_resized = \
@@ -1247,23 +1346,13 @@ class _OverlayMovieMaker(_ImMovieMaker):
 			self.movie_holder.add_im(global_tp, im_resized)
 		# add postphase analysis images if necessary
 		for phase in self.analysis_config_obj_df.index:
-			im_combined = None
-			for overlay_idx in self.overlay_df.index:
-				mov_obj = self.overlay_df.at[overlay_idx, 'movie_obj']
-				intens_mult = self.overlay_df.at[overlay_idx, 'intens_mult']
-				global_tp, im_with_overlay = \
-					mov_obj.generate_postphase_frame(phase)
-				if im_with_overlay != None:
-					im_combined_current = im_with_overlay*intens_mult
-					if im_combined is None:
-						im_combined = im_combined_current
-					else:
-						im_combined = im_combined_current + im_combined
-			if im_combined != None:
+			global_tp, im_combined_pil_postphase = \
+				self.generate_postphase_frame(phase)
+			if im_combined_pil_postphase != None:
 				# add image with overlay to movie_holder
 				im_resized = \
 					_ratio_resize_convert(
-						im_combined, width, height, blank_color
+						im_combined_pil_postphase, width, height, blank_color
 						)
 				self.movie_holder.add_im(global_tp, im_resized)
 		return(self.movie_holder.im_df)
@@ -1796,12 +1885,18 @@ def safe_uint8_convert(im):
 def merge_movie_channels(*movie_objects, intens_mult_list = None):
 	'''
 	Wrapper function for creating an object of _OverlayMovieMaker class
+
+	If intens_mult_list is None, defaults to 1/n intensities for every 
+	movie object, where n is the number of objects
 	'''
 	# make movie_objects into unnested list
 	if isinstance(movie_objects[0],list):
 		movie_obj_list = list(chain.from_iterable(movie_objects))
 	else:
 		movie_obj_list = list(movie_objects)
+	if intens_mult_list is None:
+		obj_num = len(movie_obj_list)
+		intens_mult_list = np.array([1.0/obj_num]*obj_num)
 	overlay_movie_maker = \
 		_OverlayMovieMaker(movie_obj_list, intens_mult_list)
 	return(overlay_movie_maker)
