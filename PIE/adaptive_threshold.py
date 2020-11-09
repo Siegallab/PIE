@@ -57,33 +57,34 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		# result than in matlab
 		#self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(19,19))
 		# manually create matlab strel('disk', 10) here
-		self.kernel = np.uint8([
-			[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
-			[0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
-			[0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
-			[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
-			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-			[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
-			[0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
-			[0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
-			[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0]])
+#		self.kernel = np.uint8([
+#			[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+#			[0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+#			[0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+#			[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+#			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#			[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+#			[0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+#			[0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+#			[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0]])
+		self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(24,24))
 			# TODO: This is a place that we can consider changing in future
 			# versions: the radius here should really depend on expected
 			# cell size and background properties (although some prelim
 			# tests showed increasing element radius had only negative
 			# consequences)
-			# Also a good idea to see if the corresponding cv2
-			# ellipse structuring element works here
+			# It seems for our test images, ideal ellipse size is 
+			# ~24x24, which is 2-3x the size of a single cell
 		# set a warning flag to 0 (no warning)
 		self.threshold_flag = 0
 			# TODO: would be good to make an enum class for these
@@ -186,33 +187,39 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		# the heuristic below seems to work well for a default
 		max_bin_num = max(20, int(round(float(self.tophat_im.size)/3000)))
 		unique_tophat_vals = len(tophat_unique)
-		# loop through identifying log histograms until one passes
-		# autocorrelation test
-		while True:
-			# if max_bin_num is higher than the number of unique tophat
-			# values, use tophat_unique as bins; otherwise, use
-			# max_bin_num equally spaced bins
-			if max_bin_num > unique_tophat_vals:
+		# if max_bin_num is higher than the number of unique tophat
+		# values, use tophat_unique as bins; otherwise, use equally
+		# spaced bins, with the bin number adjusted to avoid 
+		# strong periodic elements
+		# NB: Regularly spaced bins are not ideal, since they introduce 
+		# artifacts, which is why we avoid using them if possible
+		# However, likely to have too many possible unique_tophat_vals
+		# in jpgs (and some tiffs as well)
+		if max_bin_num > unique_tophat_vals:
+			ln_tophat_hist, bin_centers = \
+				self._get_log_tophat_hist(tophat_unique)
+		else:
+			# loop through identifying log histograms until one passes
+			# autocorrelation test
+			bin_num = max_bin_num
+			while True:
 				ln_tophat_hist, bin_centers = \
-					self._get_log_tophat_hist(tophat_unique)
-			else:
-				ln_tophat_hist, bin_centers = \
-					self._get_log_tophat_hist(max_bin_num)
-			# measure autocorrelation of histogram
-			hist_autocorrelation, _ = self._autocorrelate(ln_tophat_hist)
-			# check whether peaks exist in autocorrelation
-			autocorr_peaks_exist = \
-				self._check_autocorrelation_peaks(hist_autocorrelation)
-			if autocorr_peaks_exist:
-				# reduce max_bin_num by setting it to either the number
-				# of unique tophat values or 2/3 the current max_bin_num
-				# (whichever is smaller); allow the loop to run again
-				max_bin_num = \
-					min(unique_tophat_vals, int(round(float(max_bin_num)*2/3)))
-			else:
-				self.ln_tophat_hist = ln_tophat_hist
-				self.x_pos = bin_centers
-				break
+					self._get_log_tophat_hist(bin_num)
+				# measure autocorrelation of histogram
+				hist_autocorrelation, _ = self._autocorrelate(ln_tophat_hist)
+				# check whether peaks exist in autocorrelation
+				autocorr_peaks_exist = \
+					self._check_autocorrelation_peaks(hist_autocorrelation)
+				if autocorr_peaks_exist:
+					# reduce max_bin_num by setting it to either the number
+					# of unique tophat values or 2/3 the current max_bin_num
+					# (whichever is smaller); allow the loop to run again
+					bin_num = \
+						min(unique_tophat_vals, int(round(float(bin_num)*2/3)))
+				else:
+					break
+		self.ln_tophat_hist = ln_tophat_hist
+		self.x_pos = bin_centers
 
 	def _select_threshold(self):
 		'''
