@@ -63,7 +63,7 @@ class _FluorDensityFitter(DensityFitterMLE):
 		if self.sufficient_data:
 			top_quantile_val=np.nanquantile(self.raw_data,self.top_quantile)
 			non_na_data = self.raw_data[~np.isnan(self.raw_data)]
-			trimmed_data=self.raw_data[non_na_data < top_quantile_val]
+			trimmed_data=non_na_data[non_na_data < top_quantile_val]
 		else:
 			trimmed_data=self.raw_data
 		self.data=trimmed_data
