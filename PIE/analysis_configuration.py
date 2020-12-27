@@ -410,7 +410,7 @@ class AnalysisConfig(object):
 		'''
 		### !!! NEEDS UNITTEST
 		if xy_position_idx not in self.xy_position_vector:
-			raise IndexError('Unexpected xy position index ' + xy_position_idx +
+			raise IndexError('Unexpected xy position index ' + str(xy_position_idx) +
 				' in phase ' + str(self.phase_num))
 		# current position being imaged
 		self.xy_position_idx = xy_position_idx
