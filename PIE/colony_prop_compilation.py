@@ -239,7 +239,7 @@ def get_colony_properties(col_property_mat_df, timepoint_label,
 					'timepoint_label may be "first_tracked", "last_tracked", '
 					'"first_gr", "last_gr", an integer, or a 1-D numpy '
 					'array with as many elements as rows of interest in '
-					'col_property_mat_df')
+					'col_property_mat_df; instead, timepoint_label is ' + str(timepoint_label))
 			tp_to_use = col_property_mat_df_subset.columns[tp_to_use_idx]
 		output_vals = \
 			col_property_mat[np.arange(0,col_property_mat.shape[0]), tp_to_use_idx]

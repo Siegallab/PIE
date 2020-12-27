@@ -397,7 +397,7 @@ class _GrowthMeasurer(object):
 		### !!! NEEDS UNITTEST
 		row_indices_to_use = self.final_gr.index
 		if self.postphase_analysis_config is None:
-			combined_fluor_channel_df = self.analysis_config.fluor_channel_df
+			combined_fluor_channel_df = self.analysis_config.fluor_channel_df.copy()
 		else:
 			combined_fluor_channel_df = pd.concat([
 					self.analysis_config.fluor_channel_df,
@@ -405,10 +405,13 @@ class _GrowthMeasurer(object):
 					], sort = False
 				)
 		if not combined_fluor_channel_df.empty:
+			# set index to fluorescent channel name
+			combined_fluor_channel_df.set_index(
+				'fluor_channel_column_name',
+				inplace = True
+				)
 			fl_prop_keys = list(self.fl_prop_mat_df_dict.keys())
-			for row_idx, channel in \
-				enumerate(combined_fluor_channel_df.\
-					fluor_channel_column_name):
+			for channel in combined_fluor_channel_df.index:
 				# identify property names in this channel
 				prop_substring = '_flprop_' + channel
 				prop_substring_re = re.compile('.*'+prop_substring+'$')
@@ -420,7 +423,7 @@ class _GrowthMeasurer(object):
 				for fl_prop_name in current_channel_prop_names:
 					col_prop_mat_df = self.fl_prop_mat_df_dict[fl_prop_name]
 					timepoint_label = \
-						combined_fluor_channel_df.at[row_idx, 'fluor_timepoint']
+						combined_fluor_channel_df.at[channel, 'fluor_timepoint']
 					self.final_gr[fl_prop_name], _ = \
 						colony_prop_compilation.get_colony_properties(
 							col_prop_mat_df,
@@ -573,8 +576,9 @@ def _concat_csv_files(dir_to_concat, output_file_path):
 		input_df = pd.read_csv(fpath, index_col = 0)
 		df_list.append(input_df)	
 		os.remove(fpath)
-	output_df = pd.concat(df_list).drop_duplicates()
-	output_df.to_csv(output_file_path)
+	if df_list:
+		output_df = pd.concat(df_list).drop_duplicates()
+		output_df.to_csv(output_file_path)
 
 def _post_analysis_file_process(output_path, phase_list,
 		col_properties_output_folder):

@@ -471,7 +471,7 @@ class _FluorDensityFitter(DensityFitterMLE):
 		Classifies self.raw_data
 		'''
 		self.classification_bool = \
-			np.array([np.nan]*len(self.raw_data), dtype = bool)
+			np.array([np.nan]*len(self.raw_data), dtype = object)
 		self.classification_bool[self.raw_data < self.background_threshold] = \
 			False
 		self.classification_bool[self.raw_data > self.fluor_threshold] = True
@@ -481,8 +481,8 @@ class _FluorDensityFitter(DensityFitterMLE):
 		'''
 		Returns a boolean numpy array, with every point in 
 		self.raw_data that below the background threshold labeled 
-		False, and every point above the fluorescent threshold labeled 
-		True
+		False, every point above the fluorescent threshold labeled 
+		True, and every point in between labeled np.nan
 		'''
 		self._prep_fit()
 		self.id_thresholds(threshold_path)
