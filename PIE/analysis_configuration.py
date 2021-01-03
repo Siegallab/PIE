@@ -229,10 +229,10 @@ class AnalysisConfig(object):
 		### !!! NEEDS UNITTEST
 		first_timepoint_file = \
 			os.path.join(self.phase_output_path, 'first_timepoint_time.txt')
-		if os.path.exists(first_timepoint_file):
+		try:
 			with open(first_timepoint_file) as f:
 				self.first_timepoint_time = int(f.readline())
-		else:
+		except:
 			if self.timepoint_dict is None:
 				# if no timepoint dict, find the modification time of
 				# the first image captured in this phase
