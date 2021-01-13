@@ -67,6 +67,7 @@ setup(
     entry_points={
         'console_scripts': [
             'pie = PIE.command_line_interface:cli',
+            'pieflow = PIE.flowserv_cli:cli'
         ]
     },
     classifiers=[
