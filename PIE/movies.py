@@ -15,7 +15,7 @@ from mizani.palettes import hue_pal # installed with plotnine
 from io import BytesIO
 from itertools import chain
 from PIL import ImageColor, Image
-from PIE.image_coloring import paint_by_numbers, colorize_im, overlay_color_im
+from PIE.image_coloring import paint_by_numbers, colorize_im, overlay_color_im, get_boundary
 from PIE.analysis_configuration import check_passed_config, process_setup_file
 from PIE.colony_prop_compilation import get_colony_properties
 from PIE.ported_matlab import bwperim
@@ -1849,23 +1849,6 @@ def _check_rel_ratios(rel_ratio_list, obj_list):
 			raise ValueError('relative ratios must be greater than 0')
 		rel_ratio_list = rel_ratio_list/np.sum(rel_ratio_list)
 	return(rel_ratio_list)
-
-def get_boundary(bool_mask, bound_width):
-	'''
-	Returns image with boundaries of thickness bound_width for all 
-	True objects in bool_mask; boundaries start inside bounds of 
-	original objects
-
-	bool_mask is a 2-D boolean np array
-
-	bound_width is an integer
-	'''
-	mask_im = np.uint8(bool_mask)
-	kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
-	eroded_mask_im = cv2.erode(mask_im,kernel,iterations=bound_width)
-	bound_mask_im = mask_im-eroded_mask_im
-	bound_mask_bool = bound_mask_im.astype(bool)
-	return(bound_mask_bool)
 
 def safe_uint8_convert(im):
 	'''

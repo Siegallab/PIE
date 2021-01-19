@@ -66,7 +66,7 @@ def create_color_overlay(image, mask, mask_color, mask_alpha,
 	color_image[mask] = \
 		np.round(color_image[mask].astype(float) * (1-mask_alpha) +
 			mask_color_adjusted_tuple).astype(int)
-	return(color_image)
+	return(color_image.astype(int))
 
 def paint_by_numbers(labeled_im, color_key, background_rgb=(0,0,0)):
 	'''
@@ -102,3 +102,20 @@ def paint_by_numbers(labeled_im, color_key, background_rgb=(0,0,0)):
 		color_im_list.append(current_im)
 	colored_im = np.dstack(color_im_list)
 	return(colored_im)
+
+def get_boundary(bool_mask, bound_width):
+	'''
+	Returns image with boundaries of thickness bound_width for all 
+	True objects in bool_mask; boundaries start inside bounds of 
+	original objects
+
+	bool_mask is a 2-D boolean np array
+
+	bound_width is an integer
+	'''
+	mask_im = np.uint8(bool_mask)
+	kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+	eroded_mask_im = cv2.erode(mask_im,kernel,iterations=bound_width)
+	bound_mask_im = mask_im-eroded_mask_im
+	bound_mask_bool = bound_mask_im.astype(bool)
+	return(bound_mask_bool)
