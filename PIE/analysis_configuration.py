@@ -69,7 +69,7 @@ class AnalysisConfig(object):
 		xy_position_vector, minimum_growth_time,
 		growth_window_timepoints, max_area_pixel_decrease,
 		max_area_fold_decrease, max_area_fold_increase, min_colony_area,
-		max_colony_area, min_correlation, min_foldX, min_neighbor_dist):
+		max_colony_area, min_correlation, min_foldX, min_neighbor_dist, max_colony_num):
 		'''
 		Reads setup_file and creates analysis configuration
 		'''
@@ -97,6 +97,7 @@ class AnalysisConfig(object):
 		self.min_correlation = float(min_correlation)
 		self.min_foldX = float(min_foldX)
 		self.min_neighbor_dist = float(min_neighbor_dist)
+		self.max_colony_num = float(max_colony_num)
 		# path of input images
 		self.input_path = input_path
 		# path of output image folder
@@ -620,7 +621,8 @@ class _AnalysisConfigFileProcessor(object):
 			phase_conf_ser.max_colony_area,
 			phase_conf_ser.min_correlation,
 			phase_conf_ser.min_foldX,
-			phase_conf_ser.min_neighbor_dist)
+			phase_conf_ser.min_neighbor_dist,
+			phase_conf_ser.max_colony_num)
 		return(current_analysis_config)
 
 	def _get_phase_data(self, phase_num):
@@ -667,7 +669,7 @@ class _AnalysisConfigFileProcessor(object):
 			'max_area_fold_decrease', 'max_area_fold_increase',
 			'min_colony_area', 'max_colony_area', 'min_correlation',
 			'min_foldX', 'minimum_growth_time', 'growth_window_timepoints',
-			'min_neighbor_dist']
+			'min_neighbor_dist', 'max_colony_num']
 		# take all possible fields from current_setup_ser, get missing
 		# ones from parent_setup_ser
 		reqd_parents_fields = \

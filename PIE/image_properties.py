@@ -23,7 +23,7 @@ class _ImageAnalyzer(object):
 				save_extra_info = False, threshold_plot_width = 6,
 				threshold_plot_height = 4, threshold_plot_dpi = 200,
 				threshold_plot_filetype = 'png',
-				create_pie_overlay = False, write_col_props_file = True):
+				create_pie_overlay = False, write_col_props_file = True, max_col_num = 1000):
 		# TODO: Reorganize this section to make more sense; add more info about inputs
 		# parameter for saving jpegs (>95 not recommended by PIL)
 		self._jpeg_quality = 95
@@ -40,6 +40,7 @@ class _ImageAnalyzer(object):
 		self._create_pie_overlay = create_pie_overlay
 		self.write_col_props_file = write_col_props_file
 		self.max_proportion_exposed_edge = max_proportion_exposed_edge
+		self.max_col_num = max_col_num
 		# get name of image file without path or extension
 		self.image_name = image_name
 		# set up folders
@@ -212,7 +213,8 @@ class _ImageAnalyzer(object):
 		detected colony
 		'''
 		# !!! NEEDS UNITTEST !!!
-		self.colony_property_finder = _ColonyPropertyFinder(self.colony_mask)
+		self.colony_property_finder = \
+			_ColonyPropertyFinder(self.colony_mask, self.max_col_num)
 		self.colony_property_finder.measure_and_record_colony_properties()
 		if self.write_col_props_file:
 			colony_property_path = \
@@ -284,8 +286,9 @@ class _ColonyPropertyFinder(object):
 	'''
 	Measures and holds properties of colonies based on a colony mask
 	'''
-	def __init__(self, colony_mask, fluor_measure_expansion_pixels = 5):
+	def __init__(self, colony_mask, max_col_num, fluor_measure_expansion_pixels = 5):
 		self.colony_mask = colony_mask
+		self.max_col_num = max_col_num
 		self.property_df = pd.DataFrame()
 		# set up erosion mask for removing bright saturated region
 		# around colony in fluorescence images
@@ -300,13 +303,27 @@ class _ColonyPropertyFinder(object):
 	def _find_connected_components(self):
 		'''
 		Finds connected components in an image (i.e. colonies)
-		Note that although connectivity = 4 is used at other steps, connectivity
-		is set to 8 for the colony identification step
-		(This is consistent with previous versions of PIE)
+
+		If number of colonies is higher than self.max_col_num, treats 
+		as blank image
+
+		Note that although connectivity = 4 is used at other steps, 
+		connectivity is set to 8 for the colony identification step 
+		(this is consistent with previous versions of PIE)
 		'''
-		[self._label_num, self.labeled_mask, self._stat_matrix, self._centroids] = \
+		[self._label_num, self.labeled_mask, self._stat_matrix,
+			self._centroids] = \
 			cv2.connectedComponentsWithStats(np.uint8(self.colony_mask),
 				True, True, True, 8, cv2.CV_32S)
+		# if more labels (besides background) than self.max_col_num,
+		# recalculate properties from blank mask
+		if self._label_num > (self.max_col_num+1):
+			blank_mask = np.zeros_like(np.uint8(self.colony_mask))
+			[self._label_num, self.labeled_mask, self._stat_matrix,
+				self._centroids] = \
+				cv2.connectedComponentsWithStats(
+					blank_mask,
+					True, True, True, 8, cv2.CV_32S)
 
 	def _find_labels(self):
 		'''
@@ -606,24 +623,29 @@ def analyze_single_image(input_im_path, output_path,
 	'''
 	Reads image from input_im_path and runs PIE colony detection on it,
 	saving required files to output_path
+
+	Does not cap number of colonies in image
 	'''
+	# analyzes all colonies in image
+	max_col_num = np.inf
 	image = cv2.imread(input_im_path, cv2.IMREAD_ANYDEPTH)
 	image_name = os.path.splitext(os.path.basename(input_im_path))[0]
 	image_analyzer = _ImageAnalyzer(image, image_name, output_path,
 		image_type, hole_fill_area, cleanup, max_proportion_exposed_edge,
-		save_extra_info)
+		save_extra_info, max_col_num = max_col_num)
 	colony_mask, colony_property_df = image_analyzer.process_image()
 	return(colony_mask, colony_property_df)
 
 def detect_image_colonies(image, image_name, output_path, image_type,
-	hole_fill_area, cleanup, max_proportion_exposed_edge, save_extra_info):
+	hole_fill_area, cleanup, max_proportion_exposed_edge, save_extra_info,
+	max_col_num):
 	'''
 	Runs PIE colony detections on image
 	Returns colony mask and image property df
 	'''
 	image_analyzer = _ImageAnalyzer(image, image_name, output_path,
 		image_type, hole_fill_area, cleanup, max_proportion_exposed_edge,
-		save_extra_info)
+		save_extra_info, max_col_num = max_col_num)
 	colony_mask, colony_property_df = image_analyzer.process_image()
 	return(colony_mask, colony_property_df)
 

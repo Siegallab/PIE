@@ -29,15 +29,15 @@ single_colony_mask = np.array([
 	[0, 1, 1, 1, 0, 0, 0, 0],
 	[0, 0, 0, 0, 0, 0, 0, 0]], dtype = bool)
 
-class TestFindConnectedComponents(unittest.TestCase):
+max_col_num = 5
 
-	def setUp(self):
-		self.col_prop_finder = _ColonyPropertyFinder(colony_mask)
+class TestFindConnectedComponents(unittest.TestCase):
 
 	def test_find_connected_components(self):
 		'''
 		Test that colony properties identified correctly
 		'''
+		col_prop_finder = _ColonyPropertyFinder(colony_mask, max_col_num)
 		expected_label_num = 3
 		expected_labeled_mask = np.array([
 			[0, 0, 0, 0, 0, 0, 0, 0],
@@ -59,16 +59,42 @@ class TestFindConnectedComponents(unittest.TestCase):
 			[5+1.0/9, 2+1.0/9],
 			[1.9, 4.6]])
 		# run connected component finder
-		self.col_prop_finder._find_connected_components()
+		col_prop_finder._find_connected_components()
 		# check properties
 		assert_array_equal(expected_labeled_mask,
-			self.col_prop_finder.labeled_mask)
+			col_prop_finder.labeled_mask)
 		self.assertEqual(expected_label_num,
-			self.col_prop_finder._label_num)
+			col_prop_finder._label_num)
 		assert_array_equal(expected_stat_matrix,
-			self.col_prop_finder._stat_matrix)
+			col_prop_finder._stat_matrix)
 		assert_allclose(expected_centroids,
-			self.col_prop_finder._centroids)
+			col_prop_finder._centroids)
+
+	def test_find_connected_components_too_many(self):
+		'''
+		Test that no colony properties identified when number of 
+		colonies greather than max_col_num
+		'''
+		temp_max_col_num = 1
+		col_prop_finder = _ColonyPropertyFinder(colony_mask, temp_max_col_num)
+		expected_label_num = 1
+		expected_labeled_mask = np.zeros_like(colony_mask)
+		# left top width height area
+		expected_stat_matrix = np.array([[0, 0, 8, 8, 64]])
+		# centroids are mean of pixel indices
+		expected_centroids = np.array([[3.5, 3.5]])
+		# run connected component finder
+		col_prop_finder._find_connected_components()
+		# check properties
+		assert_array_equal(expected_labeled_mask,
+			col_prop_finder.labeled_mask)
+		self.assertEqual(expected_label_num,
+			col_prop_finder._label_num)
+		assert_array_equal(expected_stat_matrix,
+			col_prop_finder._stat_matrix)
+		assert_allclose(expected_centroids,
+			col_prop_finder._centroids)
+
 
 class TestFindAreas(unittest.TestCase):
 
@@ -76,7 +102,7 @@ class TestFindAreas(unittest.TestCase):
 		'''
 		Tests that correct non-background areas saved into property_df
 		'''
-		self.col_prop_finder = _ColonyPropertyFinder(colony_mask)
+		self.col_prop_finder = _ColonyPropertyFinder(colony_mask, max_col_num)
 		self.col_prop_finder._find_connected_components()
 		self.col_prop_finder._find_areas()
 		expected_property_df = pd.DataFrame({'area': [9, 10]}, dtype = 'int32')
@@ -89,7 +115,19 @@ class TestFindAreas(unittest.TestCase):
 		'''
 		self.col_prop_finder = \
 			_ColonyPropertyFinder(np.zeros(colony_mask.shape,
-				dtype = colony_mask.dtype))
+				dtype = colony_mask.dtype), max_col_num)
+		self.col_prop_finder._find_connected_components()
+		self.col_prop_finder._find_areas()
+		expected_property_df = pd.DataFrame({'area': []}, dtype = 'int32')
+		assert expected_property_df.equals(self.col_prop_finder.property_df)
+
+	def test_find_areas_too_many(self):
+		'''
+		Tests that no areas returned if number of objects greater than 
+		max_col_num
+		'''
+		temp_max_col_num = 1
+		self.col_prop_finder = _ColonyPropertyFinder(colony_mask, temp_max_col_num)
 		self.col_prop_finder._find_connected_components()
 		self.col_prop_finder._find_areas()
 		expected_property_df = pd.DataFrame({'area': []}, dtype = 'int32')
@@ -102,7 +140,7 @@ class TestFindCentroids(unittest.TestCase):
 		Tests that correct non-background centroids saved into
 		property_df
 		'''
-		self.col_prop_finder = _ColonyPropertyFinder(colony_mask)
+		self.col_prop_finder = _ColonyPropertyFinder(colony_mask, max_col_num)
 		self.col_prop_finder._find_connected_components()
 		self.col_prop_finder._find_centroids()
 		expected_property_df = \
@@ -116,7 +154,7 @@ class TestFindCentroids(unittest.TestCase):
 		'''
 		self.col_prop_finder = \
 			_ColonyPropertyFinder(np.zeros(colony_mask.shape,
-				dtype = colony_mask.dtype))
+				dtype = colony_mask.dtype), max_col_num)
 		self.col_prop_finder._find_connected_components()
 		self.col_prop_finder._find_centroids()
 		expected_property_df = \
@@ -130,7 +168,7 @@ class TestFindBoundingBox(unittest.TestCase):
 		Tests that correct non-background bounding_boxes saved into
 		property_df
 		'''
-		self.col_prop_finder = _ColonyPropertyFinder(colony_mask)
+		self.col_prop_finder = _ColonyPropertyFinder(colony_mask, max_col_num)
 		self.col_prop_finder._find_connected_components()
 		self.col_prop_finder._find_bounding_box()
 		expected_property_df = \
@@ -147,7 +185,7 @@ class TestFindBoundingBox(unittest.TestCase):
 		'''
 		self.col_prop_finder = \
 			_ColonyPropertyFinder(np.zeros(colony_mask.shape,
-				dtype = colony_mask.dtype))
+				dtype = colony_mask.dtype), max_col_num)
 		self.col_prop_finder._find_connected_components()
 		self.col_prop_finder._find_bounding_box()
 		expected_property_df = \
@@ -163,7 +201,7 @@ class TestFindFlatCoordinates(unittest.TestCase):
 		Tests that flat list of indices identified can be used to
 		recapitulate original mask
 		'''
-		self.col_prop_finder = _ColonyPropertyFinder(colony_mask)
+		self.col_prop_finder = _ColonyPropertyFinder(colony_mask, max_col_num)
 		test_flat_coords = \
 			self.col_prop_finder._find_flat_coordinates(single_colony_mask)
 		test_mask = np.zeros(single_colony_mask.shape,
@@ -179,7 +217,7 @@ class TestFindContourProps(unittest.TestCase):
 		Tests that correct external colony perimeter and major axis
 		length are returned
 		'''
-		self.col_prop_finder = _ColonyPropertyFinder(colony_mask)
+		self.col_prop_finder = _ColonyPropertyFinder(colony_mask, max_col_num)
 		expected_perimeter = 10.0
 		expected_major_axis_length = 4.013865
 		test_perimeter, test_major_axis_length = \
@@ -194,7 +232,7 @@ class TestFindColonyWiseProperties(unittest.TestCase):
 		Tests that correct perimeter and colony pixel index string
 		identified
 		'''
-		self.col_prop_finder = _ColonyPropertyFinder(colony_mask)
+		self.col_prop_finder = _ColonyPropertyFinder(colony_mask, max_col_num)
 		self.col_prop_finder._find_connected_components()
 		self.col_prop_finder._find_colonywise_properties()
 		# perimeter value is counterintuitive here but makes sense when
@@ -216,7 +254,7 @@ class TestFindColonyWiseProperties(unittest.TestCase):
 		pass
 		self.col_prop_finder = \
 			_ColonyPropertyFinder(np.zeros(colony_mask.shape,
-				dtype = colony_mask.dtype))
+				dtype = colony_mask.dtype), max_col_num)
 		self.col_prop_finder._find_connected_components()
 		self.col_prop_finder._find_centroids()
 		expected_property_df = \
@@ -230,6 +268,7 @@ class TestPixelIdxListtoMask(unittest.TestCase):
 	def setUpClass(self):
 		self.colony_property_finder_standin = \
 			object.__new__(_ColonyPropertyFinder)
+		self.colony_property_finder_standin.max_col_num = max_col_num
 
 	def test_pixel_idx_list_to_mask(self):
 		'''
@@ -262,6 +301,7 @@ class TestExpandBoundingBox(unittest.TestCase):
 	def setUpClass(self):
 		self.colony_property_finder_standin = \
 			object.__new__(_ColonyPropertyFinder)
+		self.colony_property_finder_standin.max_col_num = max_col_num
 
 	def test_expand_bounding_box_default(self):
 		'''
@@ -350,6 +390,7 @@ class TestSubsetImbyBoundingBox(unittest.TestCase):
 	def setUpClass(self):
 		self.colony_property_finder_standin = \
 			object.__new__(_ColonyPropertyFinder)
+		self.colony_property_finder_standin.max_col_num = max_col_num
 
 	def test_subset_im_by_bounding_box(self):
 		'''
@@ -393,7 +434,7 @@ class TestGetErodedColonyMask(unittest.TestCase):
 			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype = bool)
 		self.colony_property_finder = \
-			_ColonyPropertyFinder(self.colony_mask_large)
+			_ColonyPropertyFinder(self.colony_mask_large, max_col_num)
 
 	def test_get_eroded_colony_mask_expand_0(self):
 		'''
@@ -453,6 +494,7 @@ class TestGetFilteredIntensities(unittest.TestCase):
 	def setUpClass(self):
 		self.colony_property_finder_standin = \
 			object.__new__(_ColonyPropertyFinder)
+		self.colony_property_finder_standin.max_col_num = max_col_num
 		self.fluor_im = np.uint16(
 			[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]])
 
@@ -495,6 +537,7 @@ class TestMeasureColonyFluorProperties(unittest.TestCase):
 	def setUpClass(self):
 		self.colony_property_finder_standin = \
 			object.__new__(_ColonyPropertyFinder)
+		self.colony_property_finder_standin.max_col_num = max_col_num
 		self.fluor_im = np.uint16([
 			[1, 2, 3, 4, 5, 6],
 			[7, 8, 9, 10, 11, 12],
@@ -601,7 +644,7 @@ class TestSetUpFluorMeasurements(unittest.TestCase):
 		'''
 		colony_mask, eroded_colony_mask, eroded_background_mask = \
 			self._read_saved_eroded_mask_ims('xy0001c1_small')
-		colony_property_finder = _ColonyPropertyFinder(colony_mask)
+		colony_property_finder = _ColonyPropertyFinder(colony_mask, max_col_num)
 		colony_property_finder.measure_and_record_colony_properties()
 		colony_property_finder.set_up_fluor_measurements()
 		for _, row in colony_property_finder.property_df.iterrows():
@@ -642,7 +685,8 @@ class TestSetUpFluorMeasurements(unittest.TestCase):
 			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype = bool)
 		expansion_pixels = 1
 		colony_property_finder = \
-			_ColonyPropertyFinder(colony_mask, expansion_pixels)
+			_ColonyPropertyFinder(colony_mask, max_col_num,
+				fluor_measure_expansion_pixels = expansion_pixels)
 		colony_property_finder._fluor_mask_erosion_kernel = \
 			np.uint8([[0,1,0], [1,1,1], [0,1,0]])
 		colony_property_finder.measure_and_record_colony_properties()
@@ -725,7 +769,7 @@ class TestMakeFluorMeasurements(unittest.TestCase):
 		fluor_im = \
 			cv2.imread(fluor_im_path, cv2.IMREAD_ANYDEPTH)
 		# create _ColonyPropertyFinder object, set up for measurement
-		colony_property_finder = _ColonyPropertyFinder(colony_mask)
+		colony_property_finder = _ColonyPropertyFinder(colony_mask, max_col_num)
 		colony_property_finder.measure_and_record_colony_properties()
 		colony_property_finder.set_up_fluor_measurements()
 		# make fluorescent measurements

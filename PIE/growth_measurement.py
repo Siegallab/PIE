@@ -716,7 +716,7 @@ def run_default_growth_rate_analysis(input_path, output_path,
 	max_area_pixel_decrease = np.inf, max_area_fold_decrease = 2,
 	max_area_fold_increase = 6, min_colony_area = 10,
 	max_colony_area = np.inf, min_correlation = 0.9, min_foldX = 0,
-	min_neighbor_dist = 5, fluor_channel_scope_labels = '',
+	min_neighbor_dist = 5, max_colony_num = 1000, fluor_channel_scope_labels = '',
 	fluor_channel_names = '', fluor_channel_thresholds = '',
 	fluor_channel_timepoints = '',
 	repeat_image_analysis_and_tracking = True):
@@ -749,7 +749,7 @@ def run_default_growth_rate_analysis(input_path, output_path,
 		'growth_window_timepoints', 'max_area_pixel_decrease',
 		'max_area_fold_decrease', 'max_area_fold_increase', 'min_colony_area',
 		'max_colony_area', 'min_correlation', 'min_foldX', 'min_neighbor_dist',
-		'fluor_channel_scope_labels', 'fluor_channel_names',
+		'max_colony_num', 'fluor_channel_scope_labels', 'fluor_channel_names',
 		'fluor_channel_thresholds', 'fluor_channel_timepoints',
 		'parent_phase']
 	param_val_list = []
