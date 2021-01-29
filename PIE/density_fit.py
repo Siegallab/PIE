@@ -160,7 +160,7 @@ class DensityFitterMLE(_DensityFitter):
 		bound_obj, constraints = self._define_constrains()
 		if bound_obj is not None or len(constraints)>0:
 			# do constrained fit
-			if opt_method is not None and opt_method is not 'trust-constr':
+			if opt_method is not None and opt_method != 'trust-constr':
 				raise ValueError(
 					'Only trust-constr opt_method can be used for constrained '
 					'optimization')
