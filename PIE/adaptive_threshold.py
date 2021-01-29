@@ -987,12 +987,15 @@ def threshold_image(input_im, return_plot = False):
 	threshold_finder = _ThresholdFinder(input_im)
 	try:
 		threshold_mask = threshold_finder.get_threshold_mask()
-		if return_plot:
+		threshold_method_name = threshold_finder.threshold_method.method_name
+		threshold = threshold_finder.threshold_method.threshold
+		# check whether default threshold method was used
+		default_threshold_method_usage = \
+			threshold_method_name == threshold_finder.default_threshold_method_name
+		if return_plot or not default_threshold_method_usage:
 			threshold_plot = threshold_finder.threshold_method.plot()
 		else:
 			threshold_plot = None
-		threshold_method_name = threshold_finder.threshold_method.method_name
-		threshold = threshold_finder.threshold_method.threshold
 	except ValueError as e:
 #		if str(e) == '3 or fewer unique values in tophat image':
 		# return empty mask
@@ -1000,9 +1003,7 @@ def threshold_image(input_im, return_plot = False):
 		threshold_method_name = 'Error: ' + str(e)
 		threshold_plot = None
 		threshold = 0
-	# check whether default threshold method was used
-	default_threshold_method_usage = \
-		threshold_method_name == threshold_finder.default_threshold_method_name
+		default_threshold_method_usage = False
 	return(threshold_mask, threshold_method_name, threshold_plot,
 		threshold, default_threshold_method_usage)
 
