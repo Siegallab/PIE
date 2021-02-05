@@ -6,7 +6,6 @@ Processing Images Easily (PIE) automatically tracks growing microcolonies in low
 
 - [System requirements](#system-requirements)
 - [Installing PIE](#installing-pie)
-  * [Troubleshooting PIE installation](#troubleshooting-pie-installation)
 - [Running PIE](#running-pie)
   * [Running PIE single-image analysis](#running-pie-single-image-analysis)
   * [Running PIE multi-image experiments](#running-pie-multi-image-experiments)
@@ -42,31 +41,20 @@ The full list of required python packages is listed in the [requirements.txt](re
 
 ## Installing PIE
 
-After cloning the repository, PIE can easily be installed using [pip](https://pip.pypa.io/en/stable/):
+To install PIE, you will first need to 'clone' (download) the repository. This can be done in one of two ways:
 
+ * Press the green **'Code'** button at the top of this website, select 'Download ZIP', and save the file to a directory on your computer. You will then need to unzip the file (usually by double-clicking it), which will create a directory called *'PIE'* containing all the code.
+OR
+ * Enter terminal (on a Mac/Linux)/CommandPrompt (on Windows, if you have *git* installed), enter the directory into which you'd like to download the *'PIE'* directory, and type
+ ```
+ git clone https://github.com/Siegallab/PIE.git
+ ```
+
+After cloning the repository, PIE can easily be installed using [pip](https://pip.pypa.io/en/stable/):
 ```
-git clone git@github.com:Siegallab/PIE.git
 cd PIE/
 pip install -e .
 ```
-### Troubleshooting PIE installation
-
-If you see the error 'Permission denied (publickey) error' for git clone, that means you need to add ssh key to your github account for installation. You can do that by following steps in this [link](https://stackoverflow.com/questions/2643502/how-to-solve-permission-denied-publickey-error-when-using-git). 
-1. cd into your .ssh directory and run
-```
-cd ~/.ssh && ssh-keygen
-```
-2. copy the key to your clipboard
-- on OS X system run ``` cat id_rsa.pub | pbcopy```
-- on Linux run ```cat id_rsa.pub | xclip```
-- Windows (via Cygwin/Git Bash) run ```cat id_rsa.pub | clip```
-3. add the ssh key to your github account via [website](https://docs.github.com/en/github/authenticating-to-github/adding-a-new-ssh-key-to-your-github-account)
-4. setup your .gitconfig
-```
-git config --global user.name "bob"
-git config --global user.email bob@...
-```
-5. restart the command line to make sure the config is reloaded
 
 ## Running PIE
 
