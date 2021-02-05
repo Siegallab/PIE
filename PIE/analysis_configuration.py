@@ -684,8 +684,10 @@ class _AnalysisConfigFileProcessor(object):
 			print(parent_setup_ser)
 			print(current_setup_ser)
 			raise IndexError(
-				'Missing required fields in one of the previous ' + 
-				'phase setup series')
+				'Missing required fields in one of the previous phase setup '
+				'series; if your experiment has multiple phases, check that '
+				'you have specified every parameter for every phase (either '
+				'individually or my marking "all" under PhaseNum')
 		parent_subset_ser_to_use = parent_setup_ser[list(reqd_parents_fields)]
 		phase_conf_ser = pd.concat([parent_subset_ser_to_use, current_setup_ser])
 		return(phase_conf_ser)
