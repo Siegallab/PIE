@@ -71,7 +71,7 @@ class _ImageAnalyzer(object):
 		'''
 		Reads the image, performs normalization
 		If image_type is brightfield, reads as is
-		If image_type is phasecontrast, inverts image before analysis
+		If image_type is phase_contrast, inverts image before analysis
 		'''
 		# create a normalized image so that assumptions about
 		# low-intensity pixel peak being close to 0 made by thresholding
@@ -86,18 +86,20 @@ class _ImageAnalyzer(object):
 				# decrease bitdepth of norm_im to 8-bit while normalizing
 		self.norm_im_8_bit = cv2.normalize(self.original_im, None, alpha=0, beta=(2**8-1),
 			norm_type=cv2.NORM_MINMAX)
-		if self.image_type == 'brightfield':
+		if self.image_type.lower() == 'brightfield' or \
+			self.image_type.lower() == 'bright_field':
 			# the image that was read in is the one that will be
 			# processed
 			self.input_im = np.copy(self.norm_im)
-		elif self.image_type == 'phasecontrast':
+		elif self.image_type.lower() == 'phasecontrast' or \
+			self.image_type.lower() == 'phase_contrast':
 			# the normalized image needs to be inverted before
 			# processing, then normalized so that assumptions about
 			# peak values being close to 0 are true
 			self.input_im = cv2.bitwise_not(self.norm_im)
 		else:
 			raise ValueError(
-				"image_type must be either 'brightfield' or 'phasecontrast'")
+				"image_type must be either 'brightfield' or 'phase_contrast'")
 		
 	def _write_threshold_plot(self, threshold_plot):
 		'''
