@@ -44,7 +44,9 @@ The full list of required python packages is listed in the [requirements.txt](re
 To install PIE, you will first need to 'clone' (download) the repository. This can be done in one of two ways:
 
  * Press the green **'Code'** button at the top of this website, select 'Download ZIP', and save the file to a directory on your computer. You will then need to unzip the file (usually by double-clicking it), which will create a directory called *'PIE'* containing all the code.
+
 OR
+
  * Enter terminal (on a Mac/Linux)/CommandPrompt (on Windows, if you have *git* installed), enter the directory into which you'd like to download the *'PIE'* directory, and type
  ```
  git clone https://github.com/Siegallab/PIE.git
