@@ -345,13 +345,18 @@ class _PlotMovieMaker(_MovieMaker):
 		# set up transparency column based on timepoint
 		# make current value solid, previous values opaque, future 
 		# values invisible
-		df_to_plot['pt_time'] = 'future'
-		df_to_plot.loc[
-			df_to_plot.global_timepoint < last_glob_tp, 'pt_time'
-			] = 'past'
-		df_to_plot.loc[
-			df_to_plot.global_timepoint == last_glob_tp, 'pt_time'
-			] = 'present'
+		# only make points transparent until the final timepoint
+		if int(last_glob_tp) == \
+			df_to_plot.global_timepoint.astype(int).max():
+			df_to_plot['pt_time'] = 'present'
+		else:
+			df_to_plot['pt_time'] = 'future'
+			df_to_plot.loc[
+				df_to_plot.global_timepoint < last_glob_tp, 'pt_time'
+				] = 'past'
+			df_to_plot.loc[
+				df_to_plot.global_timepoint == last_glob_tp, 'pt_time'
+				] = 'present'
 		# pass full data to ggplot for scales
 		ggplot_obj = \
 			p9.ggplot(data = df_to_plot) + \
@@ -367,7 +372,6 @@ class _PlotMovieMaker(_MovieMaker):
 				) + \
 			p9.scale_colour_identity() + \
 			p9.scale_alpha_manual(
-#				breaks=['future','past'],
 				values={'future':0,'past':0.25, 'present':1}
 				) + \
 			p9.guides(alpha = False) + \
@@ -480,10 +484,13 @@ class _GrowthPlotMovieMaker(_PlotMovieMaker):
 		t0_key = key_df_time.rename(
 			columns={
 				'timepoint': 't0',
-				'time_in_hours': 't0_in_hours'})
+				'time_in_hours': 't0_in_hours'
+				})
 		tfinal_key = key_df_time.rename(
-			columns={'timepoint': 'tfinal',
-				"time_in_hours": 'tfinal_in_hours'})
+			columns={
+				'timepoint': 'tfinal',
+				'time_in_hours': 'tfinal_in_hours'
+				})
 		gr_df = pd.merge(left = gr_df, right = t0_key)
 		gr_df = pd.merge(left = gr_df, right = tfinal_key)
 #		# use ln_area from self.col_prop_df to set ln_area of t0 and
@@ -503,6 +510,26 @@ class _GrowthPlotMovieMaker(_PlotMovieMaker):
 #		gr_df = pd.merge(left = gr_df, right = tfinal_area_key)
 		gr_df['yhat_t0'] = gr_df.t0_in_hours * gr_df.gr + gr_df.intercept
 		gr_df['yhat_tfinal'] = gr_df.tfinal_in_hours * gr_df.gr + gr_df.intercept
+		return(gr_df)
+
+	def _add_first_tp_colony_size(self, gr_df):
+		'''
+		Add the log area of the colony at the first timepoint
+		'''
+		first_tp = self.col_prop_df.timepoint.min()
+		# subset col_prop_df where timepoint equals first timepoint
+		col_prop_df_first_tp = \
+			self.col_prop_df[self.col_prop_df.timepoint == first_tp].copy()
+		col_prop_df_first_tp.rename(
+			columns={'ln_area': 'ln_area_first_tp'},
+			inplace = True
+			)
+		gr_df = pd.merge(
+			left = gr_df,
+			right = col_prop_df_first_tp[
+				['phase_num','cross_phase_tracking_id','ln_area_first_tp']
+				]
+			)
 		return(gr_df)
 
 	def _get_gr_data(self):
@@ -528,9 +555,11 @@ class _GrowthPlotMovieMaker(_PlotMovieMaker):
 		gr_df_colored = pd.merge(left = gr_data_subset, right = self.color_df)
 		# add t0 and tfinal times and areas
 		gr_df_extra_times = self._set_start_end_times_and_log_areas(gr_df_colored)
+		# add log(area) at first timepoint to gr_df
+		gr_df_first_tp_area = self._add_first_tp_colony_size(gr_df_extra_times)
 		# change phase_num to string type
-		gr_df_extra_times.phase_num = gr_df_extra_times.phase_num.astype(str)
-		self.gr_df = gr_df_extra_times
+		gr_df_first_tp_area.phase_num = gr_df_first_tp_area.phase_num.astype(str)
+		self.gr_df = gr_df_first_tp_area
 
 	def _plot_growth_rate(self, last_glob_tp):
 		'''
@@ -568,9 +597,9 @@ class _GrowthPlotMovieMaker(_PlotMovieMaker):
 						data = self.gr_df,
 						mapping = p9.aes(
 							x = 0,
-							y = 'yhat_t0',
+							y = 'ln_area_first_tp',
 							xend = 'lag',
-							yend = 'yhat_t0',
+							yend = 'ln_area_first_tp',
 							color = 'hex_color'),
 						size = 1,
 						linetype = 'dashed')

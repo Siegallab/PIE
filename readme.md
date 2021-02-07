@@ -252,16 +252,14 @@ import PIE
 PIE.make_position_movie(
   12,
   analysis_config_file=\
-    '/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv'
+    '/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv',
   colony_subset='growing'
   )
-PIE.run_growth_rate_analysis(analysis_config_file =
-    '/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv')
 ```
 
 This code should generate the following movie in the **movies** directory in the output folder of the experiment:
 
-![Growing colonies from imaging field 12](sample_images/SL_170519_xy12_growing_colonies_movie.gif)
+![Growing colonies from imaging field 12](sample_images/SL_170619_xy12_growing_colonies_movie.gif)
 
 In the plot, the solid lines represent the best-fit growth rate estimate, and the length of the dashed lines represent the best-fit lag estimate. Note that while the color identity of each colony is random and will change every time the code is run, assigned colors are consistent between the image panel and the plot panel.
 
