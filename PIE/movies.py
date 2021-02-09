@@ -1555,6 +1555,8 @@ class _MovieGrid(_MovieSaver):
 			current_im_df.columns = [idx]
 			im_df_list.append(current_im_df)
 		combined_im_df = pd.concat(im_df_list, join = 'outer', axis = 1)
+		# fill empty positions (subframes) in combined_im_df with None
+		combined_im_df.replace(dict({np.nan:None}),inplace = True)
 		# place images on common background at each global timepoint,
 		# and add to MovieHolder object
 		self.movie_holder = MovieHolder(combined_im_df.index)
@@ -1682,6 +1684,62 @@ class MovieGenerator(object):
 			raise ValueError('crossphase_colony_id_list must contain colonies '
 				'from a single imaging field (xy position)')
 
+	def _parse_fluor_stages(self, mainphase = False, postphase = False):
+		'''
+		Returns fluor_color_dict, with fluor_channel_column_name keys 
+		and fluor_color values for each
+
+		postphase and mainphase are bools; if True, look for 
+		fluorescent channels in the respective phase type (main phase 
+		and/or post-phase)
+
+		If fluor_color_dict is None (default), assigns channels 
+		random-esque colors, trying to maximize overlap sense (green + 
+		magenta for 2 channels, magenta + yellow + cyan for 3 channels)
+		'''
+		# get all fluor channel names specified across 
+		fluor_channel_list = []
+		max_per_phase_channels = 0
+		for phase in self.analysis_config_obj_df.index:
+			curr_phase_channel_list = []
+			analysis_config = \
+				self.analysis_config_obj_df.at[phase, 'analysis_config']
+			postphase_analysis_config = \
+				self.analysis_config_obj_df.at[
+					phase, 'postphase_analysis_config'
+					]
+			if mainphase:
+				fluor_channels = \
+					analysis_config.fluor_channel_df.\
+						fluor_channel_column_name.to_list()
+				curr_phase_channel_list.extend(fluor_channels)
+			if postphase and postphase_analysis_config is not None:
+				fluor_channels = \
+					postphase_analysis_config.fluor_channel_df.\
+						fluor_channel_column_name.to_list()
+				curr_phase_channel_list.extend(fluor_channels)
+			max_per_phase_channels = \
+				max(max_per_phase_channels, len(curr_phase_channel_list))
+			fluor_channel_list.extend(curr_phase_channel_list)
+		fluor_channel_set = set(fluor_channel_list)
+		fluor_channel_num = len(fluor_channel_set)
+		if fluor_channel_num <= 3:
+			color_set = ['cyan', 'magenta', 'yellow']
+			fluor_color_dict = \
+				dict(zip(fluor_channel_set, color_set[0:fluor_channel_num]))
+		else:
+			# generate random colors
+			fluor_color_df = _generate_colony_colors(
+				list(fluor_channel_set),
+				randomize_order = False
+				)
+			fluor_color_dict = \
+				dict(zip(
+					fluor_color_df.cross_phase_tracking_id.to_list(),
+					fluor_color_df.hex_color.to_list()
+					))
+		return(fluor_color_dict, max_per_phase_channels)
+
 	def make_cell_movie(self, col_shading_alpha, bound_width,
 		normalize_intensity = True,
 		expansion_pixels = 10, bitdepth = None
@@ -1721,6 +1779,74 @@ class MovieGenerator(object):
 			postphase_fluor_channel = fluor_channel,
 			bitdepth = bitdepth)
 		return(movie_maker)
+
+	def make_full_postfluor_movie(self,
+		col_shading_alpha,
+		bound_width,
+		normalize_intensity = True,
+		fluor_color_dict = None,
+		expansion_pixels = 10,
+		bitdepth = None):
+		'''
+		Sets up movies for main (brightfield or phase contrast) channel 
+		followed by postphase fluorescence in all imaged postphase 
+		fluorescence channels
+
+		If fluor_color_dict is None (default), assigns channels 
+		random-esque colors, trying to maximize overlap sense (green + 
+		magenta for 2 channels, magenta + yellow + cyan for 3 channels)
+		'''
+		if fluor_color_dict is None:
+			fluor_color_dict, max_per_phase_channels = \
+				self._parse_fluor_stages(postphase = True)
+		else:
+			_, max_per_phase_channels = \
+				self._parse_fluor_stages(postphase = True)
+		# calculate proportion of fluorescent channel mixtures
+		# good to have the same intensity for a given channel across 
+		# phases
+		channel_mix_prop = 1.0/float(max_per_phase_channels)
+		combined_movie_list = []
+		for phase in self.analysis_config_obj_df.index:
+			postphase_analysis_config = \
+				self.analysis_config_obj_df.at[
+					phase, 'postphase_analysis_config'
+					]
+			if postphase_analysis_config is not None:
+				phase_movie_list = []
+				fluor_channel_list = \
+					postphase_analysis_config.fluor_channel_df.\
+						fluor_channel_column_name.to_list()
+				for fluor_channel in fluor_channel_list:
+					curr_movie = self.make_postfluor_movie(
+						col_shading_alpha,
+						fluor_channel,
+						bound_width,
+						normalize_intensity = normalize_intensity,
+						fluor_color = fluor_color_dict[fluor_channel],
+						expansion_pixels = expansion_pixels,
+						bitdepth = bitdepth
+						)
+					phase_movie_list.append(curr_movie)
+				# merge movies from phase with partial intensities
+				if len(phase_movie_list)==1:
+					phase_movie_maker = phase_movie_list[0]
+					combined_movie_list.append(phase_movie_maker)
+				elif len(phase_movie_list)>1:
+					phase_movie_maker = merge_movie_channels(
+						phase_movie_list,
+						intens_mult_list=[channel_mix_prop]*len(phase_movie_list)
+						)
+					combined_movie_list.append(phase_movie_maker)
+		# 'merge' movies across phases without rescaling (already scaled) intensities
+		if len(combined_movie_list)==1:
+			movie_maker_combined = combined_movie_list[0]
+		else:
+			movie_maker_combined = merge_movie_channels(
+				combined_movie_list,
+				intens_mult_list=[1]*len(combined_movie_list)
+				)
+		return(movie_maker_combined)
 
 	def make_fluor_movie(self, fluor_channel, bound_width,
 		normalize_intensity = True, fluor_color = 'white',
@@ -2048,18 +2174,32 @@ def make_position_movie(
 		bound_width = 2
 		# set expansion pixels to ridiculously large number so code 
 		# defaults to showing full frame
-		cells = \
-			movie_generator.make_cell_movie(
-				col_shading_alpha,
-				bound_width,
-				normalize_intensity,
-				expansion_pixels = 10**10)
+		expansion_pixels = 10**10
+		# if any post-phase fluor stages exist, default to making
+		# post-fluor movie
+		if any(
+			[pp_analysis_config is not None for pp_analysis_config in 
+			analysis_config_obj_df.postphase_analysis_config.to_list()]
+			):
+			cell_movie = \
+				movie_generator.make_full_postfluor_movie(
+					col_shading_alpha,
+					bound_width,
+					normalize_intensity=normalize_intensity,
+					)
+		else:
+			cell_movie = \
+				movie_generator.make_cell_movie(
+					col_shading_alpha,
+					bound_width,
+					normalize_intensity,
+					expansion_pixels = 10**10)
 		gr_plot = \
 			movie_generator.make_growth_plot_movie()
 		# write movie (try to ensure plot is a square for prettyness)
-		cell_hw_ratio = float(cells.inherent_size[1])/float(cells.inherent_size[1])
+		cells_hw_ratio = float(cell_movie.inherent_size[1])/float(cell_movie.inherent_size[1])
 		movie_grid = \
-			make_movie_grid(cells, gr_plot, rel_widths = [1, cell_hw_ratio])
+			make_movie_grid(cell_movie, gr_plot, rel_widths = [1, cells_hw_ratio])
 		movie_output_path = temp_analysis_config_standin.movie_folder
 		movie_name = 'xy'+str(xy_pos_idx)+'_'+colony_subset+'_colonies_movie'
 		save_movie(movie_grid, movie_output_path, movie_name, 'gif')
