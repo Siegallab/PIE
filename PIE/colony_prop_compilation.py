@@ -214,7 +214,7 @@ def get_colony_properties(col_property_mat_df, timepoint_label,
 					'If timepoint_label is first_gr or last_gr then a non-'
 					'empty pandas dataframe must be passed as gr_df')
 		else:
-			nan_mat = np.isnan(col_property_mat)
+			nan_mat = pd.isnull(col_property_mat_df_subset).to_numpy()
 			if isinstance(timepoint_label, str) and \
 				timepoint_label == 'first_tracked':
 				# return first tracked timepoint
