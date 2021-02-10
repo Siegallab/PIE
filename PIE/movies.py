@@ -272,7 +272,8 @@ class _PlotMovieMaker(_MovieMaker):
 		# add time in hours to self.col_prop_df
 		self.col_prop_df['time_in_hours'] = \
 			(self.col_prop_df['time_in_seconds'] - \
-				self.col_prop_df['first_timepoint_time']).astype(float)/3600
+				self.first_phase_first_tp).astype(float)/3600
+#				self.col_prop_df['first_timepoint_time']).astype(float)/3600
 		# set self.gr_df to None until it is required
 		self.gr_df = None
 		# determine default for whether to separate plot facets by phase
@@ -299,6 +300,14 @@ class _PlotMovieMaker(_MovieMaker):
 			self.first_tp_df.at[phase, 'first_timepoint_time'] = \
 				analysis_config.first_timepoint_time
 		self.first_tp_df.reset_index(inplace = True)
+		self.first_phase_first_tp = self.first_tp_df.at[
+			self.first_tp_df.index.min(),
+			'first_timepoint_time'
+			]
+		self.first_tp_df['rel_first_timepoint'] = \
+			self.first_tp_df.first_timepoint_time - self.first_phase_first_tp
+		self.first_tp_df['rel_first_timepoint_hrs'] = \
+			self.first_tp_df.rel_first_timepoint/3600
 		col_prop_df = pd.merge(col_prop_df, self.first_tp_df)
 		return(col_prop_df)
 
@@ -374,14 +383,20 @@ class _PlotMovieMaker(_MovieMaker):
 			p9.scale_alpha_manual(
 				values={'future':0,'past':0.25, 'present':1}
 				) + \
-			p9.guides(alpha = False) + \
-			p9.theme(legend_position="bottom",
-				plot_margin = 0) + \
-			p9.theme_bw()
+			p9.guides(
+				alpha = False,
+				shape = p9.guide_legend(title='phase')
+				) + \
+			p9.theme_bw() + \
+			p9.theme(
+				plot_margin = 0
+				)
 		# determine whether to facet by on phase_num
 		if self._facet_phase:
 			ggplot_obj = ggplot_obj + \
-				p9.facet_wrap('~phase_num')
+				p9.facet_wrap(
+					'~phase_num', scales = 'free_x'
+					)
 		# if faceting by phase, or number of phases is 1, remove shape
 		# legend
 		if self._facet_phase or len(df_to_plot.phase_num.unique()) == 1:
@@ -480,7 +495,8 @@ class _GrowthPlotMovieMaker(_PlotMovieMaker):
 		'''
 		# use timings from self.col_prop_df to set time_in_hrs  of t0
 		# and tfinal
-		key_df_time = self.timing_df[['timepoint', 'time_in_hours']]
+		key_df_time = \
+			self.timing_df[['timepoint', 'time_in_hours', 'phase_num']]
 		t0_key = key_df_time.rename(
 			columns={
 				'timepoint': 't0',
@@ -493,6 +509,11 @@ class _GrowthPlotMovieMaker(_PlotMovieMaker):
 				})
 		gr_df = pd.merge(left = gr_df, right = t0_key)
 		gr_df = pd.merge(left = gr_df, right = tfinal_key)
+		# add first timepoint info
+		gr_df = pd.merge(
+			left = gr_df,
+			right = self.first_tp_df[['phase_num','rel_first_timepoint_hrs']]
+			)
 #		# use ln_area from self.col_prop_df to set ln_area of t0 and
 #		# tfinal
 #		key_df_area = self.col_prop_df[
@@ -508,18 +529,27 @@ class _GrowthPlotMovieMaker(_PlotMovieMaker):
 #				'ln_area': 'ln_area_tfinal'})
 #		gr_df = pd.merge(left = gr_df, right = t0_area_key) 
 #		gr_df = pd.merge(left = gr_df, right = tfinal_area_key)
-		gr_df['yhat_t0'] = gr_df.t0_in_hours * gr_df.gr + gr_df.intercept
-		gr_df['yhat_tfinal'] = gr_df.tfinal_in_hours * gr_df.gr + gr_df.intercept
+		gr_df['yhat_t0'] = \
+			(gr_df.t0_in_hours - gr_df.rel_first_timepoint_hrs) * \
+			gr_df.gr + gr_df.intercept
+		gr_df['yhat_tfinal'] = \
+			(gr_df.tfinal_in_hours - gr_df.rel_first_timepoint_hrs) * \
+			gr_df.gr + gr_df.intercept
+		gr_df['lag_end'] = gr_df.lag + gr_df.rel_first_timepoint_hrs
 		return(gr_df)
 
 	def _add_first_tp_colony_size(self, gr_df):
 		'''
 		Add the log area of the colony at the first timepoint
 		'''
-		first_tp = self.col_prop_df.timepoint.min()
+		# create dataframe of first timepoint for every colony in 
+		# every phase
+		first_timepoint_key_df = self.col_prop_df.groupby(
+			['phase_num','cross_phase_tracking_id']
+			)['timepoint'].min()
 		# subset col_prop_df where timepoint equals first timepoint
 		col_prop_df_first_tp = \
-			self.col_prop_df[self.col_prop_df.timepoint == first_tp].copy()
+			pd.merge(left = self.col_prop_df, right = first_timepoint_key_df)
 		col_prop_df_first_tp.rename(
 			columns={'ln_area': 'ln_area_first_tp'},
 			inplace = True
@@ -596,9 +626,9 @@ class _GrowthPlotMovieMaker(_PlotMovieMaker):
 					p9.geom_segment(
 						data = self.gr_df,
 						mapping = p9.aes(
-							x = 0,
+							x = 'rel_first_timepoint_hrs',
 							y = 'ln_area_first_tp',
-							xend = 'lag',
+							xend = 'lag_end',
 							yend = 'ln_area_first_tp',
 							color = 'hex_color'),
 						size = 1,
