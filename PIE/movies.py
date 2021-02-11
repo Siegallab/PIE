@@ -1973,7 +1973,7 @@ def _place_im(subframe_im, main_im, width, height, top_offset, left_offset):
 	Image object main_im
 	'''
 	# resize subframe
-	required_size = (int(width), int(height))
+	required_size = (int(np.round(width)), int(np.round(height)))
 	if subframe_im.size != required_size:
 		subframe_im = subframe_im.resize(required_size)
 	# place subframe on main_im
@@ -2000,10 +2000,9 @@ def _ratio_resize_convert(im, width, height, blank_color):
 		if resize_ratio == 1:
 			resized_im = im
 		else:
-			resized_im = \
-				im.resize(
-					(width*width_ratio, height*height_ratio)
-					)
+			new_width = int(np.round(width*width_ratio))
+			new_height = int(np.round(height*height_ratio))
+			resized_im = im.resize((new_width, new_height))
 	else:
 		blank_im = _create_blank_im(width, height, blank_color)
 		x_offset = (1-resize_ratio/width_ratio)*float(width)/2
