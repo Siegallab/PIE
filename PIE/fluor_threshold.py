@@ -153,7 +153,7 @@ class _FluorDensityFitter(DensityFitterMLE):
 		else:
 			density = self._calculate_kernel(x_grid, bw)
 			self.peak_idx=np.array([np.nan, np.nan])
-		self._bandwidth=bw
+#		self._bandwidth=bw
 		self._kernel_df=pd.DataFrame({
 			'fluor': x_grid,
 			'density': density
@@ -303,13 +303,16 @@ class _FluorDensityFitter(DensityFitterMLE):
 			var_name='distribution_id',
 			value_name='density'
 			)
+		# get histogram binwidth
+		hist_bin_centers = numpy.histogram_bin_edges(self.data, bins='auto')
+		bin_num = len(hist_bin_centers)
 		density_plot = \
 			p9.ggplot() + \
 			p9.geom_histogram(
 				data=pd.DataFrame({'fluor':self.data}),
 				mapping=p9.aes(x='fluor',y='stat(density)'),
 				color='gray',
-				binwidth=self._bandwidth,
+				binwidth=bin_num,
 				linetype='solid',
 				alpha=0,
 				size=.25
