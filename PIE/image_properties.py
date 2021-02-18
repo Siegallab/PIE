@@ -34,7 +34,15 @@ class _ImageAnalyzer(object):
 		self._threshold_plot_filetype = threshold_plot_filetype
 		self._save_extra_info = save_extra_info
 		self.original_im = original_im
-		self.image_type = image_type
+		if image_type.lower() == 'phasecontrast' or \
+			image_type.lower() == 'phase_contrast':
+			self.image_type = 'pc'
+		elif image_type.lower() == 'brightfield' or \
+			image_type.lower() == 'bright_field':
+			self.image_type = 'bf'
+		else:
+			raise ValueError(
+				"image_type must be either 'brightfield' or 'phase_contrast'")
 		self.hole_fill_area = hole_fill_area
 		self.cleanup = cleanup
 		self._create_pie_overlay = create_pie_overlay
@@ -86,20 +94,15 @@ class _ImageAnalyzer(object):
 				# decrease bitdepth of norm_im to 8-bit while normalizing
 		self.norm_im_8_bit = cv2.normalize(self.original_im, None, alpha=0, beta=(2**8-1),
 			norm_type=cv2.NORM_MINMAX)
-		if self.image_type.lower() == 'brightfield' or \
-			self.image_type.lower() == 'bright_field':
+		if self.image_type == 'bf':
 			# the image that was read in is the one that will be
 			# processed
 			self.input_im = np.copy(self.norm_im)
-		elif self.image_type.lower() == 'phasecontrast' or \
-			self.image_type.lower() == 'phase_contrast':
+		elif self.image_type == 'pc':
 			# the normalized image needs to be inverted before
 			# processing, then normalized so that assumptions about
 			# peak values being close to 0 are true
 			self.input_im = cv2.bitwise_not(self.norm_im)
-		else:
-			raise ValueError(
-				"image_type must be either 'brightfield' or 'phase_contrast'")
 		
 	def _write_threshold_plot(self, threshold_plot):
 		'''
@@ -155,7 +158,7 @@ class _ImageAnalyzer(object):
 		'''
 		self.colony_mask = colony_edge_detect.get_mask(self.input_im,
 			self.cell_centers, self.hole_fill_area, self.cleanup,
-			self.max_proportion_exposed_edge)
+			self.max_proportion_exposed_edge, self.image_type)
 
 	def _save_jpeg(self):
 		'''
