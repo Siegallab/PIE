@@ -156,9 +156,12 @@ class _ImageAnalyzer(object):
 		'''
 		Runs PIE edge detection and finds the binary mask
 		'''
-		self.colony_mask = colony_edge_detect.get_mask(self.input_im,
-			self.cell_centers, self.hole_fill_area, self.cleanup,
-			self.max_proportion_exposed_edge, self.image_type)
+		self.pie_edge_detector = \
+			colony_edge_detect.EdgeDetector(
+				self.input_im, self.cell_centers, self.hole_fill_area,
+				self.cleanup, self.max_proportion_exposed_edge, 
+				self.image_type)
+		self.colony_mask = self.pie_edge_detector.run_edge_detection()
 
 	def _save_jpeg(self):
 		'''

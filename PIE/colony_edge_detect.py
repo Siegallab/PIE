@@ -10,9 +10,10 @@ import cv2
 import os
 import numpy as np
 import pandas as pd
-from PIE import ported_matlab
+from PIE import ported_matlab, image_coloring
+from PIL import ImageColor
 
-class _EdgeDetector(object):
+class EdgeDetector(object):
 	'''
 	Detects edges in input_im using PIE algorithm
 	'''
@@ -134,12 +135,8 @@ class _EdgeDetector(object):
 			ported_matlab.bwperim(np.ones(np.shape(mask_to_clear), dtype = bool))
 		cleared_mask, _ = \
 			_filter_by_overlaps(mask_to_clear, mask_edge,
-				keep_overlapping_objects = False, trim_pie_edges = False)
+				keep_overlapping_objects = False)
 		return(cleared_mask)
-
-	def draw_pie_pieces(self):
-		# TODO: write this method
-		pass
 
 	def _create_translation_matrix(self, source_position_mat,
 		target_position_mat):
@@ -252,7 +249,71 @@ class _EdgeDetector(object):
 				self._run_cleanup(initial_colony_mask, colony_mask_filled_holes)
 		colony_mask_clear_edges = \
 			self._clear_mask_edges(colony_mask_filled_holes)
-		return(colony_mask_clear_edges)		
+		return(colony_mask_clear_edges)
+
+	def draw_pie_pieces(self,
+		mask_type = 'cell_overlap_pie_mask',
+		color_list = ['#75D5E6','#A10279','#FFE53B','#3B5B9B'],
+		background_im = None,
+		background_im_bitdepth = None,
+		pie_shading_alpha = 1
+		):
+		'''
+		Returns image with each pie piece show in one of the colors in 
+		color_list
+
+		mask_type is the type of pie mask to use; options are 
+		'pie_mask' (input image broken up into pie pieces), 
+		'cell_overlap_pie_mask' (mask overlapping with cell centers), 
+		'edge_filtered_pie_mask' (pie pieces after latest filtration 
+		of exposed edges), or 'neighbor_filtered_pie_mask' (pie pieces 
+		after latest filtration based on neighboring pie piece 
+		quadrants)
+
+		color_list can either be a string (to use same color for all 
+		PIE pieces) or a list of 4 colors as stings (either web color 
+		names or hex keys); default is colorblind-friendly
+
+		background_im can be an image or None(default), in which case 
+		pie pieces will have black background
+
+		pie_shading_alpha is the opacity of the pie pieces, on a scale 
+		of 0 to 1
+		'''
+		# !!! NEEDS UNITTEST
+		# do qc on color_list
+		error_text = \
+			'color_list must be a string or a list of color names with length 4'
+		if isinstance(color_list, list):
+			if len(color_list) == 1:
+				color_list = color_list*4
+			elif len(color_list) != 4:
+				raise IndexError(error_text)
+		elif isinstance(color_list, str):
+			color_list = [color_list]*4
+		else:
+			raise TypeError(error_text)
+		# convert color_list to rgb
+		rgb_color_vals = [ImageColor.getcolor(c, "RGB") for c in color_list]
+		rgb_color_dict = dict(zip(self.pie_piece_dict.keys(), rgb_color_vals))
+		# loop over pie pieces and color each one on background_im
+		if background_im is None:
+			colored_im = np.uint8(np.zeros(self.input_im.shape))
+			background_im_bitdepth = 8
+		else:
+			colored_im = background_im.copy()
+		for pie_quad, pie_piece_quadrant in self.pie_piece_dict.items():
+			pie_mask = getattr(pie_piece_quadrant, mask_type)
+			# here we're relying on pie pieces not overlapping to just 
+			# do this simply and sequentially
+			colored_im = image_coloring.create_color_overlay(
+				colored_im,
+				pie_mask,
+				rgb_color_dict[pie_quad],
+				pie_shading_alpha,
+				bitdepth = background_im_bitdepth
+				)
+		return(colored_im)
 
 class _PiePiece(object):
 	'''
@@ -278,11 +339,21 @@ class _PiePiece(object):
 		bounds are bounds of pie pieces that intersect with 
 		cell_center_mask
 		'''
-		self.cell_overlap_pie_mask, \
+		cell_overlap_pie_mask_prelim, \
 			self.cell_overlap_labeled_pie_mask = \
 			_filter_by_overlaps(self.pie_mask, cell_center_mask,
-				keep_overlapping_objects = True,
-				trim_pie_edges = trim_pie_edges)
+				keep_overlapping_objects = True)
+		if trim_pie_edges:
+			# update edges of cell overlap pie mask
+			self.cell_overlap_pie_mask = \
+				np.logical_and(cell_overlap_pie_mask_prelim, cell_center_mask)
+			# set removed edges in labeled cell overlap pie mask to 
+			# background by setting their value to 0
+			removed_edge_mask = \
+				np.logical_xor(cell_overlap_pie_mask_prelim, cell_center_mask)
+			self.cell_overlap_labeled_pie_mask[removed_edge_mask] = 0
+		else:
+			self.cell_overlap_pie_mask = cell_overlap_pie_mask_prelim
 
 	def filter_by_exposed_edge(self, colony_mask, max_proportion_exposed_edge):
 		'''
@@ -359,18 +430,19 @@ class _PiePiece(object):
 			self.neighbor_filtered_pie_mask, _ = \
 				_filter_by_overlaps(self.neighbor_filtered_pie_mask,
 					neighbor_overlap_mask, keep_overlapping_objects = True,
-					trim_pie_edges = False,
 					labeled_mask = self.cell_overlap_labeled_pie_mask)
 
 def _filter_by_overlaps(mask_to_filter, guide_mask, keep_overlapping_objects,
-	trim_pie_edges, labeled_mask = None):
+	labeled_mask = None):
 	'''
 	Identifies objects in binary mask_to_filter that overlap with binary
 	guide_mask
-	If keep_overlapping_objects is True, returns a mask containing only
-	those objects that overlap guide_mask
-	If keep_overlapping_objects is False, returns a mask containing all
+
+	If keep_overlapping_objects is True, returns a mask containing 
+	only those objects that overlap guide_mask; if 
+	keep_overlapping_objects is False, returns a mask containing all 
 	objects except the ones that overlap guide_mask
+
 	If labeled_mask is not None, uses supplied labeled_mask
 	'''
 	# !!! NEEDS UNITTEST
@@ -406,24 +478,7 @@ def _filter_by_overlaps(mask_to_filter, guide_mask, keep_overlapping_objects,
 	# allowed_labels
 	filtered_mask = \
 		np.isin(labeled_mask, allowed_labels)
-	# if boundary mask edges need to correspond to guide_mask, use 
-	# guide_mask to remove unnecessary edges of pie pieces
-	if trim_pie_edges:
-		filtered_mask = np.logical_and(filtered_mask, guide_mask)
 	return(filtered_mask, labeled_mask)
-
-def get_mask(input_im, cell_centers, hole_fill_area,
-		cleanup, max_proportion_exposed_edge, image_type):
-	'''
-	Runs colony edge detection on input_im given a mask of cell centers
-
-	image_type is either 'pc' (inverted phase contrast) or 'bf' 
-	(brightfield)
-	'''
-	pie_edge_detector = _EdgeDetector(input_im, cell_centers, hole_fill_area,
-		cleanup, max_proportion_exposed_edge, image_type)
-	colony_mask = pie_edge_detector.run_edge_detection()
-	return(colony_mask)
 
 if __name__ == '__main__':
 	pass
