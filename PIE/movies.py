@@ -15,7 +15,12 @@ from mizani.palettes import hue_pal # installed with plotnine
 from io import BytesIO
 from itertools import chain
 from PIL import ImageColor, Image
-from PIE.image_coloring import paint_by_numbers, colorize_im, overlay_color_im, get_boundary
+from PIE.image_coloring import \
+	paint_by_numbers, \
+	colorize_im, \
+	overlay_color_im, \
+	get_boundary, \
+	safe_uint8_convert
 from PIE.analysis_configuration import check_passed_config, process_setup_file
 from PIE.colony_prop_compilation import get_colony_properties
 from PIE.ported_matlab import bwperim
@@ -2033,21 +2038,6 @@ def _check_rel_ratios(rel_ratio_list, obj_list):
 			raise ValueError('relative ratios must be greater than 0')
 		rel_ratio_list = rel_ratio_list/np.sum(rel_ratio_list)
 	return(rel_ratio_list)
-
-def safe_uint8_convert(im):
-	'''
-	Converts im to uint8, but sets oversaturated pixels to max 
-	intensity and throws oversaturation warning
-	'''
-	input_im = im.copy()
-	oversat_bool = input_im > 255
-	if np.sum(oversat_bool) > 0:
-		with warnings.catch_warnings():
-			warnings.simplefilter("always")
-			warnings.warn('Some pixels are oversaturated', UserWarning)
-	input_im[oversat_bool] = 255
-	input_im = np.uint8(input_im)
-	return(input_im)
 
 def merge_movie_channels(*movie_objects, intens_mult_list = None):
 	'''

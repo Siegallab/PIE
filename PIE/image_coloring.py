@@ -119,3 +119,18 @@ def get_boundary(bool_mask, bound_width):
 	bound_mask_im = mask_im-eroded_mask_im
 	bound_mask_bool = bound_mask_im.astype(bool)
 	return(bound_mask_bool)
+
+def safe_uint8_convert(im):
+	'''
+	Converts im to uint8, but sets oversaturated pixels to max 
+	intensity and throws oversaturation warning
+	'''
+	input_im = im.copy()
+	oversat_bool = input_im > 255
+	if np.sum(oversat_bool) > 0:
+		with warnings.catch_warnings():
+			warnings.simplefilter("always")
+			warnings.warn('Some pixels are oversaturated', UserWarning)
+	input_im[oversat_bool] = 255
+	input_im = np.uint8(input_im)
+	return(input_im)
