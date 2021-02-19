@@ -71,11 +71,11 @@ class _FilterBaseClass(object):
 		filter_pass = np.invert(change_pos_bool_filled)
 		return(filter_pass)
 
-	def _propage_filter_across_columns(self, filter_pass_rows):
+	def _propagate_filter_across_columns(self, filter_pass_rows):
 		''' Repeat filter_pass_rows in every column '''
 		if not isinstance(filter_pass_rows, np.ndarray):
 			raise TypeError(
-				'_propage_filter_across_columns only accepts numpy arrays'
+				'_propagate_filter_across_columns only accepts numpy arrays'
 				)
 		col_num = len(self.df_to_filter.columns)
 		filter_pass = \
@@ -236,7 +236,7 @@ class _FilterByColonyAppearanceTime(_FilterBaseClass):
 		filter_pass_rows = \
 			valid_timepoint_areas.notnull().to_numpy()
 		# repeat filter_pass_rows in every column
-		filter_pass = self._propage_filter_across_columns(filter_pass_rows)
+		filter_pass = self._propagate_filter_across_columns(filter_pass_rows)
 		return(filter_pass)
 
 class _FilterByMinGrowthTime(_FilterBaseClass):
@@ -251,7 +251,7 @@ class _FilterByMinGrowthTime(_FilterBaseClass):
 		tracked_timepoint_number = np.sum(self.df_to_filter.notnull(), axis = 1)
 		filter_pass_rows = tracked_timepoint_number.to_numpy() >= \
 			self.analysis_config.minimum_growth_time
-		filter_pass = self._propage_filter_across_columns(filter_pass_rows)
+		filter_pass = self._propagate_filter_across_columns(filter_pass_rows)
 		return(filter_pass)
 
 class _FilterByGrowthWindowTimepoints(_FilterBaseClass):
@@ -314,7 +314,7 @@ class _FilterByMinFoldX(_FilterBaseClass):
 		filter_pass_rows = self.df_to_filter.foldX.to_numpy() >= \
 			self.analysis_config.min_foldX
 		# repeat filter_pass_rows in every column
-		filter_pass = self._propage_filter_across_columns(filter_pass_rows)
+		filter_pass = self._propagate_filter_across_columns(filter_pass_rows)
 		return(filter_pass)
 
 class _FilterByMinCorrelation(_FilterBaseClass):
@@ -328,7 +328,7 @@ class _FilterByMinCorrelation(_FilterBaseClass):
 			self.df_to_filter.rsq.to_numpy() >= \
 				self.analysis_config.min_correlation
 		# repeat filter_pass_rows in every column
-		filter_pass = self._propage_filter_across_columns(filter_pass_rows)
+		filter_pass = self._propagate_filter_across_columns(filter_pass_rows)
 		return(filter_pass)
 
 class _FilterByMinNeighborDist(_FilterBaseClass):
@@ -342,7 +342,34 @@ class _FilterByMinNeighborDist(_FilterBaseClass):
 			self.df_to_filter.mindist.to_numpy() >= \
 				self.analysis_config.min_neighbor_dist
 		# repeat filter_pass_rows in every column
-		filter_pass = self._propage_filter_across_columns(filter_pass_rows)
+		filter_pass = self._propagate_filter_across_columns(filter_pass_rows)
+		return(filter_pass)
+
+class _FilterByMinEdgeDist(_FilterBaseClass):
+	'''
+	Filters out any colonies that are closer than min_neighbor_dist/2
+	to the image edge
+	'''
+	def _filtration_method(self):
+		### !!! NEEDS UNITTEST
+		min_edge_dist = self.analysis_config.min_neighbor_dist/2
+		# remember that im_size is number of rows and columns, but
+		# indexing starts at 0
+		max_y = self.analysis_config.im_height-1-min_edge_dist
+		min_y = min_edge_dist
+		max_x = self.analysis_config.im_width-1-min_edge_dist
+		min_x = min_edge_dist
+		y_pass_rows = np.logical_and(
+			self.df_to_filter.cym.to_numpy() <= max_y,
+			self.df_to_filter.cym.to_numpy() >= min_y
+			)
+		x_pass_rows = np.logical_and(
+			self.df_to_filter.cxm.to_numpy() <= max_x,
+			self.df_to_filter.cxm.to_numpy() >= min_x
+			)
+		filter_pass_rows = np.logical_and(x_pass_rows, y_pass_rows)
+		# repeat filter_pass_rows in every column
+		filter_pass = self._propagate_filter_across_columns(filter_pass_rows)
 		return(filter_pass)
 
 class CombinedFilterBaseClass(object):
@@ -502,7 +529,8 @@ class PostGrowthCombinedFilter(CombinedFilterBaseClass):
 		post_gr_filtration_dict = {
 			'min_foldX': _FilterByMinFoldX,
 			'min_correlation': _FilterByMinCorrelation,
-			'min_neighbor_dist': _FilterByMinNeighborDist
+			'min_neighbor_dist': _FilterByMinNeighborDist,
+			'min_edge_dist': _FilterByMinEdgeDist
 			}
 		# df_to_filter is unfilt_areas
 		unfilt_growth_rates = self.df_to_filter

@@ -124,7 +124,7 @@ class _GrowthMeasurer(object):
 		self.fl_prop_mat_df_dict = fl_prop_mat_df_dict
 		self.columns_to_return = \
 			['t0', 'tfinal', 'gr', 'lag', 'intercept', 'rsq', 'foldX',
-				'mindist'] + imaging_info_df.columns.to_list()
+				'mindist', 'cxm', 'cym'] + imaging_info_df.columns.to_list()
 
 	def _convert_times(self, times_in_seconds):
 		'''
@@ -310,6 +310,24 @@ class _GrowthMeasurer(object):
 		df_with_dist = df.join(mindist_df)
 		return(df_with_dist)
 
+	def _add_center_data(self, df):
+		'''
+		Adds data for mean center position of each colony
+		'''
+		### !!! NEEDS UNITTEST
+		row_indices_to_use = df.index
+		df['cxm'], _ = \
+			colony_prop_compilation.get_colony_properties(
+				self.filt_cX,
+				'mean',
+				index_names = row_indices_to_use)
+		df['cym'], _ = \
+			colony_prop_compilation.get_colony_properties(
+				self.filt_cY,
+				'mean',
+				index_names = row_indices_to_use)
+		return(df)
+
 	def _filter_post_gr(self):
 		'''
 		Runs post-growth rate filtering of colonies
@@ -323,6 +341,9 @@ class _GrowthMeasurer(object):
 			self.log_filt_areas.index[prefilt_growth_rate_data.row.to_list()]
 		# add vals for distance to closest neighboring colony to the df
 		prefilt_growth_rate_data = self._apply_mindist(prefilt_growth_rate_data)
+		# add mean colony center positions to the df
+		prefilt_growth_rate_data = \
+			self._add_center_data(prefilt_growth_rate_data)
 		# create filtration object
 		post_growth_filter = \
 			colony_filters.PostGrowthCombinedFilter(self.analysis_config,
@@ -434,23 +455,6 @@ class _GrowthMeasurer(object):
 		if self.postphase_analysis_config is not None:
 			self._classify_postphase_fluor()
 
-	def _add_center_data(self):
-		'''
-		Adds data for mean center position of each colony
-		'''
-		### !!! NEEDS UNITTEST
-		row_indices_to_use = self.final_gr.index
-		self.final_gr['cxm'], _ = \
-			colony_prop_compilation.get_colony_properties(
-				self.filt_cX,
-				'mean',
-				index_names = row_indices_to_use)
-		self.final_gr['cym'], _ = \
-			colony_prop_compilation.get_colony_properties(
-				self.filt_cY,
-				'mean',
-				index_names = row_indices_to_use)
-
 	def find_growth_rates(self):
 		'''
 		Finds the growth rate of colonies in self.unfilt_areas, with
@@ -473,8 +477,6 @@ class _GrowthMeasurer(object):
 		self._select_colony_gr()
 		# add fluorescent data if it exists
 		self._add_fluor_data()
-		# add central position data
-		self._add_center_data()
 		# save results
 		self.final_gr.to_csv(self.analysis_config.phase_gr_write_path)
 		return(self.final_gr)
