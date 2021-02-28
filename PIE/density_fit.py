@@ -48,7 +48,7 @@ class _DensityFitter(object):
 					bounds[self.param_idx_dict[param]] = min_allowed_number
 		else:
 			raise TypeError('bounds must be a numpy array of length ' +
-				len(self.param_idx_dict))
+				str(len(self.param_idx_dict)))
 		return(bounds)
 
 	def _id_starting_vals(self):
