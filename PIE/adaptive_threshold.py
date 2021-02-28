@@ -46,12 +46,129 @@ class _LogHistogramSmoother(object):
 			signal.savgol_filter(ln_tophat_hist, smooth_window_size, 3)
 		return(ln_tophat_smooth)
 
+class _ThresholdMethodSelector(object):
+	'''
+	Returns threshold method object to use
+	'''
+	def __init__(self, image_type, manual_method_order_list = None):
+		if manual_method_order_list is not None:
+			self.method_order = self._check_manual_method_order_list(
+				manual_method_order_list
+				)
+		else:
+			if image_type == 'bf':
+				self.method_order = [
+					'mu1PosThresholdMethod',
+					'mu1ReleasedThresholdMethod',
+					'sliding_circle_selector'
+					]
+			elif image_type == 'pc':
+				self.method_order = [
+					'mu1PosThresholdMethod',
+					'mu1ReleasedThresholdMethod',
+					'sliding_circle_selector'
+					]
+
+	def _check_manual_method_order_list(self, manual_method_order_list):
+		'''
+		Check that elements of manual_method_order_list are unique and 
+		in the list of allowed threshold methods
+		'''
+		allowed_method_orders = set([
+			'mu1PosThresholdMethod',
+			'mu1ReleasedThresholdMethod',
+			'sliding_circle_selector'
+			])
+		manual_method_order_set = set(manual_method_order_list)
+		# check that values are unique
+		if not len(manual_method_order_set) == len(manual_method_order_list):
+			raise ValueError(
+				'All values in manual_method_order_list must be unique'
+				)
+		elif not manual_method_order_set.issubset(allowed_method_orders):
+			disallowed_methods = \
+				list(manual_method_order_set-allowed_method_orders)
+			raise ValueError(
+				'manual_method_order_list contains the following '
+				'disallowed elements: ' + str(disallowed_methods)
+				)
+		return(manual_method_order_list)
+
+	def _sliding_circle_selector(self, threshold_method, x_pos, ln_tophat_hist):
+		'''
+		Factory method to return object of appropriate
+		_SlidingCircleThresholdMethod-inheriting class
+		'''
+		### !!! NEEDS UNITTEST
+		if hasattr(threshold_method, 'rsq_adj') and \
+			threshold_method.rsq_adj > threshold_method.good_fit_rsq:
+			threshold_method = \
+				_FitSlidingCircleThresholdMethod(
+					x_pos, threshold_method.y_hat
+					)
+		else:
+			threshold_method = \
+				_DataSlidingCircleThresholdMethod(
+					x_pos, ln_tophat_hist
+					)
+		return(threshold_method)
+
+	def get_threshold_method(self, x_pos, ln_tophat_hist, ln_tophat_smooth):
+		'''Get threshold_method to use for thresholding'''
+		### !!! NEEDS UNITTEST
+		# initialize threshold_method as None
+		# (in case first method is 'sliding_circle_selector')
+		threshold_method = None
+		# Try thresholding with each method in the order given in
+		# self.method_order
+		# While threshold_method returns np.nan threshold, go on to the
+		# next method
+		for method_key in self.method_order:
+			# create threshold_method object
+			# slightly messy, since _sliding_circle_selector takes 
+			# different arguments than other threshold_method creators
+			if method_key == 'sliding_circle_selector':
+				threshold_method = self._sliding_circle_selector(
+					threshold_method, x_pos, ln_tophat_hist
+					)
+			else:
+				# get threshold_method by calling class named 
+				# _<method_key>
+				threshold_method = \
+					globals()['_'+method_key](x_pos, ln_tophat_smooth)
+			threshold = threshold_method.get_threshold()
+			# only continue loop if threshold is np.nan
+			if ~np.isnan(threshold):
+				break
+#		print(threshold_method.method_name)
+#		print(threshold_method.rsq_adj)
+		# return threshold method
+		return(threshold_method)
+
 class _ThresholdFinder(_LogHistogramSmoother):
 	'''
 	Finds adaptive threshold for image
 	'''
-	def __init__(self, input_im):
-		self.input_im = input_im
+	def __init__(self, input_im, image_type, manual_method_order_list = None):
+		# treat input_im
+		if image_type == 'bf':
+			self.input_im = input_im
+		elif image_type == 'pc':
+			# the image needs to be inverted before thresholding,
+			# then normalized so that assumptions about
+			# peak values being close to 0 are true
+			unnorm_input_im = cv2.bitwise_not(input_im)
+			self.input_im = cv2.normalize(
+				unnorm_input_im, None, alpha=0, beta=(2**16-1),
+				norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_16U
+				)
+		else:
+			raise ValueError(
+				"image_type must be either 'bf' (brightfield) or "
+				"'pc' (phase contrast)"
+				)
+		self.threshold_method_selector = \
+			_ThresholdMethodSelector(image_type, manual_method_order_list)
 		# set tophat structural element to circle with radius 10
 		# using the default ellipse struct el from cv2 gives a different
 		# result than in matlab
@@ -227,35 +344,10 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		threshold
 		'''
 		### !!! NEEDS UNITTEST
-		# try thresholding using _mu1PosThresholdMethod
-		threshold_method = \
-			_mu1PosThresholdMethod(self.x_pos, self.ln_tophat_smooth)
-		threshold = threshold_method.get_threshold()
-		# if _mu1PosThresholdMethod returns NaN threshold, try
-		# 'mu1ReleasedThresholdMethod
-		if np.isnan(threshold):
-			threshold_method = \
-				_mu1ReleasedThresholdMethod(self.x_pos, self.ln_tophat_smooth)
-			threshold = threshold_method.get_threshold()
-			# if _mu1ReleasedThresholdMethod returns NaN threshold,
-			# perform sliding circle threshold identification - if the
-			# fit is good, use the fitted data, otherwise, use the raw
-			# data
-			if np.isnan(threshold):
-				if threshold_method.rsq_adj > threshold_method.good_fit_rsq:
-					threshold_method = \
-						_FitSlidingCircleThresholdMethod(self.x_pos,
-							threshold_method.y_hat)
-					threshold = threshold_method.get_threshold()
-				else:
-					threshold_method = \
-						_DataSlidingCircleThresholdMethod(self.x_pos,
-							self.ln_tophat_hist)
-					threshold = threshold_method.get_threshold()
-		# save threshold method
-		self.threshold_method = threshold_method
-#		print(threshold_method.method_name)
-#		print(threshold_method.rsq_adj)
+		self.threshold_method = \
+			self.threshold_method_selector.get_threshold_method(
+				self.x_pos, self.ln_tophat_hist, self.ln_tophat_smooth
+				)
 	
 	def _perform_thresholding(self, tophat_im, threshold):
 		'''
@@ -978,13 +1070,13 @@ class _FitSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod):
 		p = self._create_ggplot(combined_df, color_dict)
 		return(p)
 
-def threshold_image(input_im, return_plot = False):
+def threshold_image(input_im, image_type, return_plot = False):
 	'''
 	Reads in input_im and returns an automatically thresholded bool mask
 	If return_plot is true, also returns a plotnine plot object
 	'''
 	### !!! NEEDS UNITTEST
-	threshold_finder = _ThresholdFinder(input_im)
+	threshold_finder = _ThresholdFinder(input_im, image_type)
 	try:
 		threshold_mask = threshold_finder.get_threshold_mask()
 		threshold_method_name = threshold_finder.threshold_method.method_name

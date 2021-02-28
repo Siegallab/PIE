@@ -94,15 +94,6 @@ class _ImageAnalyzer(object):
 				# decrease bitdepth of norm_im to 8-bit while normalizing
 		self.norm_im_8_bit = cv2.normalize(self.original_im, None, alpha=0, beta=(2**8-1),
 			norm_type=cv2.NORM_MINMAX)
-		if self.image_type == 'bf':
-			# the image that was read in is the one that will be
-			# processed
-			self.input_im = np.copy(self.norm_im)
-		elif self.image_type == 'pc':
-			# the normalized image needs to be inverted before
-			# processing, then normalized so that assumptions about
-			# peak values being close to 0 are true
-			self.input_im = cv2.bitwise_not(self.norm_im)
 		
 	def _write_threshold_plot(self, threshold_plot):
 		'''
@@ -140,8 +131,9 @@ class _ImageAnalyzer(object):
 		'''
 		self.cell_centers, threshold_method_name, threshold_plot, \
 			threshold, default_threshold_method_usage = \
-			adaptive_threshold.threshold_image(self.input_im,
-				self._save_extra_info)
+			adaptive_threshold.threshold_image(
+				self.norm_im, self.image_type, self._save_extra_info
+				)
 		# always save 'extra info' (boundary ims, threshold plots,
 		# combined cell center/boundary images) if default
 		# threshold_method was not used
@@ -158,7 +150,7 @@ class _ImageAnalyzer(object):
 		'''
 		self.pie_edge_detector = \
 			colony_edge_detect.EdgeDetector(
-				self.input_im, self.cell_centers, self.hole_fill_area,
+				self.norm_im, self.cell_centers, self.hole_fill_area,
 				self.cleanup, self.max_proportion_exposed_edge, 
 				self.image_type)
 		self.colony_mask = self.pie_edge_detector.run_edge_detection()
