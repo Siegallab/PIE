@@ -408,12 +408,15 @@ class _PlotMovieMaker(_MovieMaker):
 			ggplot_obj = ggplot_obj + \
 				p9.guides(shape = False)
 		# add x and y axis properties
+		min_time = self.col_prop_df['time_in_hours'].min()
+		max_time = self.col_prop_df['time_in_hours'].max()
+		time_span = max_time-min_time
 		ggplot_obj = ggplot_obj + \
 			p9.scale_x_continuous(
 				name = 'time (hours)',
 				limits = (
-					self.col_prop_df['time_in_hours'].min()-0.5,
-					self.col_prop_df['time_in_hours'].max()+0.5
+					min_time-time_span/20,
+					max_time+time_span/20
 					)
 				) + \
 			p9.scale_y_continuous(
