@@ -60,7 +60,7 @@ class AnalysisConfig(object):
 	'''
 	Handles experimental configuration details
 	'''
-	def __init__(self, phase_num, hole_fill_area, cleanup,
+	def __init__(self, phase_num, hole_fill_area, cleanup, perform_registration,
 		max_proportion_exposed_edge, input_path, output_path, im_file_extension,
 		label_order_list, total_xy_position_num, first_timepoint,
 		total_timepoint_num, timepoint_spacing, timepoint_label_prefix,
@@ -81,6 +81,7 @@ class AnalysisConfig(object):
 		# specify image analysis parameters
 		self.hole_fill_area = float(hole_fill_area)
 		self.cleanup = bool(cleanup)
+		self.perform_registration = bool(perform_registration)
 		self.max_proportion_exposed_edge = float(max_proportion_exposed_edge)
 		# specify growth rate analysis parameters
 		self.minimum_growth_time = int(minimum_growth_time)
@@ -595,6 +596,7 @@ class _AnalysisConfigFileProcessor(object):
 			phase_num,
 			phase_conf_ser.hole_fill_area,
 			phase_conf_ser.cleanup,
+			phase_conf_ser.perform_registration,
 			phase_conf_ser.max_proportion_exposed_edge,
 			phase_conf_ser.input_path,
 			phase_conf_ser.output_path,
@@ -660,7 +662,7 @@ class _AnalysisConfigFileProcessor(object):
 			['fluor_channel_scope_labels', 'fluor_channel_names',
 			'fluor_channel_thresholds', 'fluor_channel_timepoints',
 			'timepoint_spacing', 'hole_fill_area',
-			'cleanup', 'max_proportion_exposed_edge', 'input_path',
+			'cleanup', 'perform_registration', 'max_proportion_exposed_edge', 'input_path',
 			'output_path', 'im_file_extension', 'label_order_list',
 			'total_xy_position_num', 'first_timepoint', 'total_timepoint_num',
 			'timepoint_label_prefix', 'position_label_prefix',

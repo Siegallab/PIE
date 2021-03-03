@@ -105,18 +105,22 @@ class SinglePhaseSinglePosCompiler(object):
 
 class ColonyTracker(object):
 	'''
-	Generic class for tracking colonies based on dataframe of colony
+	Generic class for tracking colonies based on dataframe of colony 
 	properties in an image and the subsequent image
-	The details of the tracking differ from the original matlab code
-	when it comes to colony splintering/merging, as well as the fact
-	that here, image registration occurs between every consecutive
+
+	The details of the tracking differ from the original matlab code 
+	when it comes to colony splintering/merging, as well as the fact 
+	that here, image registration occurs between every consecutive 
 	timepoint
-	In addition, dealing with filters by min_growth_time, appearance in
+
+	In addition, dealing with filters by min_growth_time, appearance in 
 	first timepoint, etc is outsourced to growth rate functions
+
 	IMPORTANT:
-	tracking IDs created within this class are only unique
-	for the colony property dataframes being passed to it (which may
-	be only for a single xy position, etc), NOT across the whole
+
+	tracking IDs created within this class are only unique 
+	for the colony property dataframes being passed to it (which may 
+	be only for a single xy position, etc), NOT across the whole 
 	experiment
 	'''
 	def __init__(self):
@@ -216,8 +220,11 @@ class ColonyTracker(object):
 		centroid of one falls inside the other's bounding box
 		'''
 		# perform image registration
-		curr_im_data_reg = \
-			self._register_images(curr_im_data, next_im_data)
+		if self.perform_registration:
+			curr_im_data_reg = \
+				self._register_images(curr_im_data, next_im_data)
+		else:
+			curr_im_data_reg = curr_im_data.copy()
 		# get matrices of absolute differences between x and y
 		# centroids of the colonies in the two images
 		cX_diff_mat = np.abs(np.subtract.outer(
@@ -646,13 +653,15 @@ class ColonyTracker(object):
 		property_df.drop(columns = ['parent_colony'], inplace = True)
 		return(property_df)
 
-	def match_and_track_across_time(self, phase_num, colony_prop_df):
+	def match_and_track_across_time(self, phase_num, colony_prop_df,
+		perform_registration = True):
 		'''
 		Identifies matching colonies between subsequent timepoints
 		Performs equivalent role to ColonyAreas_mod in original matlab
 		code, but with image registration; see comments on class for
 		differences
 		'''
+		self.perform_registration = perform_registration
 		### !!! NEEDS UNITTEST
 		# set the tracking column we'll be using to track across time
 		self.tracking_col_name = 'time_tracking_id'
@@ -712,7 +721,7 @@ class ColonyTracker(object):
 			parent_agg_prop_df
 		return(parent_agg_prop_df)
 
-	def match_and_track_across_phases(self):
+	def match_and_track_across_phases(self, perform_registration = True):
 		'''
 		Identifies matching colonies between last timepoint of each
 		phase and the first timepoint of the subsequent phase
@@ -720,6 +729,7 @@ class ColonyTracker(object):
 		code, but see comments on class for differences
 		'''
 		### !!! NEEDS UNITTEST
+		self.perform_registration = perform_registration
 		# concatenate time-tracked colony property dfs to create df for
 		# tracking colonies across phases
 		indiv_phase_dfs = list(self.single_phase_col_prop_df_dict.values())
@@ -824,6 +834,9 @@ def track_colonies_single_pos(xy_pos_idx, analysis_config_obj_df = None,
 		analysis_config_obj_df, analysis_config_file)
 	# set up colony tracker
 	colony_tracker = ColonyTracker()
+	# initialize list to check whether to perform image 
+	# registration across phases
+	cross_phase_registration_bool_list = []
 	# track colonies within each phase
 	for phase_num in analysis_config_obj_df.index:
 		analysis_config = \
@@ -839,10 +852,21 @@ def track_colonies_single_pos(xy_pos_idx, analysis_config_obj_df = None,
 		if not untracked_phase_pos_data.empty:
 			# track colonies across time
 			colony_tracker.match_and_track_across_time(
-				phase_num, untracked_phase_pos_data)
+				phase_num,
+				untracked_phase_pos_data,
+				analysis_config.perform_registration
+				)
+		cross_phase_registration_bool_list.append(
+			analysis_config.perform_registration
+			)
 	# track colonies across phases
+	# only perform registration if perform_registration was true in 
+	# all phases
+	perform_cross_phase_registration = all(cross_phase_registration_bool_list)
 	time_and_phase_tracked_pos_data = \
-		colony_tracker.match_and_track_across_phases()
+		colony_tracker.match_and_track_across_phases(
+			perform_cross_phase_registration
+			)
 	# write phase-tracked file to parquet format
 	time_and_phase_tracked_pos_data.to_parquet(
 		analysis_config.tracked_properties_write_path)
