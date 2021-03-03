@@ -17,6 +17,10 @@ from scipy import signal
 
 ### TODO: Get rid of threshold flags (depracated)
 
+# specify the multiplier by which s.d. of major peak-fitting
+# density is multiplied to get threshold
+# set sd_multiplier as a global parameter
+sd_multiplier = 2
 
 class _LogHistogramSmoother(object):
 	'''
@@ -213,7 +217,8 @@ class _ThresholdFinder(_LogHistogramSmoother):
 			# TODO: heuristic - maybe better to use number of histogram
 			# elements here?
 		# set 'default' threshold method name
-		self.default_threshold_method_name = 'mu_1+2*sigma_1[mu_1-positive]'
+		self.default_threshold_method_class = \
+			'_'+self.threshold_method_selector.method_order[0]
 
 	def _get_tophat(self):
 		'''
@@ -545,13 +550,15 @@ class _GaussianFitThresholdMethod(_ThresholdMethod, DensityFitterLS):
 
 	def _calc_typical_threshold(self, gaussian_number):
 		'''
-		Calculates the most commonly used threshold, mean + 2*sd of one
-		of the best-fit gaussians (identified by gaussian_number)
+		Calculates the most commonly used threshold,
+		mean + sd * sd_multiplier, 
+		of one of the best-fit gaussians (identified by gaussian_number)
 		'''
 		mean_param = 'mu_' + str(gaussian_number)
 		sd_param = 'sigma_' + str(gaussian_number)
 		threshold = \
-			self.fit_result_dict[mean_param] + 2*self.fit_result_dict[sd_param]
+			self.fit_result_dict[mean_param] + \
+			sd_multiplier*self.fit_result_dict[sd_param]
 		return(threshold)
 
 	def _perform_fit(self):
@@ -832,7 +839,10 @@ class _mu1PosThresholdMethodTwoGauss(_TwoGaussianFitThresholdMethod):
 	### !!! NEEDS BETTER METHOD DESCRIPTION
 
 	def __init__(self, x_vals, y_vals):
-		method_name = 'mu_1+2*sigma_1[mu_1-positive]_two-gaussian'
+		method_name = \
+			'mu_1+'+\
+			str(sd_multiplier)+\
+			'*sigma_1[mu_1-positive]_two-gaussian'
 		lower_bounds = np.array(
 			[1, 0, sys.float_info.min, 0.5, -np.inf, sys.float_info.min])
 		upper_bounds = np.array([np.inf]*6)
@@ -861,8 +871,11 @@ class _mu1PosThresholdMethodTwoGauss(_TwoGaussianFitThresholdMethod):
 			mu_to_peak_distvec[0] < self._close_to_peak_dist:
 			# poor r sq because the smaller peak fit poor
 			# but as long as the major peak fit good, as est by the cond here
-			# should go ahead with b1+2*c1
-			self.method_name = 'mu_1+2*sigma_1[mu_1-positive]_poor_minor_fit_two-gaussian'
+			# should go ahead with b1+sd_multiplier*c1
+			self.method_name = \
+				'mu_1+'+\
+				str(sd_multiplier)+\
+				'*sigma_1[mu_1-positive]_poor_minor_fit_two-gaussian'
 			self.threshold_flag = 5;
 			self.threshold = self._calc_typical_threshold(1)
 		else:
@@ -872,7 +885,10 @@ class _mu1PosThresholdMethodThreeGauss(_ThreeGaussianFitThresholdMethod):
 	### !!! NEEDS BETTER METHOD DESCRIPTION
 
 	def __init__(self, x_vals, y_vals):
-		method_name = 'mu_1+2*sigma_1[mu_1-positive]_three-gaussian'
+		method_name = \
+			'mu_1+'+\
+			str(sd_multiplier)+\
+			'*sigma_1[mu_1-positive]_three-gaussian'
 		lower_bounds = np.array([
 			1, 0, sys.float_info.min,
 			0.5, 0, sys.float_info.min,
@@ -897,8 +913,11 @@ class _mu1PosThresholdMethodThreeGauss(_ThreeGaussianFitThresholdMethod):
 			mu_to_peak_distvec[0] < self._close_to_peak_dist:
 			# poor r sq because the smaller peak fit poor
 			# but as long as the major peak fit good, as est by the cond here
-			# should go ahead with b1+2*c1
-			self.method_name = 'mu_1+2*sigma_1[mu_1-positive]_poor_minor_fit_three-gaussian'
+			# should go ahead with b1+sd_multiplier*c1
+			self.method_name = \
+				'mu_1+'+\
+				str(sd_multiplier)+\
+				'*sigma_1[mu_1-positive]_poor_minor_fit_three-gaussian'
 			self.threshold_flag = 5;
 			self.threshold = self._calc_typical_threshold(1)
 		else:
@@ -908,7 +927,7 @@ class _mu1ReleasedThresholdMethod(_TwoGaussianFitThresholdMethod):
 	### !!! NEEDS BETTER METHOD DESCRIPTION
 
 	def __init__(self, x_vals, y_vals):
-		method_name = 'mu_1+2*sigma_1[mu_1-released]'
+		method_name = 'mu_1+'+str(sd_multiplier)+'*sigma_1[mu_1-released]'
 		lower_bounds = np.array(
 			[1, -np.inf, sys.float_info.min, 0.5, -np.inf, sys.float_info.min])
 		upper_bounds = np.array([np.inf]*6)
@@ -926,7 +945,7 @@ class _mu1ReleasedThresholdMethod(_TwoGaussianFitThresholdMethod):
 			(self.fit_result_dict['mu_1'] > 0 or \
 				self.fit_result_dict['mu_2'] > 0):
 			# if fit is good and both means positive, calculate
-			# threshold based on b1+2*c1 same way as in
+			# threshold based on b1+sd_multiplier*c1 same way as in
 			# _mu1PosThresholdMethodTwoGauss
 			if self.fit_result_dict['mu_1'] > 0 and \
 				self.fit_result_dict['mu_2'] > 0:
@@ -943,7 +962,8 @@ class _mu1ReleasedThresholdMethod(_TwoGaussianFitThresholdMethod):
 				# otherwise, the estimate of sigma may be off (esp. if
 				# peak of fitted distribution is the result of a pileup
 				# of values close to 0 rather than the real background
-				# vals of the image), causing problems using mu+2*sigma
+				# vals of the image), causing problems using
+				# mu+sd_multiplier*sigma
 				highest_mu_idx = np.argmax([self.fit_result_dict['mu_1'],
 					self.fit_result_dict['mu_2']])
 				if self.peak_x_pos > self._min_real_peak_x_pos and \
@@ -1260,8 +1280,11 @@ def threshold_image(input_im, image_type, return_plot = False):
 		threshold_method_name = threshold_finder.threshold_method.method_name
 		threshold = threshold_finder.threshold_method.threshold
 		# check whether default threshold method was used
+		threshold_class_string = \
+			threshold_finder.threshold_method.__class__.__name__
 		default_threshold_method_usage = \
-			threshold_method_name == threshold_finder.default_threshold_method_name
+			threshold_class_string == \
+			threshold_finder.default_threshold_method_class
 		if return_plot or not default_threshold_method_usage:
 			threshold_plot = threshold_finder.threshold_method.plot()
 		else:
