@@ -19,7 +19,7 @@ class EdgeDetector(object):
 	'''
 
 	def __init__(self, input_im, cell_centers, hole_fill_area, cleanup,
-		max_proportion_exposed_edge, image_type):
+		max_proportion_exposed_edge):
 		'''
 		Read input_im_path as grayscale image of arbitrary bitdepth
 		'''
@@ -28,7 +28,6 @@ class EdgeDetector(object):
 		self.hole_fill_area = hole_fill_area
 		self.cleanup = cleanup
 		self.max_proportion_exposed_edge = max_proportion_exposed_edge
-		self.image_type = image_type
 		# create 'pie' quadrants
 		self.pie_piece_position_dict = \
 			{'i': np.array([[0, 1], [0, 0]]),
@@ -65,25 +64,14 @@ class EdgeDetector(object):
 	def _create_inital_colony_mask(self):
 		'''
 		Runs initial edge detection without cleanup
-
-		For brightfield images, runs PIE edge detection; for inverted 
-		phase contrast images, effectively uses cell centers as mask,
-		but still runs through PIE piece creation to set up for 
-		cleanup if necessary
 		'''
 		# identify 'pie pieces' that overlap cell centers, and combine
 		# them into a composite colony_mask
-		if self.image_type == 'pc':
-			trim_pie_edges = True
-		elif self.image_type == 'bf':
-			trim_pie_edges = False
-		else:
-			raise ValueError('image_type must be "bf" (for brightfield image) '
-				'or "pc" (for inverted phase contrast image)')
 		initial_colony_mask = np.zeros(self.input_im.shape, dtype = bool)
-		for pie_quad_name, pie_piece_quadrant in self.pie_piece_dict.items():
+		for pie_quad_name, pie_piece_quadrant in \
+			self.pie_piece_dict.items():
 			pie_piece_quadrant.id_center_overlapping_pie_pieces(
-					self.cell_centers, trim_pie_edges)
+					self.cell_centers)
 			initial_colony_mask = np.logical_or(initial_colony_mask,
 				pie_piece_quadrant.cell_overlap_pie_mask)
 		return(initial_colony_mask)
@@ -328,32 +316,15 @@ class _PiePiece(object):
 		'''
 		self.pie_mask = np.logical_and(x_grad_mask, y_grad_mask)
 	
-	def id_center_overlapping_pie_pieces(self, cell_center_mask,
-		trim_pie_edges = False):
+	def id_center_overlapping_pie_pieces(self, cell_center_mask):
 		'''
 		We identify the parts of self.pie_mask that belong to real
 		cells by seeing which ones overlap with cell_center_mask
-
-		If trim_pie_edges is True, colony bounds are bounds of 
-		cell_center_mask; if trim_pie_edges is False (default), colony 
-		bounds are bounds of pie pieces that intersect with 
-		cell_center_mask
 		'''
-		cell_overlap_pie_mask_prelim, \
+		self.cell_overlap_pie_mask, \
 			self.cell_overlap_labeled_pie_mask = \
 			_filter_by_overlaps(self.pie_mask, cell_center_mask,
 				keep_overlapping_objects = True)
-		if trim_pie_edges:
-			# update edges of cell overlap pie mask
-			self.cell_overlap_pie_mask = \
-				np.logical_and(cell_overlap_pie_mask_prelim, cell_center_mask)
-			# set removed edges in labeled cell overlap pie mask to 
-			# background by setting their value to 0
-			removed_edge_mask = \
-				np.logical_xor(cell_overlap_pie_mask_prelim, cell_center_mask)
-			self.cell_overlap_labeled_pie_mask[removed_edge_mask] = 0
-		else:
-			self.cell_overlap_pie_mask = cell_overlap_pie_mask_prelim
 
 	def filter_by_exposed_edge(self, colony_mask, max_proportion_exposed_edge):
 		'''
@@ -429,8 +400,8 @@ class _PiePiece(object):
 					translated_neighbor_pie_mask)
 			self.neighbor_filtered_pie_mask, _ = \
 				_filter_by_overlaps(self.neighbor_filtered_pie_mask,
-					neighbor_overlap_mask, keep_overlapping_objects = True,
-					labeled_mask = self.cell_overlap_labeled_pie_mask)
+					neighbor_overlap_mask, True,
+					self.cell_overlap_labeled_pie_mask)
 
 def _filter_by_overlaps(mask_to_filter, guide_mask, keep_overlapping_objects,
 	labeled_mask = None):
