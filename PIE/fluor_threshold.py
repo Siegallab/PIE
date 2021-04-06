@@ -93,7 +93,8 @@ class _FluorDensityFitter(DensityFitterMLE):
 		'''
 		# instantiate and fit the KDE model
 		kde_skl=KernelDensity(bandwidth=bw, kernel='gaussian')
-		kde_skl.fit(self.data[:, np.newaxis])
+		data_no_nan = self.data[~np.isnan(self.data)]
+		kde_skl.fit(data_no_nan[:, np.newaxis])
 		# score_samples() returns the log-likelihood of the samples
 		log_pdf=kde_skl.score_samples(x_grid[:, np.newaxis])
 		pdf=np.exp(log_pdf)
@@ -525,15 +526,21 @@ class FluorLogisticFitter(_FluorDensityFitter):
 			self._midpoint,
 			self.starting_param_vals[self.param_idx_dict['scale_fl']]/10**2
 			])
+		if self._midpoint < np.quantile(self.data,0.99):
+			top_dist_val = np.quantile(self.data,0.99)
+		else:
+			top_dist_val = np.nanmax(self.data)
 		upper_bound_candidates=np.array([
 			1,
 			self._midpoint,
 			self.starting_param_vals[self.param_idx_dict['scale_back']]*10,
-			np.quantile(self.data,0.99),
+			top_dist_val,
 			self.starting_param_vals[self.param_idx_dict['scale_fl']]*10
 			])
 		self.lower_bounds=self._check_bounds(lower_bound_candidates)
 		self.upper_bounds=self._check_bounds(upper_bound_candidates)
+		if not np.all(self.lower_bounds < self.upper_bounds):
+			raise ValueError('Lower bounds must be below upper bounds')
 
 	def _id_starting_vals(self):
 		'''
