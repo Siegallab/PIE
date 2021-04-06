@@ -305,7 +305,7 @@ class _FluorDensityFitter(DensityFitterMLE):
 			value_name='density'
 			)
 		# get histogram binwidth
-		hist_bin_centers = numpy.histogram_bin_edges(self.data, bins='auto')
+		hist_bin_centers = np.histogram_bin_edges(self.data, bins='auto')
 		bin_num = len(hist_bin_centers)
 		density_plot = \
 			p9.ggplot() + \
