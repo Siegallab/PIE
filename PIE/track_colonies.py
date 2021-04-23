@@ -179,9 +179,9 @@ class ColonyTracker(object):
 		NB: The bound transformation for rotations is not totally
 		correct, since the bounding box is rotated and a new bounding
 		box encompassing the old, transformed one is created; this is
-		larger than if a new bounding box were calculated on the
-		warped image, but with low levels of rotation expected in most
-		images, this should not be a big problem for tracking
+		larger (or smaller!) than if a new bounding box were calculated 
+		on the warped image, but with low levels of rotation expected 
+		in most images, this should not be a big problem for tracking
 		'''
 		### !!! NEEDS UNITTEST
 		warp_mat = self._find_centroid_transform(curr_im_data, next_im_data)
