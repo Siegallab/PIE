@@ -112,7 +112,9 @@ class _ThresholdMethodSelector(object):
 			threshold_method.rsq_adj > threshold_method.good_fit_rsq:
 			threshold_method = \
 				_FitSlidingCircleThresholdMethod(
-					x_pos, threshold_method.y_hat
+					x_pos,
+					threshold_method.data.y,
+					threshold_method.data.y_hat
 					)
 		else:
 			threshold_method = \
@@ -464,9 +466,10 @@ class _GaussianFitThresholdMethod(_ThresholdMethod, DensityFitterLS):
 	'''
 
 	def __init__(self, method_name, threshold_flag, x_vals, y_vals,
-		lower_bounds, upper_bounds, dist_num):
+		lower_bounds, upper_bounds, dist_num, sd_multiplier_val):
 		super(_GaussianFitThresholdMethod, self).__init__(
 			method_name, threshold_flag, x_vals, y_vals)
+		self.sd_multiplier = sd_multiplier_val
 		self.dist_num_list = list(range(1,dist_num+1))
 		# the following parameters cannot have values below 0
 		self.non_neg_params = ['lambda_'+str(dist_count) for dist_count in self.dist_num_list]
@@ -551,14 +554,14 @@ class _GaussianFitThresholdMethod(_ThresholdMethod, DensityFitterLS):
 	def _calc_typical_threshold(self, gaussian_number):
 		'''
 		Calculates the most commonly used threshold,
-		mean + sd * sd_multiplier, 
+		mean + sd * self.sd_multiplier, 
 		of one of the best-fit gaussians (identified by gaussian_number)
 		'''
 		mean_param = 'mu_' + str(gaussian_number)
 		sd_param = 'sigma_' + str(gaussian_number)
 		threshold = \
 			self.fit_result_dict[mean_param] + \
-			sd_multiplier*self.fit_result_dict[sd_param]
+			self.sd_multiplier*self.fit_result_dict[sd_param]
 		return(threshold)
 
 	def _perform_fit(self):
@@ -673,13 +676,13 @@ class _TwoGaussianFitThresholdMethod(_GaussianFitThresholdMethod):
 	'''
 
 	def __init__(self, method_name, threshold_flag, x_vals, y_vals,
-		lower_bounds, upper_bounds):
+		lower_bounds, upper_bounds, sd_multiplier_val):
 		self.param_idx_dict = \
 			{'lambda_1': 0, 'mu_1': 1, 'sigma_1': 2, 'lambda_2': 3, 'mu_2': 4,
 				'sigma_2': 5}
 		dist_num = 2
 		super(_TwoGaussianFitThresholdMethod, self).__init__(
-			method_name, threshold_flag, x_vals, y_vals, lower_bounds, upper_bounds, dist_num)
+			method_name, threshold_flag, x_vals, y_vals, lower_bounds, upper_bounds, dist_num, sd_multiplier_val)
 
 	def _id_starting_vals(self):
 		'''
@@ -745,13 +748,13 @@ class _ThreeGaussianFitThresholdMethod(_GaussianFitThresholdMethod):
 	'''
 
 	def __init__(self, method_name, threshold_flag, x_vals, y_vals,
-		lower_bounds, upper_bounds):
+		lower_bounds, upper_bounds, sd_multiplier_val):
 		self.param_idx_dict = \
 			{'lambda_1': 0, 'mu_1': 1, 'sigma_1': 2, 'lambda_2': 3, 'mu_2': 4,
 				'sigma_2': 5, 'lambda_3': 6, 'mu_3': 7, 'sigma_3': 8}
 		dist_num = 3
 		super(_ThreeGaussianFitThresholdMethod, self).__init__(
-			method_name, threshold_flag, x_vals, y_vals, lower_bounds, upper_bounds, dist_num)
+			method_name, threshold_flag, x_vals, y_vals, lower_bounds, upper_bounds, dist_num, sd_multiplier_val)
 
 	def _id_starting_vals(self):
 		'''
@@ -838,10 +841,10 @@ class _ThreeGaussianFitThresholdMethod(_GaussianFitThresholdMethod):
 class _mu1PosThresholdMethodTwoGauss(_TwoGaussianFitThresholdMethod):
 	### !!! NEEDS BETTER METHOD DESCRIPTION
 
-	def __init__(self, x_vals, y_vals):
+	def __init__(self, x_vals, y_vals, sd_multiplier_val = sd_multiplier):
 		method_name = \
 			'mu_1+'+\
-			str(sd_multiplier)+\
+			str(sd_multiplier_val)+\
 			'*sigma_1[mu_1-positive]_two-gaussian'
 		lower_bounds = np.array(
 			[1, 0, sys.float_info.min, 0.5, -np.inf, sys.float_info.min])
@@ -849,7 +852,7 @@ class _mu1PosThresholdMethodTwoGauss(_TwoGaussianFitThresholdMethod):
 		threshold_flag = 0
 		super(_mu1PosThresholdMethodTwoGauss, self).__init__(
 			method_name, threshold_flag, x_vals, y_vals, lower_bounds,
-			upper_bounds)
+			upper_bounds, sd_multiplier_val)
 
 	def _id_threshold(self):
 		'''
@@ -871,10 +874,10 @@ class _mu1PosThresholdMethodTwoGauss(_TwoGaussianFitThresholdMethod):
 			mu_to_peak_distvec[0] < self._close_to_peak_dist:
 			# poor r sq because the smaller peak fit poor
 			# but as long as the major peak fit good, as est by the cond here
-			# should go ahead with b1+sd_multiplier*c1
+			# should go ahead with b1+self.sd_multiplier*c1
 			self.method_name = \
 				'mu_1+'+\
-				str(sd_multiplier)+\
+				str(self.sd_multiplier)+\
 				'*sigma_1[mu_1-positive]_poor_minor_fit_two-gaussian'
 			self.threshold_flag = 5;
 			self.threshold = self._calc_typical_threshold(1)
@@ -884,10 +887,10 @@ class _mu1PosThresholdMethodTwoGauss(_TwoGaussianFitThresholdMethod):
 class _mu1PosThresholdMethodThreeGauss(_ThreeGaussianFitThresholdMethod):
 	### !!! NEEDS BETTER METHOD DESCRIPTION
 
-	def __init__(self, x_vals, y_vals):
+	def __init__(self, x_vals, y_vals, sd_multiplier_val = sd_multiplier):
 		method_name = \
 			'mu_1+'+\
-			str(sd_multiplier)+\
+			str(sd_multiplier_val)+\
 			'*sigma_1[mu_1-positive]_three-gaussian'
 		lower_bounds = np.array([
 			1, 0, sys.float_info.min,
@@ -898,7 +901,7 @@ class _mu1PosThresholdMethodThreeGauss(_ThreeGaussianFitThresholdMethod):
 		threshold_flag = 0
 		super(_mu1PosThresholdMethodThreeGauss, self).__init__(
 			method_name, threshold_flag, x_vals, y_vals, lower_bounds,
-			upper_bounds)
+			upper_bounds, sd_multiplier_val)
 
 	def _id_threshold(self):
 		'''
@@ -913,10 +916,10 @@ class _mu1PosThresholdMethodThreeGauss(_ThreeGaussianFitThresholdMethod):
 			mu_to_peak_distvec[0] < self._close_to_peak_dist:
 			# poor r sq because the smaller peak fit poor
 			# but as long as the major peak fit good, as est by the cond here
-			# should go ahead with b1+sd_multiplier*c1
+			# should go ahead with b1+self.sd_multiplier*c1
 			self.method_name = \
 				'mu_1+'+\
-				str(sd_multiplier)+\
+				str(self.sd_multiplier)+\
 				'*sigma_1[mu_1-positive]_poor_minor_fit_three-gaussian'
 			self.threshold_flag = 5;
 			self.threshold = self._calc_typical_threshold(1)
@@ -926,15 +929,15 @@ class _mu1PosThresholdMethodThreeGauss(_ThreeGaussianFitThresholdMethod):
 class _mu1ReleasedThresholdMethod(_TwoGaussianFitThresholdMethod):
 	### !!! NEEDS BETTER METHOD DESCRIPTION
 
-	def __init__(self, x_vals, y_vals):
-		method_name = 'mu_1+'+str(sd_multiplier)+'*sigma_1[mu_1-released]'
+	def __init__(self, x_vals, y_vals, sd_multiplier_val = sd_multiplier):
+		method_name = 'mu_1+'+str(sd_multiplier_val)+'*sigma_1[mu_1-released]'
 		lower_bounds = np.array(
 			[1, -np.inf, sys.float_info.min, 0.5, -np.inf, sys.float_info.min])
 		upper_bounds = np.array([np.inf]*6)
 		threshold_flag = 2
 		super(_mu1ReleasedThresholdMethod, self).__init__(
 			method_name, threshold_flag, x_vals, y_vals, lower_bounds,
-			upper_bounds)
+			upper_bounds, sd_multiplier_val)
 
 	def _id_threshold(self):
 		'''
@@ -945,7 +948,7 @@ class _mu1ReleasedThresholdMethod(_TwoGaussianFitThresholdMethod):
 			(self.fit_result_dict['mu_1'] > 0 or \
 				self.fit_result_dict['mu_2'] > 0):
 			# if fit is good and both means positive, calculate
-			# threshold based on b1+sd_multiplier*c1 same way as in
+			# threshold based on b1+self.sd_multiplier*c1 same way as in
 			# _mu1PosThresholdMethodTwoGauss
 			if self.fit_result_dict['mu_1'] > 0 and \
 				self.fit_result_dict['mu_2'] > 0:
@@ -963,7 +966,7 @@ class _mu1ReleasedThresholdMethod(_TwoGaussianFitThresholdMethod):
 				# peak of fitted distribution is the result of a pileup
 				# of values close to 0 rather than the real background
 				# vals of the image), causing problems using
-				# mu+sd_multiplier*sigma
+				# mu+self.sd_multiplier*sigma
 				highest_mu_idx = np.argmax([self.fit_result_dict['mu_1'],
 					self.fit_result_dict['mu_2']])
 				if self.peak_x_pos > self._min_real_peak_x_pos and \
@@ -998,11 +1001,10 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		# may be found)
 		# TODO: test lowering the lower bound to the same calculation
 		# as is used in gaussian methods for minimum peak x position
-		self._lower_bound = 0.13 * np.max(self.data['x'])
-		self._upper_bound = 0.53 * np.max(self.data['x'])
-		# specify radius, in number of pixels (i.e. number of points
-		# along x-axis)
-		self._radius = 100
+		y_data_above_0 = np.cumprod(self.data['y'].to_numpy()>0).astype(bool)
+		last_x_above_0 = np.max(self.data['x'].to_numpy()[y_data_above_0])
+		self._lower_bound = 0.05 * last_x_above_0		
+		self._upper_bound = 0.8 * last_x_above_0
 		# only include every xstep-th value in sliding circle
 		# the idea here is to save time by not including nearly
 		# identical values
@@ -1062,13 +1064,36 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 			# create list of tuples of every x and y value
 		ImageDraw.Draw(poly_img).polygon(polygon, outline=1, fill=1)
 			# draw polygon based on x-y coordinates
-		self._fit_im = np.array(poly_img, dtype = bool)
 		# NB on ImageDraw.Draw.polygon behavior: if each position in the
 		# output matrix is a grid square, ImageDraw treats (0,0) as the
 		# upper left corner of the (0,0) square. All positions at
 		# integers values are drawn within the top and left corners of
 		# the corresponding coordinate box, with floats being rounded to
 		# the nearest ~10^-15 (see unittest for more info)
+		_fit_im_unpadded = np.array(poly_img, dtype = bool)
+		# pad self._fit_im with circle_radius on each side
+		col_num = _fit_im_unpadded.shape[1]
+		row_num = _fit_im_unpadded.shape[0]
+		fit_im_row_indices = np.concatenate((
+			[0]*self._radius,
+			np.arange(0,row_num)
+			))
+		fit_im_col_indices = np.concatenate((
+			[0]*self._radius,
+			np.arange(0,col_num)
+			))
+		# pad left and top (i.e. left bottom of log hist plot) of array
+		# with self._radius number of copies of left-most and top-most
+		# row, respectively 
+		fit_im_row_padded = _fit_im_unpadded[fit_im_row_indices,:]
+		fit_im_col_padded = fit_im_row_padded[:, fit_im_col_indices]
+		# pad right and bottom of array (i.e. right and top of log hist
+		# plot) with zeros
+		self._fit_im = np.pad(
+			fit_im_col_padded,
+			((0,self._radius),(0,self._radius)),
+			'constant'
+			)
 
 	def _create_circle_mask(self, center_x, center_y, radius, im_width,
 		im_height):
@@ -1084,37 +1109,51 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		# point in gridspace where the corresponding polygon coordinate
 		# would be in self._fit_im
 		# Corresponding matlab PIE code behaves identically, but without
-		# the shift in center values
-		circle_mask = np.zeros((im_height, im_width), dtype = bool)
+		# the shift in center values, and without padding in self._fit_im
+		circle_mask = np.zeros((im_height+2*self._radius, im_width+2*self._radius), dtype = bool)
 		# only calculate mask within a reasonable window around the
 		# center, or it will be too computationally expensive/slow
 		# create arrays of distances from a shifted center point,
-		x_center_list_full = np.arange(0, im_width) - (center_x - 0.5)
-		y_center_list_full = np.arange(0, im_height) - (center_y - 0.5)
-		x_center_list = \
-			x_center_list_full[np.logical_and(x_center_list_full >= -radius,
-				x_center_list_full <= radius)]
-		y_center_list = \
-			y_center_list_full[np.logical_and(y_center_list_full >= -radius,
-				y_center_list_full <= radius)]
-		# tile arrays of distances from
-		x_center_dist_mat = np.tile(x_center_list, [len(y_center_list), 1])
+		x_cent_dist_list_full = np.arange(0, im_width + self._radius*2) - (center_x - 0.5) - self._radius
+		y_cent_dist_list_full = np.arange(0, im_height + self._radius*2) - (center_y - 0.5) - self._radius
+#		x_cent_dist_list = \
+#			x_cent_dist_list_full[
+#				np.logical_and(
+#					x_cent_dist_list_full >= -radius,
+#					x_cent_dist_list_full <= radius
+#					)
+#				]
+#		y_cent_dist_list = \
+#			y_cent_dist_list_full[
+#				np.logical_and(
+#					y_cent_dist_list_full >= -radius,
+#					y_cent_dist_list_full <= radius
+#					)
+#				]
+#		# tile arrays of distances from
+#		x_center_dist_mat = np.tile(x_cent_dist_list, [len(y_cent_dist_list), 1])
+#		y_center_dist_mat = \
+#			np.tile(np.reshape(y_cent_dist_list, [len(y_cent_dist_list), 1]),
+#				[1, len(x_cent_dist_list)])
+#		# identify points whose distance from center is less than or
+#		# equal to radius
+#		circle_minimask = \
+#			(np.square(x_center_dist_mat) + np.square(y_center_dist_mat)) \
+#				<= radius**2
+#		# place circle_minimask in correct position relative to
+#		# self._fit_im
+#		x_mask_bottom_idx = np.floor(center_x + x_cent_dist_list[0]).astype(int)
+#		x_mask_top_idx = np.ceil(center_x + x_cent_dist_list[-1]).astype(int)
+#		y_mask_bottom_idx = np.floor(center_y + y_cent_dist_list[0]).astype(int)
+#		y_mask_top_idx = np.ceil(center_y + y_cent_dist_list[-1]).astype(int)
+#		circle_mask[y_mask_bottom_idx:y_mask_top_idx,
+#			x_mask_bottom_idx: x_mask_top_idx] = circle_minimask
+		x_center_dist_mat = np.tile(x_cent_dist_list_full, [len(y_cent_dist_list_full), 1])
 		y_center_dist_mat = \
-			np.tile(np.reshape(y_center_list, [len(y_center_list), 1]),
-				[1, len(x_center_list)])
-		# identify points whose distance from center is less than or
-		# equal to radius
-		circle_minimask = \
-			(np.square(x_center_dist_mat) + np.square(y_center_dist_mat)) \
+			np.tile(np.reshape(y_cent_dist_list_full, [len(y_cent_dist_list_full), 1]),
+				[1, len(x_cent_dist_list_full)])
+		circle_mask = (np.square(x_center_dist_mat) + np.square(y_center_dist_mat)) \
 				<= radius**2
-		# place circle_minimask in correct position relative to
-		# self._fit_im
-		x_mask_bottom_idx = np.floor(center_x + x_center_list[0]).astype(int)
-		x_mask_top_idx = np.ceil(center_x + x_center_list[-1]).astype(int)
-		y_mask_bottom_idx = np.floor(center_y + y_center_list[0]).astype(int)
-		y_mask_top_idx = np.ceil(center_y + y_center_list[-1]).astype(int)
-		circle_mask[y_mask_bottom_idx:y_mask_top_idx,
-			x_mask_bottom_idx: x_mask_top_idx] = circle_minimask
 		return(circle_mask)
 
 	def _id_circle_centers(self):
@@ -1130,6 +1169,9 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 				self._upper_bound * self._x_stretch_factor))
 		self._x_centers = self._x_vals_stretched[x_center_bool]
 		self._y_centers = self._y_vals_stretched[x_center_bool]
+		# specify radius, in number of pixels (i.e. number of points
+		# along x-axis)
+		self._radius = np.max([2,np.round(np.count_nonzero(x_center_bool)/5).astype(int)])
 
 	def _calculate_circle_areas(self):
 		'''
@@ -1146,15 +1188,22 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 				self._create_circle_mask(cx, cy, self._radius,
 					self._x_stretched_max_int, self._y_stretched_max_int)
 			mask_overlap = np.logical_and(current_circle_mask, self._fit_im)
-			self._inside_area[idx] = np.count_nonzero(mask_overlap)
+			self._inside_area[idx] = \
+				np.count_nonzero(mask_overlap)/ \
+				np.count_nonzero(current_circle_mask)
+#			if idx == 0:
+#				msk = np.logical_xor(current_circle_mask, self._fit_im)
+#				cv2.imwrite('/Users/plavskin/Documents/yeast stuff/pie_paper_v2/Supp_threshold_ims/circle_0.tif', 255*np.uint8(msk))
+#		msk = np.logical_xor(current_circle_mask, self._fit_im)
+#		cv2.imwrite('/Users/plavskin/Documents/yeast stuff/pie_paper_v2/Supp_threshold_ims/circle_last.tif', 255*np.uint8(msk))
 
 	def _perform_fit(self):
 		'''
 		Performs circle sliding procedure
 		'''
 		self._sample_and_stretch_graph()
-		self._create_poly_mask()
 		self._id_circle_centers()
+		self._create_poly_mask()
 		self._calculate_circle_areas()
 
 	def _id_threshold(self):
@@ -1184,7 +1233,7 @@ class _DataSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod,
 	def __init__(self, x_vals, raw_y_vals):
 		threshold_flag = 4
 		method_name = 'sliding_circle_data'
-		xstep = self._find_xstep(len(x_vals), 0.003)
+		xstep = self._find_xstep(len(x_vals), 0.001)
 			# heuristic - see TODO in parent class
 			# NB: current implementation will not exactly reproduce
 				# matlab code, which hard-codes the xstep as either 3 or
