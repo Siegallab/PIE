@@ -8,6 +8,8 @@ Welcome to pie's documentation!
 
 Processing Images Easily (PIE) automatically tracks growing microcolonies in low-resolution brightfield and phase-contrast microscopy images. The program works for recognizing microcolonies in a wide range of microbes, and allows automated measurement of growth rate, lag times, and (if applicable) fluorescence across time for microcolonies founded by single cells. PIE recognizes colony outlines very robustly and accurately across a wide range of image brightnesses and focal depths, and allows simultaneous measurements of growth properties and fluorescence intensities with very high throughput (in our lab, ~100,000 colonies per experiment), including in complex, multiphase experiments.
 
+See the `PIE preprint <https://doi.org/10.1101/253724>`_ for details on the analysis, and the `PIE github repository <https://github.com/Siegallab/PIE>`_ for the code.
+
 .. toctree::
     :maxdepth: 1
     :caption: Installation
@@ -21,6 +23,18 @@ Processing Images Easily (PIE) automatically tracks growing microcolonies in low
     single_im_analysis
     full_experiment
     parallelizing
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Inputs and Outputs
+
+    outputs
+
+.. toctree::
+    :maxdepth: 2
+    :caption: Making Movies
+
+    movies
 
 
 

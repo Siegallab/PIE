@@ -4,7 +4,7 @@ Running PIE multi-image experiments
 Setting up multi-image experiments
 ----------------------------------
 
-Complete PIE experiments require a single *csv*-format setup file to set up. Some templates for experiment types commonly run in the Siegal lab can be found in `sample_PIE_setup_files <https://github.com/Siegallab/PIE/sample_PIE_setup_files>`_.
+Complete PIE experiments require a single *csv*-format setup file to set up. Some templates for experiment types commonly run in the Siegal lab can be found in `sample_PIE_setup_files <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files>`_.
 
 General setup
 ^^^^^^^^^^^^^
@@ -23,11 +23,11 @@ During growth rate analysis, growth rates will be calculated independently for a
 Setup file Examples
 ^^^^^^^^^^^^^^^^^^^
 
-Here are some examples of setup files for experiments commonly done in the Siegal Lab; each corresponds to a single test data folder located in `PIE_test_data/IN/ <https://github.com/Siegallab/PIE/PIE_test_data/IN>`_:
+Here are some examples of setup files for experiments commonly done in the Siegal Lab; each corresponds to a single test data folder located in `PIE_test_data/IN/ <https://github.com/Siegallab/PIE/blob/master/PIE_test_data/IN>`_:
 
-+ `setup file <https://github.com/Siegallab/PIE/sample_PIE_setup_files/gr_phase_setup.csv>`_ for an experiment consisting of only growth rate measurements
-+ `setup file <https://github.com/Siegallab/PIE/sample_PIE_setup_files/gr_with_postfluor_setup.csv>`_ for an experiment consisting of growth rate measurements, followed by by a single timepoint of post-phase fluorescent imaging
-+ `setup file <https://github.com/Siegallab/PIE/sample_PIE_setup_files/two_phase_setup.csv>`_ for an experiment consisting of two phases of growth rate measurements, the first with two fluorescent channels, the second with a single fluorescent channel
++ `setup file <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/gr_phase_setup.csv>`_ for an experiment consisting of only growth rate measurements
++ `setup file <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/gr_with_postfluor_setup.csv>`_ for an experiment consisting of growth rate measurements, followed by by a single timepoint of post-phase fluorescent imaging
++ `setup file <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/two_phase_setup.csv>`_ for an experiment consisting of two phases of growth rate measurements, the first with two fluorescent channels, the second with a single fluorescent channel
 
 Running the experiment
 ----------------------
