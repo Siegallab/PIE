@@ -41,7 +41,7 @@ For example, the code below generates a *.gif*-format movie for any colonies in 
 
 This code should generate the following movie in the **movies** directory in the output folder of the experiment:
 
-.. image:: ../../sample_images/SL_170619_xy12_growing_colonies_movie.gif
+.. image:: _static/sample_images/SL_170619_xy12_growing_colonies_movie.gif
   :width: 100%
   :alt: Growing colonies from imaging field 12
 
@@ -113,17 +113,17 @@ We haven't yet saved our movie anywhere. The object we've created, ``brightfield
 
 For *gif* and *h264*/*mjpg* formats, movies will be saved in ``movie_output_path/movie_name.gif`` or ``movie_output_path/movie_name.mp4``, respectively. For tif/jpeg outputs, individual images will be saved inside ``movie_output_path/movie_name/``, with consecutively numbered filenames. Please note that *h264* format requires the h264 encoder, which is automatically installed on some platforms (e.g. MacOSX) but not others.
 
-We can use the following code to save ``brightfield_movie`` created above in the ``../../sample_images`` directory in the PIE folder: ::
+We can use the following code to save ``brightfield_movie`` created above in a directory called ``sample_movies`` in the PIE folder: ::
 
     PIE.save_movie(
         brightfield_movie,
-        '/local/path/to/PIE/../../sample_images/movies',
+        '/local/path/to/PIE/sample_movies',
         'brightfield_movie_sample',
         'gif'
         )
 
 
-.. image:: ../../sample_images/brightfield_movie_sample.gif
+.. image:: _static/sample_images/brightfield_movie_sample.gif
   :width: 400
   :alt: Two-phase experiment colonies highlighted on brightfield movie
 
@@ -168,13 +168,13 @@ Here, we will merge ``gfp_movie`` and ``mt_movie``, but increase the brightness 
             )
     PIE.save_movie(
         merged_fluor_movie,
-        '/local/path/to/PIE/../../sample_images/movies',
+        '/local/path/to/PIE/sample_movies',
         'merged_fluor_movie_sample',
         'gif'
         )
 
 
-.. image:: ../../sample_images/merged_fluor_movie_sample.gif
+.. image:: _static/sample_images/merged_fluor_movie_sample.gif
   :width: 400
   :alt: Two-phase experiment colonies highlighted on merged fluorescence movie
 
@@ -209,12 +209,12 @@ Here, we can make a post-fluorescence movie based on the `post-phase fluorescent
             )
     PIE.save_movie(
           postfluor_movie,
-          '/local/path/to/PIE/../../sample_images/movies',
+          '/local/path/to/PIE/sample_movies',
           'postphase_fluor_movie',
           'gif')
 
 
-.. image:: ../../sample_images/postphase_fluor_movie.gif
+.. image:: _static/sample_images/postphase_fluor_movie.gif
   :width: 400
   :alt: Post-phase fluorescence experiment colonies highlighted on brightfield movie followed by single GFP frame
 
@@ -252,7 +252,7 @@ The plot movies can be saved as described in `saving movies`_, with the exceptio
 Combining movie panels
 ----------------------
 
-Movies with multiple panels can also be created in PIE; the interface for this is a function called ``make_movie_grid``, which is inspired by the ` ``plot_grid`` function from the ``cowplot`` package in R <https://wilkelab.org/cowplot/articles/plot_grid.html>`_, and has a subset of ``plotgrid``'s functionality and interface.
+Movies with multiple panels can also be created in PIE; the interface for this is a function called ``make_movie_grid``, which is inspired by the ``plot_grid`` function from the `cowplot package in R <https://wilkelab.org/cowplot/articles/plot_grid.html>`_, and has a subset of ``plotgrid``'s functionality and interface.
 
 At its simplest, ``make_movie_grid`` can create a combined movie from multiple movie objects (or other movie grids); here, we will arrange the brightfield movie and the growth rate plot in one row, and the gfp fluorescence and gfp plot in the row below: ::
 
@@ -265,14 +265,14 @@ At its simplest, ``make_movie_grid`` can create a combined movie from multiple m
         )
     PIE.save_movie(
         simple_grid,
-        '/local/path/to/PIE/../../sample_images/movies',
+        '/local/path/to/PIE/sample_movies',
         'simple_grid_movie',
         'gif',
         movie_height=900
         )
 
 
-.. image:: ../../sample_images/simple_grid_movie.gif
+.. image:: _static/sample_images/simple_grid_movie.gif
   :width: 400
   :alt: simple movie grid with brightfield movie and the growth rate plot in one row, and the gfp fluorescence and gfp plot in the row below
 
@@ -296,14 +296,14 @@ This time, when saving the movie, we can pass a ``blank_color`` argument to set 
 
     PIE.save_movie(
         complex_grid,
-        '/local/path/to/PIE/../../sample_images/movies',
+        '/local/path/to/PIE/sample_movies',
         'complex_grid_movie',
         'gif',
         blank_color='pink'
         )
 
 
-.. image:: ../../sample_images/complex_grid_movie.gif
+.. image:: _static/sample_images/complex_grid_movie.gif
   :width: 800
   :alt: complex movie grid with GFP and MitoTracker movies in left column, wider brightfield movie in the column on the right with blank space above and below in pink
 
