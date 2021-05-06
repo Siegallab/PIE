@@ -677,6 +677,8 @@ class _AnalysisConfigFileProcessor(object):
 				('Unused parameters: {0}').format(str(extra_fields)),
 				UserWarning
 				)
+			setup_ser.drop(list(extra_fields), inplace = True)
+		return(setup_ser)
 
 	def _create_phase_conf_ser(
 		self,
@@ -777,7 +779,7 @@ class _AnalysisConfigFileProcessor(object):
 			global_param_ser_part,
 			required_fields_general
 			)
-		self._check_extra_params(
+		self._global_param_ser = self._check_extra_params(
 			self._global_param_ser, required_fields_general
 			)
 		# create a subset of default parameters for phase-specific
@@ -811,7 +813,8 @@ class _AnalysisConfigFileProcessor(object):
 				curr_phase_vals_part,
 				curr_req_fields
 				)
-			self._check_extra_params(curr_phase_vals_full, curr_req_fields)
+			curr_phase_vals_full = \
+				self._check_extra_params(curr_phase_vals_full, curr_req_fields)
 			analysis_config_dict[phase] = curr_phase_vals_full
 		self.analysis_config_df = pd.DataFrame(analysis_config_dict)
 
