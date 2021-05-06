@@ -7,10 +7,16 @@ Tracks colonies through time in a single imaging field
 import cv2
 import numpy as np
 import os
-import shutil
 import warnings
 import pandas as pd
 from PIL import Image
+
+# load dataframe of parameters and descriptions
+PIE_package_path = os.path.abspath(os.path.dirname(__file__))
+parameter_file = os.path.join(
+	PIE_package_path, '..', 'PIE_data', 'param_descriptions.csv'
+	)
+param_description_df = pd.read_csv(parameter_file)
 
 # list fields that must be specified in analysis config
 required_fields_general = \
@@ -39,7 +45,6 @@ required_fields_minimal = \
 	'position_label_prefix',
 	'im_format',
 	'parent_phase']
-
 
 class _ImageRetriever(object):
 	'''
@@ -563,6 +568,18 @@ class _AnalysisConfigFileProcessor(object):
 			output_val = self._convert_to_number(val_str)
 		return(output_val)
 
+	def _unprocess_parameter_vals(self, val):
+		'''
+		Joins any lists with semicolons
+		'''
+		if isinstance(val, list):
+			val_str = ';'.join([str(x) for x in val])
+		else:
+			# don't convert to str here or nan will be written as 'nan' 
+			# and not as blank
+			val_str = val
+		return(val_str)
+
 	def _set_global_vals(self):
 		'''
 		Check that parameters in config file related to number of
@@ -1001,8 +1018,45 @@ class _AnalysisConfigFileProcessor(object):
 		analysis_config_obj_df.dropna(0, how = 'all', inplace = True)
 		return(analysis_config_obj_df)
 
-	def write_setup_file(self):
-		pass
+	def write_setup_file(self, setup_file_out_path):
+		'''
+		Writes csv file containing all parameters from 
+		self._global_param_ser and self.analysis_config_df to
+		setup_file_out_path
+		'''
+		# make dataframe for global params
+		global_param_df = \
+			pd.DataFrame(self._global_param_ser, columns = ['Value'])
+		# convert index to 'Parameter' column
+		global_param_df = global_param_df.reset_index().rename(
+			columns = {'index':'Parameter'}
+			)
+		# add PhaseNum column
+		global_param_df['PhaseNum'] = 'all'
+		# make dataframe for phase-specific params
+		phasewise_param_df = self.analysis_config_df.melt(
+			value_vars = self.phases,
+			var_name = 'PhaseNum',
+			value_name = 'Value',
+			ignore_index = False
+			)
+		# drop rows where Value is NA
+		phasewise_param_df.dropna(subset = ['Value'], inplace = True)
+		# convert index to 'Parameter' column
+		phasewise_param_df = phasewise_param_df.reset_index().rename(
+			columns = {'index':'Parameter'}
+			)
+		# combine global and phasewise dfs
+		combined_df_prelim = pd.concat([global_param_df, phasewise_param_df])
+		# add explanation column and reorder columns
+		combined_df = pd.merge(param_description_df,combined_df_prelim)
+		combined_df = \
+			combined_df[['Parameter', 'Value', 'PhaseNum', 'Explanation']]
+		# convert lists in Parameter to semicolon-joined strings
+		combined_df.Value = combined_df.Value.map(
+			self._unprocess_parameter_vals
+			)
+		combined_df.to_csv(setup_file_out_path, index = False)
 
 	def process_analysis_config_file(self, analysis_config_path):
 		'''
@@ -1056,11 +1110,11 @@ def process_setup_file(analysis_config_path):
 		analysis_config_file_processor.process_analysis_config_file(
 			analysis_config_path)
 	# save setup file in output path
-	output_analysis_config_filepath = \
+	setup_file_out_path = \
 		os.path.join(analysis_config_file_processor.output_path,
 			'setup_file.csv')
-	if not os.path.exists(output_analysis_config_filepath):
-		shutil.copyfile(analysis_config_path, output_analysis_config_filepath)
+	if not os.path.exists(setup_file_out_path):
+		analysis_config_file_processor.write_setup_file(setup_file_out_path)
 	return(analysis_config_obj_df)
 
 def check_passed_config(analysis_config_obj_df, analysis_config_file):
