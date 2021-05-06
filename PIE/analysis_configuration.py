@@ -627,8 +627,13 @@ class _AnalysisConfigFileProcessor(object):
 		Checks that PhaseNum column contains only 'all' or integers, 
 		throws warning about dropping any non-blanks
 
-		Removes any columns where PhaseNum not specified correctly
+		If PhaseNum isn't specified at all, sets it to '1' for all rows
+
+		Removes any columns where PhaseNum or Parameter not specified 
+		correctly
 		'''
+		if not 'PhaseNum' in analysis_config_df_prelim.columns:
+			analysis_config_df_prelim['PhaseNum'] = str(1)
 		phase_num_vals = np.array([
 			phase.lower().strip() for phase in 
 			analysis_config_df_prelim.PhaseNum
@@ -645,7 +650,9 @@ class _AnalysisConfigFileProcessor(object):
 				" phases {0}"
 				).format(str(drop_phases)), UserWarning)
 		# only keep rows with allowed phase num
-		drop_indices = analysis_config_df_prelim.index[~phase_num_pass_bool]
+		drop_indices = analysis_config_df_prelim.index[np.logical_or(
+			~phase_num_pass_bool, analysis_config_df_prelim.Parameter == ''
+			)]
 		analysis_config_df_prelim.drop(index = drop_indices, inplace = True)
 		return(analysis_config_df_prelim)
 
@@ -751,22 +758,21 @@ class _AnalysisConfigFileProcessor(object):
 				'or set to individual phase number integers; the following '
 				'parameters were defined with both: \n{0}'
 				).format(str(double_defined_params)))
-		# if more than a single phase, add all parameters with 
+		# Add all parameters with 
 		# identical values across phases to global_param_ser_part, and 
 		# remove those parameters from analysis_config_df_indiv
-		if len(self.phases) > 1:
-			global_param_row_bool_ser = analysis_config_df_indiv.eq(
-				analysis_config_df_indiv.iloc[:, 0], axis=0
-				).all(axis=1)
-			if any(global_param_row_bool_ser):
-				new_global_params = \
-					global_param_row_bool_ser.index[global_param_row_bool_ser]
-				global_param_ser_part = global_param_ser_part.append(
-					analysis_config_df_indiv.loc[
-						new_global_params, analysis_config_df_indiv.columns[0]
-						]
-					)
-				analysis_config_df_indiv.drop(index = new_global_params, inplace = True)
+		global_param_row_bool_ser = analysis_config_df_indiv.eq(
+			analysis_config_df_indiv.iloc[:, 0], axis=0
+			).all(axis=1)
+		if any(global_param_row_bool_ser):
+			new_global_params = \
+				global_param_row_bool_ser.index[global_param_row_bool_ser]
+			global_param_ser_part = global_param_ser_part.append(
+				analysis_config_df_indiv.loc[
+					new_global_params, analysis_config_df_indiv.columns[0]
+					]
+				)
+			analysis_config_df_indiv.drop(index = new_global_params, inplace = True)
 		# create self._global_param_ser by using default values for any 
 		# parameters still missing from both analysis_config_df_indiv 
 		# and from global_param_ser_part
@@ -1077,7 +1083,7 @@ class _AnalysisConfigFileProcessor(object):
 			na_filter = False
 			)
 		# check file format
-		if not {'Parameter','Value','PhaseNum'}.issubset(
+		if not {'Parameter','Value'}.issubset(
 			set(analysis_config_df_prelim.columns)
 			):
 			raise IndexError(
@@ -1089,7 +1095,8 @@ class _AnalysisConfigFileProcessor(object):
 				'issue, create a new setup file from scratch using PIE\'s '
 				'setup wizard'
 				)
-		# drop rows where PhaseNum is not specified correctly
+		# add PhaseNum if it's not specified
+		# drop rows where PhaseNum or Parameter is not specified correctly
 		analysis_config_df_prelim_phase_filt = \
 			self._check_phase_numbers(analysis_config_df_prelim)
 		# set up global and phase-specific parameter dfs/series
