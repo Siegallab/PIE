@@ -1,0 +1,5 @@
+Parameter,Default Value,Explanation
+fluor_channel_scope_labels,,Labels in the filename for each fluorescent channel being imaged (e.g. 'c2'); separated by semicolons for each channel
+fluor_channel_names,,Names for each additional_channel_label as they show up in the final dataframe column labels (e.g. 'RFP' 'mito_label' etc); separated by semicolons for each channel
+fluor_channel_thresholds,,Thresholds to be used for removing saturated pixels in images (in absolute intensity); separated by semicolons for each channel
+fluor_channel_timepoints,,Timepoints for which fluorescent data is to be included in growth rate output; separated by semicolons for each channel. The options for this are: an integer corresponding to the timepoint number; 'last_gr' or 'first_gr' - the last or first timepoint for which a growth rate was measured; 'last_tracked' or 'first_tracked' - the last or first timepoint at which a colony was tracked; and 'mean' 'median' 'min' or 'max': summary statistic across all tracked timepoints

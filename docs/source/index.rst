@@ -36,6 +36,12 @@ See the `PIE preprint <https://doi.org/10.1101/253724>`_ for details on the anal
 
     movies
 
+.. toctree::
+    :maxdepth: 2
+    :caption: Sample Experimental Data
+
+    sample_experiments
+
 
 
 Indices and tables
