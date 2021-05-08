@@ -143,7 +143,13 @@ Each experiment may consist of one or more phases. A single phase consists of a 
 
 To specify parameters for multiple experimental phases, add a ``PhaseNum`` column to your setup file. Phases must be consecutive integers (i.e. '1', '2', etc). For any parameters that differ between phases, the parameter must be specified for each phase on an individual line with its corresponding ``PhaseNum``. For parameters that are common between experimental phases (e.g. ``output_path``), PhaseNum may be set to 'all'.
 
-Because each phase of a multi-phase experiment should be imaged with the same set of imaging positions, and the outputs of all phases are collected in a single output folder, the values of the following parameters must be the same across all phases: ``output_path``, ``im_format``, ``first_xy_position``, ``total_xy_position_num``, and ``extended_display_positions``.
+Because each phase of a multi-phase experiment should be imaged with the same set of imaging positions, and the outputs of all phases are collected in a single output folder, the values of the following parameters must be the same across all phases:
+
++ ``output_path``
++ ``im_format``
++ ``first_xy_position``
++ ``total_xy_position_num``
++ ``extended_display_positions``.
 
 We provide an example `two-phase setup file with fluorescence data analysis <https://github.com/Siegallab/PIE/blob/doc_update/sample_PIE_setup_files/two_phase_setup_simple.csv>`_ in the PIE github repository.
 
@@ -154,7 +160,23 @@ For experiments in which fluorescent and non-fluorescent strains (or strains wit
 
 PIE allows for the creation of a special phase that includes only fluorescent images for a single time point, in which case the ``parent_phase`` parameter should be set to the phase number of the phase containing the brightfield/phase contrast data to be used for colony segmentation (we strongly recommend that this be the phase immediately before the fluorescent classification phase).
 
-These 'post-phase fluorescence' phases require only a subset of parameters to be specified: ``fluor_channel_scope_labels``, ``fluor_channel_names``, ``fluor_channel_thresholds``, ``fluor_channel_time points``, ``input_path``, ``first_xy_position``, ``extended_display_positions``, ``time point_label_prefix``, ``output_path``, ``im_file_extension``, ``label_order_list``, ``total_xy_position_num``, ``position_label_prefix``, ``im_format``, and ``parent_phase``.
+These 'post-phase fluorescence' phases require only a subset of parameters to be specified:
+
++ ``parent_phase``
++ ``fluor_channel_scope_labels``
++ ``fluor_channel_names``
++ ``fluor_channel_thresholds``
++ ``fluor_channel_time points``
++ ``input_path``
++ ``first_xy_position``
++ ``extended_display_positions``
++ ``time point_label_prefix``
++ ``output_path``
++ ``im_file_extension``
++ ``label_order_list``
++ ``total_xy_position_num``
++ ``position_label_prefix``
++ ``im_format``
 
 We provide an example `post-phase fluorescence setup file <https://github.com/Siegallab/PIE/blob/doc_update/sample_PIE_setup_files/gr_with_postfluor_setup_simple.csv>`_ in the PIE github repository.
 
