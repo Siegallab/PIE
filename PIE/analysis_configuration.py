@@ -507,23 +507,16 @@ class _AnalysisConfigFileProcessor(object):
 			'cleanup':False,
 			'max_proportion_exposed_edge':0.75,
 			'perform_registration':True,
-			'im_file_extension':'tif',
 			'minimum_growth_time':1,
-			'total_xy_position_num':1,
 			'first_timepoint':1,
-			'timepoint_label_prefix':'t',
-			'position_label_prefix':'xy',
-			'main_channel_label':'',
-			'main_channel_imagetype':'brightfield',
-			'im_format':'individual',
 			'extended_display_positions':[1],
 			'first_xy_position':1,
 			'max_area_pixel_decrease':np.inf,
-			'max_area_fold_decrease':2,
-			'max_area_fold_increase':6,
-			'min_colony_area':10,
+			'max_area_fold_decrease':np.inf,
+			'max_area_fold_increase':np.inf,
+			'min_colony_area':0,
 			'max_colony_area':np.inf,
-			'min_correlation':0.9,
+			'min_correlation':-1,
 			'min_foldX':0,
 			'max_colony_num':1000,
 			'fluor_channel_scope_labels':'',
@@ -1087,7 +1080,7 @@ class _AnalysisConfigFileProcessor(object):
 			set(analysis_config_df_prelim.columns)
 			):
 			raise IndexError(
-				'Could not find columns Parameter, Value, and PhaseNum in your'
+				'Could not find columns Parameter and Value in your'
 				' setup file, ' + analysis_config_path + '; the most common '
 				'cause of this is that your file is not correctly saved in '
 				'comma-separated mode. You can check this by opening the file '
