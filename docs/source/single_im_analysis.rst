@@ -1,20 +1,26 @@
 Running PIE single-image analysis
 =================================
 
-To analyze a single image using PIE, you can use the ``analyze_single_image`` function in python, which takes an image filename (and some analysis parameters) as inputs: ::
+To analyze a single image using PIE, you can use the ``analyze_single_image`` function in python, which takes an image filename (and some analysis parameters) as inputs:
 
-    import PIE
+.. tabs::
 
-    colony_mask, colony_property_df = \
-        PIE.analyze_single_image(
-            input_im_path,
-            output_path,
-            image_type,
-            hole_fill_area,
-            cleanup,
-            max_proportion_exposed_edge,
-            save_extra_info
-            )
+    .. tab:: python
+
+        .. code-block:: python
+
+            import PIE
+
+            colony_mask, colony_property_df = \
+                PIE.analyze_single_image(
+                    input_im_path,
+                    output_path,
+                    image_type,
+                    hole_fill_area,
+                    cleanup,
+                    max_proportion_exposed_edge,
+                    save_extra_info
+                    )
 
 This function runs PIE, creates output folders within ``output_path``, and writes files containing the binary colony mask as an 8-bit tif file (**colony_masks** folder), a jpeg of the original image (**jpegGRimages** folder), and a csv file containing the properties (e.g. area) of all the colonies in the image (**single_image_colony_centers** folder). If ``save_extra_info`` is ``True``, then additional files are saved in the following folders:
 
