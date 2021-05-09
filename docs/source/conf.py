@@ -54,6 +54,6 @@ html_static_path = ['_static']
 # -- Override table theme ----------------------------------------------------
 
 # Fix table width issues
-
+# solution from https://github.com/readthedocs/sphinx_rtd_theme/issues/117
 def setup(app):
    app.add_css_file("theme_overrides.css")

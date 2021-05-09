@@ -11,12 +11,54 @@ import warnings
 import pandas as pd
 from PIL import Image
 
+def _convert_to_number(val_str):
+	'''
+	Converts val_str to an int or float or logical (in that order) if
+	possible
+	'''
+	# NEED UNITTEST FOR JUST THIS METHOD?
+	try:
+		output_val = int(val_str)
+	except:
+		try:
+			output_val = float(val_str)
+		except:
+			if val_str.lower() == 'true':
+				output_val = True
+			elif val_str.lower() == 'false':
+				output_val = False
+			else:
+				output_val = val_str
+	return(output_val)
+
+def _process_parameter_vals(val_str):
+	'''
+	Returns val_str split by semicolon into list only if semicolon
+	is present
+	Converts val_str or all elements of resulting list to int if
+	possible
+	'''
+	# NEED UNITTEST FOR JUST THIS METHOD?
+	if ';' in val_str:
+		split_val_str = val_str.split(';')
+		output_val = [_convert_to_number(val) for val in split_val_str]
+	else:
+		output_val = _convert_to_number(val_str)
+	return(output_val)
+
 # load dataframe of parameters and descriptions
 PIE_package_path = os.path.abspath(os.path.dirname(__file__))
 parameter_file = os.path.join(
 	PIE_package_path, '..', 'PIE_data', 'param_descriptions.csv'
 	)
-param_description_df = pd.read_csv(parameter_file)
+# convert strings to int where possible, and convert values
+# separated by semicolon to lists
+param_description_df = pd.read_csv(
+	parameter_file,
+	converters =
+		{'Default': _process_parameter_vals},
+	na_filter = False
+	)
 
 # list fields that must be specified in analysis config
 required_fields_general = \
@@ -140,7 +182,10 @@ class MinimalAnalysisConfig(object):
 			self.image_retriever = _IndivImageRetriever()
 		else:
 			raise ValueError('image format ' + im_format + ' not recognized')
-		self.extended_display_positions = extended_display_positions
+		if isinstance(extended_display_positions, list):
+			self.extended_display_positions = extended_display_positions
+		else:
+			self.extended_display_positions = [int(extended_display_positions)]
 		# labels used for timepoint number 
 		self.timepoint_label_prefix = timepoint_label_prefix
 
@@ -502,64 +547,14 @@ class _AnalysisConfigFileProcessor(object):
 		# set default parameter values to be used for every phase; any 
 		# of these that are different in the setup file will be 
 		# modiefied based on that
-		self._default_param_ser = pd.Series({
-			'hole_fill_area':np.inf,
-			'cleanup':False,
-			'max_proportion_exposed_edge':0.75,
-			'perform_registration':True,
-			'minimum_growth_time':1,
-			'first_timepoint':1,
-			'extended_display_positions':[1],
-			'first_xy_position':1,
-			'max_area_pixel_decrease':np.inf,
-			'max_area_fold_decrease':np.inf,
-			'max_area_fold_increase':np.inf,
-			'min_colony_area':0,
-			'max_colony_area':np.inf,
-			'min_correlation':-1,
-			'min_foldX':0,
-			'max_colony_num':1000,
-			'fluor_channel_scope_labels':'',
-			'fluor_channel_names':'',
-			'fluor_channel_thresholds':'',
-			'fluor_channel_timepoints':'',
-			'parent_phase':''
-			})
-
-	def _convert_to_number(self, val_str):
-		'''
-		Converts val_str to an int or float or logical (in that order) if
-		possible
-		'''
-		# NEED UNITTEST FOR JUST THIS METHOD?
-		try:
-			output_val = int(val_str)
-		except:
-			try:
-				output_val = float(val_str)
-			except:
-				if val_str.lower() == 'true':
-					output_val = True
-				elif val_str.lower() == 'false':
-					output_val = False
-				else:
-					output_val = val_str
-		return(output_val)
-
-	def _process_parameter_vals(self, val_str):
-		'''
-		Returns val_str split by semicolon into list only if semicolon
-		is present
-		Converts val_str or all elements of resulting list to int if
-		possible
-		'''
-		# NEED UNITTEST FOR JUST THIS METHOD?
-		if ';' in val_str:
-			split_val_str = val_str.split(';')
-			output_val = [self._convert_to_number(val) for val in split_val_str]
-		else:
-			output_val = self._convert_to_number(val_str)
-		return(output_val)
+		# don't have defaults for 'required' parameters
+		param_default_df = param_description_df.loc[
+			param_description_df.Type != 'required'
+			]
+		self._default_param_ser = pd.Series(
+			data = param_default_df.Default.to_list(),
+			index = param_default_df.Parameter.to_list()
+			)
 
 	def _unprocess_parameter_vals(self, val):
 		'''
@@ -1072,7 +1067,7 @@ class _AnalysisConfigFileProcessor(object):
 			analysis_config_path,
 			dtype = {'PhaseNum': str},
 			converters =
-				{'Value': self._process_parameter_vals},
+				{'Value': _process_parameter_vals},
 			na_filter = False
 			)
 		# check file format
@@ -1100,6 +1095,12 @@ class _AnalysisConfigFileProcessor(object):
 		# create df of analysis config objects
 		analysis_config_obj_df = self._create_analysis_config_df()
 		return(analysis_config_obj_df)
+
+def _SetupWizard(object):
+	'''
+	Queries and holds parameter values for creating setup file
+	'''
+
 
 def process_setup_file(analysis_config_path):
 	'''
@@ -1132,6 +1133,4 @@ def check_passed_config(analysis_config_obj_df, analysis_config_file):
 	if analysis_config_obj_df is None:
 		analysis_config_obj_df = process_setup_file(analysis_config_file)
 	return(analysis_config_obj_df)
-
-
 
