@@ -13,9 +13,11 @@ To set up a file for an experiment, modify an existing setup file. Setup files m
 
 The following are the minimal required parameters, and must be included in each experiment:
 
-.. csv-table:: Required Setup File Parameters
-   :file: _static/setup_tables/required_params.csv
+.. csv-filter:: Required Setup File Parameters
+   :file: ../../PIE_data/param_descriptions.csv
+   :included_cols: 0,2
    :widths: 1, 3
+   :include: {1: 'required'}
    :width: 100%
    :header-rows: 1
    :stub-columns: 1
@@ -84,9 +86,11 @@ Additional processing options
 
 The following additional options pertain to processing of your image files:
 
-.. csv-table:: Processing Parameters
-   :file: _static/setup_tables/processing_params.csv
-   :widths: 25, 10, 65
+.. csv-filter:: Required Setup File Parameters
+   :file: ../../PIE_data/param_descriptions.csv
+   :included_cols: 0,2
+   :widths: 1, 3
+   :include: {1: 'additional'}
    :width: 100%
    :header-rows: 1
    :stub-columns: 1
@@ -96,9 +100,11 @@ Modifying image analysis
 
 The following optional parameters allow users to modify how image analysis is performed:
 
-.. csv-table:: Image Analysis Parameters
-   :file: _static/setup_tables/imaging_params.csv
-   :widths: 25, 10, 65
+.. csv-filter:: Required Setup File Parameters
+   :file: ../../PIE_data/param_descriptions.csv
+   :included_cols: 0,2
+   :widths: 1, 3
+   :include: {1: 'image_analysis'}
    :width: 100%
    :header-rows: 1
    :stub-columns: 1
@@ -108,9 +114,11 @@ Modifying growth rate filtration
 
 The following optional parameters allow users to modify how growth rates measured for a time series experiment are filtered:
 
-.. csv-table:: Growth Rate Filtration Parameters
-   :file: _static/setup_tables/growth_params.csv
-   :widths: 25, 10, 65
+.. csv-filter:: Required Setup File Parameters
+   :file: ../../PIE_data/param_descriptions.csv
+   :included_cols: 0,2
+   :widths: 1, 3
+   :include: {1: 'gr_filtration'}
    :width: 100%
    :header-rows: 1
    :stub-columns: 1
@@ -122,9 +130,11 @@ Adding fluorescent measurements
 
 In experiments in which fluorescence data is collected alonside brightfield/phase contrast data, additional parameters must be provided in order for PIE to process the fluorescence data; note that all the default parameters here are empty, which results in a default of no fluorescence analysis being performed:
 
-.. csv-table:: Fluorescence Parameters
-   :file: _static/setup_tables/fluor_params.csv
-   :widths: 25, 10, 65
+.. csv-filter:: Required Setup File Parameters
+   :file: ../../PIE_data/param_descriptions.csv
+   :included_cols: 0,2
+   :widths: 1, 3
+   :include: {1: 'fluor'}
    :width: 100%
    :header-rows: 1
    :stub-columns: 1
