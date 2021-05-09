@@ -56,5 +56,4 @@ html_static_path = ['_static']
 # Fix table width issues
 
 def setup(app):
-   app.add_javascript("custom.js")
-   app.add_stylesheet("custom.css")
+   app.add_css_file("theme_overrides.css")
