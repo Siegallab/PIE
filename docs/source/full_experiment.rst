@@ -15,7 +15,7 @@ The following are the minimal required parameters, and must be included in each 
 
 .. csv-filter:: Required Setup File Parameters
    :file: ../../PIE_data/param_descriptions.csv
-   :included_cols: 0,2
+   :included_cols: 0,3
    :widths: 1, 3
    :include: {1: 'required'}
    :width: 100%
@@ -88,8 +88,8 @@ The following additional options pertain to processing of your image files:
 
 .. csv-filter:: Required Setup File Parameters
    :file: ../../PIE_data/param_descriptions.csv
-   :included_cols: 0,2
-   :widths: 1, 3
+   :included_cols: 0,2,3
+   :widths: 2,1,6
    :include: {1: 'additional'}
    :width: 100%
    :header-rows: 1
@@ -102,8 +102,8 @@ The following optional parameters allow users to modify how image analysis is pe
 
 .. csv-filter:: Required Setup File Parameters
    :file: ../../PIE_data/param_descriptions.csv
-   :included_cols: 0,2
-   :widths: 1, 3
+   :included_cols: 0,2,3
+   :widths: 2,1,6
    :include: {1: 'image_analysis'}
    :width: 100%
    :header-rows: 1
@@ -116,8 +116,8 @@ The following optional parameters allow users to modify how growth rates measure
 
 .. csv-filter:: Required Setup File Parameters
    :file: ../../PIE_data/param_descriptions.csv
-   :included_cols: 0,2
-   :widths: 1, 3
+   :included_cols: 0,2,3
+   :widths: 2,1,6
    :include: {1: 'gr_filtration'}
    :width: 100%
    :header-rows: 1
@@ -132,8 +132,8 @@ In experiments in which fluorescence data is collected alonside brightfield/phas
 
 .. csv-filter:: Required Setup File Parameters
    :file: ../../PIE_data/param_descriptions.csv
-   :included_cols: 0,2
-   :widths: 1, 3
+   :included_cols: 0,2,3
+   :widths: 2,1,6
    :include: {1: 'fluor'}
    :width: 100%
    :header-rows: 1
