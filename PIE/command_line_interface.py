@@ -18,6 +18,12 @@ def run_experiment(configfile):
     PIE.run_growth_rate_analysis(analysis_config_file = configfile)
 
 
+@click.command(name='run_setup_wizard')
+def run_setup_wizard():
+    """Get user input to create setup file"""
+    PIE.run_setup_wizard()
+
+
 @click.command(name='track_single_position')
 @click.argument(
     'xy_pos_idx',
@@ -85,3 +91,4 @@ def cli():  # pragma: no cover
 cli.add_command(run_experiment)
 cli.add_command(track_single_pos)
 cli.add_command(make_pos_movie)
+cli.add_command(run_setup_wizard)

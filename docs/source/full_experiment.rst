@@ -4,6 +4,16 @@ Running PIE multi-image experiments
 Setting up multi-image experiments
 ----------------------------------
 
+New setup files can also be created using the ``run_setup_wizard`` command, which walks the user through all the key parameters to enter one-by-one. This is recommended for users running new experiment types for the first time.
+
+.. tabs::
+
+    .. tab:: command-line
+
+        .. code-block:: bash
+
+            pie run_setup_wizard
+
 Complete PIE experiments require a single *csv*-format setup file to run. Some templates for experiment types commonly run in the Siegal lab can be found in `sample_PIE_setup_files <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files>`_. Details on each setup file are provided below, and each can be used to analyze an experiment provided in the `PIE_test_data/IN <https://github.com/Siegallab/PIE/blob/master/PIE_test_data/IN>`_ folder on github (see :doc:`Sample Experiments <sample_experiments>`).
 
 General experimental setup
@@ -86,11 +96,11 @@ Additional processing options
 
 The following additional options pertain to processing of your image files:
 
-.. csv-filter:: Required Setup File Parameters
+.. csv-filter:: Additional general setup file parameters
    :file: ../../PIE_data/param_descriptions.csv
    :included_cols: 0,2,3
    :widths: 2,1,6
-   :include: {1: 'additional'}
+   :include: {1: 'general'}
    :width: 100%
    :header-rows: 1
    :stub-columns: 1
@@ -100,11 +110,11 @@ Modifying image analysis
 
 The following optional parameters allow users to modify how image analysis is performed:
 
-.. csv-filter:: Required Setup File Parameters
+.. csv-filter:: Setup file parameters pertaining to image analysis
    :file: ../../PIE_data/param_descriptions.csv
    :included_cols: 0,2,3
    :widths: 2,1,6
-   :include: {1: 'image_analysis'}
+   :include: {1: 'image analysis'}
    :width: 100%
    :header-rows: 1
    :stub-columns: 1
@@ -114,11 +124,11 @@ Modifying growth rate filtration
 
 The following optional parameters allow users to modify how growth rates measured for a time series experiment are filtered:
 
-.. csv-filter:: Required Setup File Parameters
+.. csv-filter:: Setup file parameters pertaining to growth rate filtration
    :file: ../../PIE_data/param_descriptions.csv
    :included_cols: 0,2,3
    :widths: 2,1,6
-   :include: {1: 'gr_filtration'}
+   :include: {1: 'growth rate filtration'}
    :width: 100%
    :header-rows: 1
    :stub-columns: 1
@@ -130,11 +140,11 @@ Adding fluorescent measurements
 
 In experiments in which fluorescence data is collected alonside brightfield/phase contrast data, additional parameters must be provided in order for PIE to process the fluorescence data; note that all the default parameters here are empty, which results in a default of no fluorescence analysis being performed:
 
-.. csv-filter:: Required Setup File Parameters
+.. csv-filter:: Setup file parameters pertaining to fluorescence measurements
    :file: ../../PIE_data/param_descriptions.csv
    :included_cols: 0,2,3
    :widths: 2,1,6
-   :include: {1: 'fluor'}
+   :include: {1: 'fluorescence measurements'}
    :width: 100%
    :header-rows: 1
    :stub-columns: 1
