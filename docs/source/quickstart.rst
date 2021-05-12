@@ -1,5 +1,5 @@
 PIE Quickstart
 ==============
 
-.. include:: ../../README.rst
+.. include:: ../../readme.rst
   :start-after: quickstart_inclusion

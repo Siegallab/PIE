@@ -21,21 +21,19 @@ Installing PIE
 
 PIE requires **Python 3.6+**, and can be installed using `pip <https://pip.pypa.io/en/stable/>`_, which should come with your python installation.
 
-.. tabs::
+In unix/macOS Terminal, run:
 
-    .. tab:: Unix/macOS Terminal
+.. code-block:: bash
 
-        .. code-block:: bash
+    python -m pip install git+https://github.com/Siegallab/PIE
 
-            python -m pip install git+https://github.com/Siegallab/PIE
+or, in Windows Command Prompt, run:
 
-    .. tab:: Windows Command Prompt
+.. code-block:: bash
 
-        .. code-block:: bash
+    py -m pip install git+https://github.com/Siegallab/PIE
 
-            py -m pip install git+https://github.com/Siegallab/PIE
-
-See :doc:`Installing PIE <docs/source/installation>` for details.
+See `Installing PIE <https://pie-image.readthedocs.io/en/latest/installation.html>`_ for details.
 
 Analyzing a single image
 ------------------------
@@ -52,7 +50,7 @@ Where:
 + ``OUTPUT_PATH`` is a directory you'd like to store the results of the analysis in
 + ``IMAGE_TYPE`` is 'brightfield' or 'phase_contrast'
 
-See :doc:`Running PIE single-image analysis <docs/source/single_im_analysis>` for details on the inputs and outputs, as well as additional analysis options.
+See `Running PIE single-image analysis <https://pie-image.readthedocs.io/en/latest/single_im_analysis.html>`_ for details on the inputs and outputs, as well as additional analysis options.
 
 Analyzing timelapse experiments
 -------------------------------
@@ -73,7 +71,7 @@ To analyze the timelapse experiment:
 
 Where ``PATH_TO_SETUP_FILE`` is the path to the setup file created by the setup wizard.
 
-See :doc:`Running PIE timelapse experiments <docs/source/full_experiment>` for information on analyzing complex, multi-phase experiments.
+See `Running PIE timelapse experiments <https://pie-image.readthedocs.io/en/latest/full_experiment.html>` for information on analyzing complex, multi-phase experiments.
 
 Creating movies
 ---------------
@@ -91,4 +89,4 @@ Where:
 + ``XY_POS`` is the imaging position number for which the movie should be created
 + ``PATH_TO_SETUP_FILE`` is the path to the setup file created by the setup wizard
 
-See :doc:`Creating movies of image analysis results <docs/source/movies>` for additional options and examples of more movie types that can be created from PIE output.
+See `Creating movies of image analysis results <https://pie-image.readthedocs.io/en/latest/movies.html>` for additional options and examples of more movie types that can be created from PIE output.
