@@ -1,7 +1,7 @@
-Running PIE multi-image experiments
+Running PIE timelapse experiments
 ===================================
 
-Setting up multi-image experiments
+Setting up timelapse experiments
 ----------------------------------
 
 New setup files can also be created using the ``run_setup_wizard`` command, which walks the user through all the key parameters to enter one-by-one. This is recommended for users running new experiment types for the first time.

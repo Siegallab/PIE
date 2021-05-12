@@ -12,6 +12,11 @@ See the `PIE preprint <https://doi.org/10.1101/253724>`_ for details on the anal
 
 .. toctree::
     :maxdepth: 1
+
+    quickstart
+
+.. toctree::
+    :maxdepth: 1
     :caption: Installation
 
     installation
