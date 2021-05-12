@@ -71,7 +71,7 @@ To analyze the timelapse experiment:
 
 Where ``PATH_TO_SETUP_FILE`` is the path to the setup file created by the setup wizard.
 
-See `Running PIE timelapse experiments <https://pie-image.readthedocs.io/en/latest/full_experiment.html>` for information on analyzing complex, multi-phase experiments.
+See `Running PIE timelapse experiments <https://pie-image.readthedocs.io/en/latest/full_experiment.html>`_ for information on analyzing complex, multi-phase experiments.
 
 Creating movies
 ---------------
