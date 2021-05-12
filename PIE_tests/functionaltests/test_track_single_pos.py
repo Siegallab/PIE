@@ -174,7 +174,7 @@ class TestCommandlineRun(SetupTeardown, ParentTestClass):
 				analysis_config_filepath,
 				output_path)
 		submission_string = ' '.join([
-			'pie track_single_position',
+			'pie track_single_pos',
 			str(xy_pos),
 			str(analysis_config_file_standin)])
 		os.system(submission_string)

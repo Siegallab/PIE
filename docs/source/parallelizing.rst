@@ -17,17 +17,16 @@ To analyze each imaged position individually (e.g. via batch jobs), you need to 
             import PIE
             PIE.track_colonies_single_pos(
                 11,
-                analysis_config_file=
-                    '/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv'
+                '/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv'
                 )
 
     .. tab:: command-line
 
         .. code-block:: bash
 
-            pie track_single_position 11 /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv
+            pie track_single_pos 11 /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv
 
 Combining position-wise data and calculating growth rates
 ---------------------------------------------------------
 
-After every imaged xy position has been analyzed, the data can be combined and growth rates can be calculated by simply running ``PIE.run_growth_rate_analysis(...)`` (or ``pie run ...``), as in :doc:`full_experiment`, with the default ``repeat_image_analysis_and_tracking=False`` option.
+After every imaged xy position has been analyzed, the data can be combined and growth rates can be calculated by simply running ``PIE.run_timelapse_analysis(...)`` (or ``pie run_timelapse_analysis ...``), as in :doc:`full_experiment`, with the default ``repeat_image_analysis_and_tracking=False`` option.

@@ -34,8 +34,7 @@ Experiment ``PIE_test_data/IN/SL_170619_2_GR_small`` contains a subset of the *S
         .. code-block:: python
 
             import PIE
-            PIE.run_growth_rate_analysis(
-                analysis_config_file =
+            PIE.run_timelapse_analysis(
                 'sample_PIE_setup_files/gr_phase_setup.csv'
                 )
 
@@ -43,7 +42,7 @@ Experiment ``PIE_test_data/IN/SL_170619_2_GR_small`` contains a subset of the *S
 
         .. code-block:: bash
 
-            pie run sample_PIE_setup_files/gr_phase_setup.csv
+            pie run_timelapse_analysis sample_PIE_setup_files/gr_phase_setup.csv
 
 Growth rate experiment with post-phase fluorescence
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -61,8 +60,7 @@ This experiment can be analyzed using either `sample_PIE_setup_files/gr_with_pos
         .. code-block:: python
 
             import PIE
-            PIE.run_growth_rate_analysis(
-                analysis_config_file =
+            PIE.run_timelapse_analysis(
                 'sample_PIE_setup_files/gr_with_postfluor_setup.csv'
                 )
 
@@ -70,7 +68,7 @@ This experiment can be analyzed using either `sample_PIE_setup_files/gr_with_pos
 
         .. code-block:: bash
 
-            pie run sample_PIE_setup_files/gr_with_postfluor_setup.csv
+            pie run_timelapse_analysis sample_PIE_setup_files/gr_with_postfluor_setup.csv
 
 Two-phase growth rate experiment with simultaneous fluorescence measurement
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -86,8 +84,7 @@ An analysis of just the first phase of the experiment (including fluorescence da
         .. code-block:: python
 
             import PIE
-            PIE.run_growth_rate_analysis(
-                analysis_config_file =
+            PIE.run_timelapse_analysis(
                 'sample_PIE_setup_files/gr_with_fluor_setup_simple.csv'
                 )
 
@@ -95,7 +92,7 @@ An analysis of just the first phase of the experiment (including fluorescence da
 
         .. code-block:: bash
 
-            pie run sample_PIE_setup_files/gr_with_fluor_setup_simple.csv
+            pie run_timelapse_analysis sample_PIE_setup_files/gr_with_fluor_setup_simple.csv
 
 
 The full experiment can be analyzed using either `sample_PIE_setup_files/two_phase_setup_simple.csv <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/two_phase_setup_simple.csv>`_, or `sample_PIE_setup_files/two_phase_setup.csv <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/two_phase_setup.csv>`_; the latter includes advanced options and filtration settings closer to those typically used for analysis in our lab. Note that these setup files are set up to exclude images for the first two time points after heat shock from the analysis, as heat-induced warping causes colonies to be out of focus during these time points.
@@ -107,8 +104,7 @@ The full experiment can be analyzed using either `sample_PIE_setup_files/two_pha
         .. code-block:: python
 
             import PIE
-            PIE.run_growth_rate_analysis(
-                analysis_config_file =
+            PIE.run_timelapse_analysis(
                 'sample_PIE_setup_files/two_phase_setup.csv'
                 )
 
@@ -116,4 +112,4 @@ The full experiment can be analyzed using either `sample_PIE_setup_files/two_pha
 
         .. code-block:: bash
 
-            pie run sample_PIE_setup_files/two_phase_setup.csv
+            pie run_timelapse_analysis sample_PIE_setup_files/two_phase_setup.csv

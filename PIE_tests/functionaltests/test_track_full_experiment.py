@@ -111,26 +111,8 @@ class TestPythonRun(SetupTeardown, ParentTestClass):
 			make_setup_filepath_standin(
 				analysis_config_filepath,
 				output_path)
-		PIE.run_growth_rate_analysis(
-			analysis_config_file = analysis_config_file_standin
-			)
-		self.output_checker.check_output(
-			analysis_config_file_standin,
-			expected_output_path
-			)
-
-	def _run_analysis_obj_df_test(self, analysis_config_filepath,
-		expected_output_path):
-		'''
-		Uses analysis_object_df to run full experiment
-		'''
-		analysis_config_file_standin = \
-			make_setup_filepath_standin(
-				analysis_config_filepath,
-				output_path)
-		config_df = PIE.process_setup_file(analysis_config_file_standin)
-		PIE.run_growth_rate_analysis(
-			analysis_config_obj_df = config_df
+		PIE.run_timelapse_analysis(
+			analysis_config_file_standin
 			)
 		self.output_checker.check_output(
 			analysis_config_file_standin,
@@ -173,7 +155,7 @@ class TestCommandlineRun(SetupTeardown, ParentTestClass):
 				analysis_config_filepath,
 				output_path)
 		submission_string = ' '.join([
-			'pie run',
+			'pie run_timelapse_analysis',
 			str(analysis_config_file_standin)])
 		os.system(submission_string)
 		self.output_checker.check_output(

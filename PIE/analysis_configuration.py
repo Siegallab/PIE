@@ -59,6 +59,32 @@ def _unprocess_parameter_vals(val):
 		val_str = val
 	return(val_str)
 
+def _get_global_params_from_phasewise_df(analysis_config_df_phasewise):
+	'''
+	Returns a pandas series of parameters (rows) that are identical in 
+	all columns of analysis_config_df_phasewise, and a df with those 
+	rows removed
+	'''
+	if len(analysis_config_df_phasewise.index)>0:
+		global_param_row_bool_ser = analysis_config_df_phasewise.eq(
+			analysis_config_df_phasewise.iloc[:, 0], axis=0
+			).all(axis=1)
+		if any(global_param_row_bool_ser):
+			global_params = \
+				global_param_row_bool_ser.index[global_param_row_bool_ser]
+			global_param_ser = analysis_config_df_phasewise.loc[
+				global_params, analysis_config_df_phasewise.columns[0]
+				]
+			analysis_config_df_phasewise.drop(
+				index = global_params, inplace = True
+				)
+		else:
+			global_param_ser = pd.Series(name = 'all', dtype = object)
+	else:
+		global_param_ser = pd.Series(name = 'all', dtype = object)
+	return(global_param_ser, analysis_config_df_phasewise)
+
+
 def _separate_global_params(analysis_config_df_prelim):
 	'''
 	Separate out parameters that apply to all phases into pandas df 
@@ -98,19 +124,10 @@ def _separate_global_params(analysis_config_df_prelim):
 	# Add all parameters with 
 	# identical values across phases to global_param_ser_part, and 
 	# remove those parameters from analysis_config_df_indiv
-	if len(analysis_config_df_indiv.index)>0:
-		global_param_row_bool_ser = analysis_config_df_indiv.eq(
-			analysis_config_df_indiv.iloc[:, 0], axis=0
-			).all(axis=1)
-		if any(global_param_row_bool_ser):
-			new_global_params = \
-				global_param_row_bool_ser.index[global_param_row_bool_ser]
-			global_param_ser_part = global_param_ser_part.append(
-				analysis_config_df_indiv.loc[
-					new_global_params, analysis_config_df_indiv.columns[0]
-					]
-				)
-			analysis_config_df_indiv.drop(index = new_global_params, inplace = True)
+	new_global_param_ser_part, analysis_config_df_indiv = \
+		_get_global_params_from_phasewise_df(analysis_config_df_indiv)
+	global_param_ser_part = \
+		global_param_ser_part.append(new_global_param_ser_part)
 	return(global_param_ser_part, analysis_config_df_indiv)
 
 def write_setup_file(
@@ -858,7 +875,10 @@ class _AnalysisConfigFileProcessor(object):
 			curr_phase_vals_full = \
 				self._check_extra_params(curr_phase_vals_full, curr_req_fields)
 			analysis_config_dict[phase] = curr_phase_vals_full
-		self.analysis_config_df = pd.DataFrame(analysis_config_dict)
+		analysis_config_df = pd.DataFrame(analysis_config_dict)
+		# again, check for global parameters in analysis_config_df
+		new_global_param_ser_part, self.analysis_config_df = \
+			_get_global_params_from_phasewise_df(analysis_config_df)
 		# create self._global_param_ser by using default values for any 
 		# parameters still missing from both analysis_config_df_indiv 
 		# and from global_param_ser_part
@@ -868,7 +888,7 @@ class _AnalysisConfigFileProcessor(object):
 			))
 		self._global_param_ser = self._create_phase_conf_ser(
 			self._default_param_ser.drop(specified_indiv_phase_default_params),
-			global_param_ser_part,
+			global_param_ser_part.append(new_global_param_ser_part),
 			required_fields_general
 			)
 		self._global_param_ser = self._check_extra_params(

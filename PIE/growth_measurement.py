@@ -624,8 +624,7 @@ def measure_growth_rate(analysis_config, postphase_analysis_config,
 	filtered_colony_df = growth_measurer.get_filtered_colonies()
 	return(gr_df, filtered_colony_df)
 
-def run_growth_rate_analysis(analysis_config_file = None,
-		analysis_config_obj_df = None,
+def run_timelapse_analysis(analysis_config_file,
 		repeat_image_analysis_and_tracking = False):
 	'''
 	Runs growth rate analysis from scratch (including image analysis
@@ -636,8 +635,9 @@ def run_growth_rate_analysis(analysis_config_file = None,
 	'''
 	# check that only analysis_config_obj_df or
 	# analysis_config_file is passed, and get analysis_config_obj_df
-	analysis_config_obj_df = analysis_configuration.check_passed_config(
-		analysis_config_obj_df, analysis_config_file)
+	analysis_config_obj_df = analysis_configuration.process_setup_file(
+		analysis_config_file
+		)
 	phase_gr_combiner = _PhaseGRCombiner()
 	# read in colony properties csv if it exists and
 	# repeat_image_analysis_and_tracking is False
@@ -781,8 +781,8 @@ def run_default_growth_rate_analysis(input_path, output_path,
 #	test = pd.read_csv(analysis_config_file_standin)
 #	print(test)
 #	analysis_config_file_standin.seek(0)
-	run_growth_rate_analysis(
-		analysis_config_file = analysis_config_file_standin,
+	run_timelapse_analysis(
+		analysis_config_file_standin,
 		repeat_image_analysis_and_tracking =
 			repeat_image_analysis_and_tracking)
 

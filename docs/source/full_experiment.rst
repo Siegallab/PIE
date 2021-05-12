@@ -62,7 +62,7 @@ Note that the values of many of these parameters determine the format of the fil
 Running the experiment
 ----------------------
 
-To run a full image analysis experiment using PIE, you can use the ``run_growth_rate_analysis`` function, which takes a setup file path as input:
+To run a full image analysis experiment using PIE, you can use the ``run_timelapse_analysis`` function, which takes a setup file path as input:
 
 .. tabs::
 
@@ -71,8 +71,7 @@ To run a full image analysis experiment using PIE, you can use the ``run_growth_
         .. code-block:: python
 
             import PIE
-            PIE.run_growth_rate_analysis(
-                analysis_config_file =
+            PIE.run_timelapse_analysis(
                 '/full/path/to/setup_file.csv'
                 )
 
@@ -80,7 +79,7 @@ To run a full image analysis experiment using PIE, you can use the ``run_growth_
 
         .. code-block:: bash
 
-            pie run /full/path/to/setup_file.csv
+            pie run_timelapse_analysis /full/path/to/setup_file.csv
 
 .. note:: Replace ``/full/path/to/setup_file.csv`` in the code above with the full path to the setup file for your experiment; also, see :doc:`Sample Experiments <sample_experiments>`
 

@@ -822,8 +822,8 @@ def generate_match_key_df(cross_phase_tracked_col_prop_df):
 		match_key_df.dropna(subset=['cross_phase_tracking_id'], inplace = True)
 	return(match_key_df)
 
-def track_colonies_single_pos(xy_pos_idx, analysis_config_obj_df = None,
-	analysis_config_file = None):
+def track_colonies_single_pos(xy_pos_idx,
+	analysis_config_file = None, analysis_config_obj_df = None):
 	'''
 	Runs image analysis and colony tracking for xy_pos_idx
 	Takes either analysis_config_obj_df or analysis_config_file as arg

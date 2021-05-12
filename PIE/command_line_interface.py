@@ -8,15 +8,20 @@ import PIE
 
 # -- Commands -----------------------------------------------------------------
 
-@click.command(name='run')
+@click.command('run_timelapse_analysis')
 @click.argument(
     'configfile',
     type=click.Path(file_okay=True, dir_okay=False, exists=True)
-)
-def run_experiment(configfile):
+    )
+@click.option(
+    '-r', '--repeat_image_analysis_and_tracking', default=False, type=bool
+    )
+def run_timelapse_analysis(configfile, repeat_image_analysis_and_tracking):
     """Run a full image analysis experiment."""
-    PIE.run_growth_rate_analysis(analysis_config_file = configfile)
-
+    PIE.run_timelapse_analysis(
+        analysis_config_file = configfile,
+        repeat_image_analysis_and_tracking = repeat_image_analysis_and_tracking
+        )
 
 @click.command(name='run_setup_wizard')
 def run_setup_wizard():
@@ -24,7 +29,7 @@ def run_setup_wizard():
     PIE.run_setup_wizard()
 
 
-@click.command(name='track_single_position')
+@click.command(name='track_single_pos')
 @click.argument(
     'xy_pos_idx',
     type=int
@@ -88,7 +93,7 @@ def cli():  # pragma: no cover
     pass
 
 
-cli.add_command(run_experiment)
+cli.add_command(run_timelapse_analysis)
 cli.add_command(track_single_pos)
 cli.add_command(make_pos_movie)
 cli.add_command(run_setup_wizard)
