@@ -3,6 +3,7 @@ Simple command-line interface to run PIE experiment.
 '''
 
 import click
+import numpy as np
 
 import PIE
 
@@ -22,6 +23,61 @@ def run_timelapse_analysis(configfile, repeat_image_analysis_and_tracking):
         analysis_config_file = configfile,
         repeat_image_analysis_and_tracking = repeat_image_analysis_and_tracking
         )
+
+@click.command(name='analyze_single_image')
+@click.argument(
+    'input_im_path',
+    type=click.Path(file_okay=True, dir_okay=False, exists=True)
+    )
+@click.argument(
+    'output_path',
+    type=click.Path(file_okay=False, dir_okay=True)
+    )
+@click.argument(
+    'image_type',
+    type=click.Choice(['brightfield','phase_contrast'], case_sensitive=False)
+    )
+@click.option(
+    '-h',
+    '--hole_fill_area',
+    default=np.inf,
+    type=float,
+    )
+@click.option(
+    '-c',
+    '--cleanup',
+    default=False,
+    type=bool
+    )
+@click.option(
+    '-m',
+    '--max_proportion_exposed_edge',
+    default=0.75,
+    type=click.FloatRange(min=0, max=1)
+    )
+@click.option(
+    '-s', '--save_extra_info', default=True, type=bool
+    )
+def analyze_single_image(
+    input_im_path,
+    output_path,
+    image_type,
+    hole_fill_area,
+    cleanup,
+    max_proportion_exposed_edge,
+    save_extra_info
+    ):
+    """Run a full image analysis experiment."""
+    PIE.analyze_single_image(
+        input_im_path,
+        output_path,
+        image_type,
+        hole_fill_area = hole_fill_area,
+        cleanup = cleanup,
+        max_proportion_exposed_edge = max_proportion_exposed_edge,
+        save_extra_info = save_extra_info
+        )
+
 
 @click.command(name='run_setup_wizard')
 def run_setup_wizard():
@@ -50,6 +106,7 @@ def track_single_pos(xy_pos_idx, configfile):
         xy_pos_idx,
         analysis_config_file = configfile)
 
+
 @click.command(name='make_position_movie')
 @click.argument(
     'xy_pos_idx',
@@ -64,7 +121,7 @@ def track_single_pos(xy_pos_idx, configfile):
     type=str,
     default='growing'
 )
-def make_pos_movie(xy_pos_idx, configfile, colony_subset):
+def make_position_movie(xy_pos_idx, configfile, colony_subset):
     """Create a movie of a single position after PIE analysis.
 
     XY_POS_IDX is an integer corresponding to xy position to be analyzed
@@ -92,8 +149,8 @@ def cli():  # pragma: no cover
     """Command line interface for PIE."""
     pass
 
-
+cli.add_command(analyze_single_image)
 cli.add_command(run_timelapse_analysis)
 cli.add_command(track_single_pos)
-cli.add_command(make_pos_movie)
+cli.add_command(make_position_movie)
 cli.add_command(run_setup_wizard)

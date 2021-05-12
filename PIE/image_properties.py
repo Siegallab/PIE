@@ -620,8 +620,13 @@ class _ColonyPropertyFinder(object):
 			self.property_df.at[idx, channel_fluor_prop_names] = \
 				colony_fluor_prop_dict.values()
 
-def analyze_single_image(input_im_path, output_path,
-	image_type, hole_fill_area, cleanup, max_proportion_exposed_edge,
+def analyze_single_image(
+	input_im_path,
+	output_path,
+	image_type,
+	hole_fill_area = np.inf,
+	cleanup = False,
+	max_proportion_exposed_edge = 0.75,
 	save_extra_info = True):
 	'''
 	Reads image from input_im_path and runs PIE colony detection on it,
