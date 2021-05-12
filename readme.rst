@@ -89,4 +89,4 @@ Where:
 + ``XY_POS`` is the imaging position number for which the movie should be created
 + ``PATH_TO_SETUP_FILE`` is the path to the setup file created by the setup wizard
 
-See `Creating movies of image analysis results <https://pie-image.readthedocs.io/en/latest/movies.html>` for additional options and examples of more movie types that can be created from PIE output.
+See `Creating movies of image analysis results <https://pie-image.readthedocs.io/en/latest/movies.html>`_ for additional options and examples of more movie types that can be created from PIE output.
