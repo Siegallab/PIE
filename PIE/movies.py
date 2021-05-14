@@ -2139,7 +2139,8 @@ def make_position_movie(
 	xy_pos_idx,
 	analysis_config_file = None,
 	analysis_config_obj_df = None,
-	colony_subset = 'growing'
+	colony_subset = 'growing',
+	movie_format = 'gif'
 	):
 	'''
 	Creates a movie for a single imaging field numbered xy_pos_idx, 
@@ -2160,6 +2161,15 @@ def make_position_movie(
 		they were e.g. a minor part of a broken-up colony
 	-	'all': to label all colonies detected by PIE
 	(default is 'growing')
+
+	movie_format can be:
+	-	'jpeg'/'jpg' (creates a folder with a .jpg format image for
+		each timepoint)
+	-	'tiff'/'tif' (creates a folder with a .tif format image for
+		each timepoint)
+	-	'gif' (default; creates gif)
+	-	'h264' (video codec; creates movie with .mov extension)
+	-	'mjpg'/'mjpeg' (video codec; creates movie with .mov extension)
 	'''
 	# check that only analysis_config_obj_df or
 	# analysis_config_file is passed, and get analysis_config_obj_df
@@ -2224,5 +2234,5 @@ def make_position_movie(
 			make_movie_grid(cell_movie, gr_plot, rel_widths = [1, cells_hw_ratio])
 		movie_output_path = temp_analysis_config_standin.movie_folder
 		movie_name = 'xy'+str(xy_pos_idx)+'_'+colony_subset+'_colonies_movie'
-		save_movie(movie_grid, movie_output_path, movie_name, 'gif')
+		save_movie(movie_grid, movie_output_path, movie_name, movie_format)
 

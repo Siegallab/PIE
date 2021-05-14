@@ -8,7 +8,7 @@ Creating default microcolony growth movies
 
 The PIE movies module includes a function to automatically create a movie showing colony tracking overlaid on the main imaging channel (brightfield or phase contrast), side-by-side with a plot of each colony's log area over time. These movies will be automatically created for ``extended_display_positions`` when the full growth rate analysis code is run.
 
-The ``make_position_movie`` function takes three inputs:
+The ``make_position_movie`` function takes four inputs:
 
 + an integer specifying the xy position for which to generate the movie
 + either ``analysis_config_file``, the path to the setup file, or ``analysis_config_obj_df``, a dataframe created by ``PIE.analysis_configuration.process_setup_file``
@@ -16,6 +16,12 @@ The ``make_position_movie`` function takes three inputs:
     + **growing**: label only those colonies that receive a growth rate measurement after filtration
     + **tracked**: label all colonies that were tracked, but not include those that were recognized but then removed because they were e.g. a minor part of a broken-up colony
     + **all**: label all 'colonies' initially detected by PIE
++ ``movie_format``, the group of colonies to highlight on the image and growth plot. This argument is optional and defaults to 'gif' if omitted. The options for this argument are:
+    + **jpg** (or **jpeg**): creates a folder with a .jpg format image for each timepoint
+    + **tif** (or **tiff**): creates a folder with a .tif format image for each timepoint
+    + **gif**: (default) creates gif
+    + **h264**: video codec; creates movie with .mov extension. Note that **h264** format requires the h264 encoder, which is automatically installed on some platforms (e.g. MacOSX) but not others.
+    + **mjpg** (or **mjpeg**): video codec; creates movie with .mov extension
 
 For example, the code below generates a *.gif*-format movie for any colonies in imaging field 12 of the `growth measurment sample experiment <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/gr_phase_setup.csv>`_:
 
@@ -30,14 +36,15 @@ For example, the code below generates a *.gif*-format movie for any colonies in 
                 12,
                 analysis_config_file=\
                     '/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv',
-                colony_subset='growing'
+                colony_subset='growing',
+                movie_format = 'gif'
                 )
 
     .. tab:: command-line
 
         .. code-block:: bash
 
-            pie make_position_movie 12 /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv growing
+            pie make_position_movie 12 /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv -s growing -m gif
 
 This code should generate the following movie in the **movies** directory in the output folder of the experiment:
 
@@ -111,7 +118,7 @@ We haven't yet saved our movie anywhere. The object we've created, ``brightfield
 + ``loop``: (optional) for 'gif' format movies, the number of loops the gif should repeat. None is no repetition, 0 is repetition forever. Default is 0.
 + ``jpeg_quality``: (optional) for 'jpg' format 'movies', the jpg quality of the individual movie frames, from 1 to 100. Default is 95.
 
-For *gif* and *h264*/*mjpg* formats, movies will be saved in ``movie_output_path/movie_name.gif`` or ``movie_output_path/movie_name.mp4``, respectively. For tif/jpeg outputs, individual images will be saved inside ``movie_output_path/movie_name/``, with consecutively numbered filenames. Please note that *h264* format requires the h264 encoder, which is automatically installed on some platforms (e.g. MacOSX) but not others.
+For *gif* and *h264*/*mjpg* formats, movies will be saved in ``movie_output_path/movie_name.gif`` or ``movie_output_path/movie_name.mp4``, respectively. For tif/jpeg outputs, individual images will be saved inside ``movie_output_path/movie_name/``, with consecutively numbered filenames. Note that *h264* format requires the h264 encoder, which is automatically installed on some platforms (e.g. MacOSX) but not others.
 
 We can use the following code to save ``brightfield_movie`` created above in a directory called ``sample_movies`` in the PIE folder: ::
 

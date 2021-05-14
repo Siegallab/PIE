@@ -116,12 +116,20 @@ def track_single_pos(xy_pos_idx, configfile):
     'configfile',
     type=click.Path(file_okay=True, dir_okay=False, exists=True)
 )
-@click.argument(
-    'colony_subset',
-    type=str,
+@click.option(
+    '-s', '--colony_subset',
+    type=click.Choice(['growing','tracked','all'], case_sensitive=False),
     default='growing'
 )
-def make_position_movie(xy_pos_idx, configfile, colony_subset):
+@click.option(
+    '-m', '--movie_format',
+    type=click.Choice(
+        ['jpeg','jpg','tiff','tif','gif','h264','mjpg','mjpeg'],
+        case_sensitive=False
+        ),
+    default='gif'
+)
+def make_position_movie(xy_pos_idx, configfile, colony_subset, movie_format):
     """Create a movie of a single position after PIE analysis.
 
     XY_POS_IDX is an integer corresponding to xy position to be analyzed
@@ -140,7 +148,8 @@ def make_position_movie(xy_pos_idx, configfile, colony_subset):
     PIE.make_position_movie(
         xy_pos_idx,
         analysis_config_file = configfile,
-        colony_subset = colony_subset)
+        colony_subset = colony_subset,
+        movie_format = movie_format)
 
 # -- Create command group -----------------------------------------------------
 
