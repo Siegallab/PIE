@@ -1,6 +1,8 @@
 Running PIE timelapse experiments
 ===================================
 
+.. _setting up timelapse:
+
 Setting up timelapse experiments
 ----------------------------------
 
@@ -14,7 +16,7 @@ New setup files can also be created using the ``run_setup_wizard`` command, whic
 
             pie run_setup_wizard
 
-Complete PIE experiments require a single *csv*-format setup file to run. Some templates for experiment types commonly run in the Siegal lab can be found in `sample_PIE_setup_files <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files>`_. Details on each setup file are provided below, and each can be used to analyze an experiment provided in the `PIE_test_data/IN <https://github.com/Siegallab/PIE/blob/master/PIE_test_data/IN>`_ folder on github (see :doc:`Sample Experiments <sample_experiments>`).
+Time-lapse PIE experiments require a single *csv*-format setup file to run. Some templates for experiment types commonly run in the Siegal lab can be found in `sample_PIE_setup_files <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files>`_. Details on each setup file are provided below, and each can be used to analyze an experiment provided in the `PIE_test_data/IN <https://github.com/Siegallab/PIE/blob/master/PIE_test_data/IN>`_ folder on github (see :doc:`Sample Experiments <sample_experiments>`).
 
 General experimental setup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -33,6 +35,8 @@ The following are the minimal required parameters, and must be included in each 
    :stub-columns: 1
 
 The PIE github repository contains an example `minimal setup file <https://github.com/Siegallab/PIE/blob/doc_update/sample_PIE_setup_files/gr_phase_setup_simple.csv>`_.
+
+.. _filename_convention:
 
 Filenames
 *********
@@ -58,6 +62,8 @@ Note that the values of many of these parameters determine the format of the fil
 +----------------------------+----------------------------+----------------------------+
 | **im_file_extension**      | tif                        | jpg                        |
 +----------------------------+----------------------------+----------------------------+
+
+Note that the reliance on **total_xy_position_num** and **total_timepoint_num** to set the number of digits in the position and timepoint of the filename can be problematic for analysis of data that includes only a subset of the originally collected images. For example, if a user initially collected 100 timepoints worth of data, filenames are most likely t001-t100. However, if the user wants to wants to only analyze the first 99 of these timepoints and sets **total_timepoint_num** to 99, PIE will expect only two digits in the timepoint (t01-t99). This issue can be circumvented by adding any extra 0s to **timepoint_label_prefix**, i.e. setting it to 't0' instead of 't' in this example.
 
 Running the experiment
 ----------------------

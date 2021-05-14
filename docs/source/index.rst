@@ -20,6 +20,13 @@ See the `PIE preprint <https://doi.org/10.1101/253724>`_ for details on the anal
     :caption: Installation
 
     installation
+    
+.. toctree::
+    :maxdepth: 1
+    :caption: Inputs and Outputs
+    
+    inputs
+    outputs
 
 .. toctree::
     :maxdepth: 1
@@ -28,12 +35,6 @@ See the `PIE preprint <https://doi.org/10.1101/253724>`_ for details on the anal
     single_im_analysis
     full_experiment
     parallelizing
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Inputs and Outputs
-
-    outputs
 
 .. toctree::
     :maxdepth: 2
