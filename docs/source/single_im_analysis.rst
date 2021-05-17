@@ -33,10 +33,16 @@ To analyze a single image using PIE, you can use the ``analyze_single_image`` fu
 
             pie analyze_single_image INPUT_IM_PATH OUTPUT_PATH IMAGE_TYPE --h HOLE_FILL_AREA --c CLEANUP --m MAX_PROPORTION_EXPOSED_EDGE --s SAVE_EXTRA_INFO
 
-This function runs PIE, creates output folders within ``output_path``, and writes files containing the binary colony mask as an 8-bit tif file (**colony_masks** folder), a jpeg of the original image (**jpegGRimages** folder), and a csv file containing the properties (e.g. area) of all the colonies in the image (**single_image_colony_centers** folder). If ``save_extra_info`` is ``True``, then additional files are saved in the following folders:
+This function runs PIE, creates output folders within ``output_path``, and writes files to:
+
++ **colony_masks**: the colony mask, with each colony labeled in a different number, as a tif file
++ **jpegGRimages**: a jpeg of the original image
++ **single_image_colony_centers**: a csv file containing the properties (e.g. area) of all the colonies in the image.
+
+If ``save_extra_info`` is ``True``, then additional files are saved in the following folders:
 
 + **boundary_ims**: a jpeg of the original image, overlaid with the contours of the colony mask
-+ **threshold_plots**: plots demonstrating the detection of the threshold based on the log histogram of a background-corrected image
++ **threshold_plots**: plots demonstrating the detection of the threshold based on the log histogram of a background-corrected image, and files with information on curve fits and threshold values for thresholding
 + **colony_center_overlays**: a jpeg of the original image, overlaid with the contours of the colony mask and a transparent mask of the cell centers detected after thresholding
 
  The inputs into this functions are as follows:
