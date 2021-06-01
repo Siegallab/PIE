@@ -14,8 +14,7 @@ install_requires = [
     'scipy>=1.1.0',
     'plotnine >= 0.7.1',
     'pyarrow',
-    'Click>=7.0',
-    'scikit-learn>=0.23.0'
+    'Click>=7.0'
 ]
 
 

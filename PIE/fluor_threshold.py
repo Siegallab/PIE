@@ -12,7 +12,7 @@ import scipy.stats as stats
 import warnings
 from PIE.density_fit import DensityFitterMLE
 from scipy.optimize import minimize
-from sklearn.neighbors import KernelDensity
+from scipy.stats import gaussian_kde
 
 class _FluorDensityFitter(DensityFitterMLE):
 	'''
@@ -91,13 +91,12 @@ class _FluorDensityFitter(DensityFitterMLE):
 		'''
 		Calculates gaussian kernel density around data
 		'''
-		# instantiate and fit the KDE model
-		kde_skl=KernelDensity(bandwidth=bw, kernel='gaussian')
 		data_no_nan = self.data[~np.isnan(self.data)]
-		kde_skl.fit(data_no_nan[:, np.newaxis])
-		# score_samples() returns the log-likelihood of the samples
-		log_pdf=kde_skl.score_samples(x_grid[:, np.newaxis])
-		pdf=np.exp(log_pdf)
+		# bandwidth is multiplied by std of data within gaussian_kde
+		bw_mod = bw/data_no_nan.std()
+		# instantiate and fit the KDE model
+		kde=gaussian_kde(data_no_nan, bw_method=bw_mod)
+		pdf = kde.pdf(x_grid)
 		return(pdf)
 
 	def _id_two_peak_kernel(self):
