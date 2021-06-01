@@ -41,8 +41,8 @@ else:
     raise RuntimeError('unable to find version string in %s.' % (filecontent,))
 
 
-# Get long project description text from the README.md file
-with open('readme.md', 'rt') as f:
+# Get long project description text from the README.rst file
+with open('readme.rst', 'rt') as f:
     readme = f.read()
 
 
