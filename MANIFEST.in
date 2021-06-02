@@ -4,5 +4,5 @@
 include LICENSE
 include *.md
 graft PIE
-recursive-exclude PIE_tests
+exclude PIE_tests
 global-exclude *.py[co]
