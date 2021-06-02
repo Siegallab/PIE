@@ -181,7 +181,7 @@ def write_setup_file(
 # load dataframe of parameters and descriptions
 PIE_package_path = os.path.abspath(os.path.dirname(__file__))
 parameter_file = os.path.join(
-	PIE_package_path, '..', 'PIE_data', 'param_descriptions.csv'
+	PIE_package_path, 'PIE_data', 'param_descriptions.csv'
 	)
 # convert strings to int where possible, and convert values
 # separated by semicolon to lists

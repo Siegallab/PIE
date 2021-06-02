@@ -26,7 +26,7 @@ To set up a file for an experiment, modify an existing setup file. Setup files m
 The following are the minimal required parameters, and must be included in each experiment:
 
 .. csv-filter:: Required Setup File Parameters
-   :file: ../../PIE_data/param_descriptions.csv
+   :file: ../../../PIE/PIE_data/param_descriptions.csv
    :included_cols: 0,3
    :widths: 1, 3
    :include: {1: 'required'}
@@ -102,7 +102,7 @@ Additional processing options
 The following additional options pertain to processing of your image files:
 
 .. csv-filter:: Additional general setup file parameters
-   :file: ../../PIE_data/param_descriptions.csv
+   :file: ../../../PIE/PIE_data/param_descriptions.csv
    :included_cols: 0,2,3
    :widths: 2,1,6
    :include: {1: 'general'}
@@ -116,7 +116,7 @@ Modifying image analysis
 The following optional parameters allow users to modify how image analysis is performed:
 
 .. csv-filter:: Setup file parameters pertaining to image analysis
-   :file: ../../PIE_data/param_descriptions.csv
+   :file: ../../../PIE/PIE_data/param_descriptions.csv
    :included_cols: 0,2,3
    :widths: 2,1,6
    :include: {1: 'image analysis'}
@@ -130,7 +130,7 @@ Modifying growth rate filtration
 The following optional parameters allow users to modify how growth rates measured for a time series experiment are filtered:
 
 .. csv-filter:: Setup file parameters pertaining to growth rate filtration
-   :file: ../../PIE_data/param_descriptions.csv
+   :file: ../../../PIE/PIE_data/param_descriptions.csv
    :included_cols: 0,2,3
    :widths: 2,1,6
    :include: {1: 'growth rate filtration'}
@@ -146,7 +146,7 @@ Adding fluorescent measurements
 In experiments in which fluorescence data is collected alonside brightfield/phase contrast data, additional parameters must be provided in order for PIE to process the fluorescence data; note that all the default parameters here are empty, which results in a default of no fluorescence analysis being performed:
 
 .. csv-filter:: Setup file parameters pertaining to fluorescence measurements
-   :file: ../../PIE_data/param_descriptions.csv
+   :file: ../../../PIE/PIE_data/param_descriptions.csv
    :included_cols: 0,2,3
    :widths: 2,1,6
    :include: {1: 'fluorescence measurements'}

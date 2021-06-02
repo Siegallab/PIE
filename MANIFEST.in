@@ -3,5 +3,6 @@
 
 include LICENSE
 include *.md
-recursive-include PIE *.py
+recursive-include PIE
+recursive-exclude PIE_tests
 global-exclude *.py[co]
