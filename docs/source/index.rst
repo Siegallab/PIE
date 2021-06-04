@@ -10,6 +10,8 @@ Processing Images Easily (PIE) automatically tracks growing microcolonies in low
 
 See the `PIE preprint <https://doi.org/10.1101/253724>`_ for details on the analysis, and the `PIE github repository <https://github.com/Siegallab/PIE>`_ for the code.
 
+If you have any questions about setting up or using PIE, we'd love to help! Feel free to contact us at pie-siegal-lab@nyu.edu or `open an issue on github <https://github.com/Siegallab/PIE/issues>`_.
+
 .. toctree::
     :maxdepth: 1
 
