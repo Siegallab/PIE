@@ -12,7 +12,7 @@ PIE Quickstart
 
 .. quickstart_inclusion
 
-Below is a quick reference to essential PIE functions; see the full documentation for more details. If you have any questions about setting up or using PIE, we'd love to help! Feel free to contact us at pie-siegal-lab@nyu.edu or `open an issue on github <https://github.com/Siegallab/PIE/issues>`_.
+Below is a quick reference to essential PIE functions; see the full `PIE documentation <https://pie-image.readthedocs.io/en/latest/?>`_ for more details. If you have any questions about setting up or using PIE, we'd love to help! Feel free to contact us at pie-siegal-lab@nyu.edu or `open an issue on github <https://github.com/Siegallab/PIE/issues>`_.
 
 All the commands below must be run in Terminal (MacOS/Linux) / Command Prompt (Windows)
 
