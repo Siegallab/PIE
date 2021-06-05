@@ -241,13 +241,17 @@ class _GrowthMeasurer(object):
 		'''
 		### NEEDS UNITTEST!!!
 		# assumes y and x no longer have NaN values
+		# assumes x values are not all the same
 		A = np.vstack([x, np.ones(len(x))]).T
 		reg_results = np.linalg.lstsq(A, y, rcond=None)
 		[slope, intercept] = reg_results[0]
 		resid = reg_results[1]
-		with warnings.catch_warnings():
-			warnings.simplefilter("ignore")
-			rsq = 1 - resid / (y.size * y.var())
+		if resid:
+			with warnings.catch_warnings():
+				warnings.simplefilter("ignore")
+				rsq = 1 - resid[0] / (y.size * y.var())
+		else:
+			rsq = np.nan
 		return(slope, intercept, rsq)
 
 	def _calculate_growth_rates(self):
@@ -270,6 +274,11 @@ class _GrowthMeasurer(object):
 			stop = regr_pos_info.range_stop_col
 			log_areas = self.log_filt_areas_mat[row, start:stop]
 			times = self.filt_times_mat[row, start:stop]
+			if len(np.unique(times)) < len(times):
+				warnings.warn(
+					"Multiple identical time values: "+np.array2string(times),
+					UserWarning
+					)
 			slope, intercept, rsq = self._run_regression(log_areas, times)
 			self.positions_for_regression.at[idx, 'gr'] = slope
 			self.positions_for_regression.at[idx, 'intercept'] = intercept
