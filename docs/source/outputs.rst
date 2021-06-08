@@ -1,7 +1,7 @@
 PIE Outputs
 ===========
 
-Outputs of the PIE experiment can be found in the directory provided by the ``output_folder`` path in the setup file. Each output folder includes one or multiple folders corresponding to phases of the experiment, named **phase_[*phase_name*]**, with all phase-specific data contained within (see :doc:full_experiment.html#phases for more information on experimental phases).
+Outputs of the PIE experiment can be found in the directory provided by the ``output_folder`` path in the setup file. Each output folder includes one or multiple folders corresponding to phases of the experiment, named *phase_[phase_num]*, with all phase-specific data contained within (see :ref:`here <phase explanation>` for more information on experimental phases).
 
 Complete time-lapse experiment outputs
 --------------------------------------
@@ -13,7 +13,7 @@ In addition, the main folder contains general experimental outputs (`Growth Data
 Growth data
 ^^^^^^^^^^^
 
-**growth_rates_combined.csv**: contains the growth data and key summaries of colony properties over time for every colony that passes growth rate filtration. Properties are reported for each phase, and are followed by *_phase_``phase_num``* in the column name.
+**growth_rates_combined.csv**: contains the growth data and key summaries of colony properties over time for every colony that passes growth rate filtration. Properties are reported for each phase, and are followed by *_phase_[phase_num]* in the column name.
 
 .. list-table:: Colony growth properties reported in **growth_rates_combined.csv**
     :header-rows: 1

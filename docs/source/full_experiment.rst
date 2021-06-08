@@ -162,6 +162,8 @@ We provide an example `setup file with fluorescence data analysis <https://githu
 Analysis of complex experiments
 -------------------------------
 
+.. _phase explanation:
+
 Phases
 ^^^^^^
 
