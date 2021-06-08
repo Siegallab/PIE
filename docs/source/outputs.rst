@@ -39,7 +39,7 @@ Growth data
     * - intercept
       - the y-intercept of the best-fit line to ln(area) between **t0** and **tfinal** (used for plotting growth rates)
     * - rsq
-      - the R:superscript:`2` of the best-fit line to ln(area) between **t0** and **tfinal**
+      - the R\ :superscript:`2` of the best-fit line to ln(area) between **t0** and **tfinal**
     * - foldX
       - the fold increase in colony area over the entire course of the phase
     * - mindist

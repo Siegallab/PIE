@@ -41,8 +41,10 @@ Inputs:
 
         The function returns:
 
-        + **colony_mask**: a numpy boolean matrix with True at positions corresponding to pixels in the original image where a colony was detected
-        + **colony_property_df**: a pandas dataframe containing the properties of every colony in the image (same as the ones saved to *single_image_colony_centers* below, but also containing a list of all the pixels in which each colony was detected).
+        + **colony_mask**:
+            a numpy boolean matrix with True at positions corresponding to pixels in the original image where a colony was detected
+        + **colony_property_df**:
+            a pandas dataframe containing the properties of every colony in the image (same as the ones saved to *single_image_colony_centers* below, but also containing a list of all the pixels in which each colony was detected).
 
         .. note::
 
@@ -63,7 +65,7 @@ Inputs:
                         'brightfield'
                         )
 
-            or, with cleanup set to True and hole_fill_area set to 40:
+            or, with **cleanup** set to *True* and **hole_fill_area** set to *40*:
 
             .. code-block:: python
 
@@ -102,7 +104,7 @@ Inputs:
 
                 pie analyze_single_image E:\trial\t01xy0001.tif E:\trial_output_images brightfield
 
-            or, with cleanup set to True and hole_fill_area set to 40:
+            or, with **cleanup** set to *True* and **hole_fill_area** set to *40*:
 
             .. code-block:: console
 
@@ -125,7 +127,7 @@ Inputs:
 
                 pie analyze_single_image ~/trial/t01xy0001.tif ~/trial_output_images brightfield
 
-            or, with cleanup set to True and hole_fill_area set to 40:
+            or, with **cleanup** set to *True* and **hole_fill_area** set to *40*:
 
             .. code-block:: console
 
@@ -142,13 +144,19 @@ Inputs:
 
 This function runs PIE, creates output folders within **output_path**, and writes files to:
 
-+ **colony_masks**: the colony mask, with each colony labeled in a different number, as a tif file
-+ **jpegGRimages**: a jpeg of the original image
-+ **single_image_colony_centers**: a csv file containing the properties (e.g. area) of all the colonies in the image.
++ *colony_masks*:
+    the colony mask, with each colony labeled in a different number, as a tif file
++ *jpegGRimages*:
+    a jpeg of the original image
++ *single_image_colony_centers*:
+    a csv file containing the properties (e.g. area) of all the colonies in the image.
 
 If **save_extra_info** is *True* (default), then additional files are saved in the following folders:
 
-+ **boundary_ims**: a jpeg of the original image, overlaid with the contours of the colony mask
-+ **threshold_plots**: plots demonstrating the detection of the threshold based on the log histogram of a background-corrected image, and files with information on curve fits and threshold values for thresholding
-+ **colony_center_overlays**: a jpeg of the original image, overlaid with the contours of the colony mask and a transparent mask of the cell centers detected after thresholding
++ *boundary_ims*:
+    a jpeg of the original image, overlaid with the contours of the colony mask
++ *threshold_plots*:
+    plots demonstrating the detection of the threshold based on the log histogram of a background-corrected image, and files with information on curve fits and threshold values for thresholding
++ *colony_center_overlays*:
+    a jpeg of the original image, overlaid with the contours of the colony mask and a transparent mask of the cell centers detected after thresholding
 
