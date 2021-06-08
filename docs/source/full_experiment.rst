@@ -34,7 +34,7 @@ The following are the minimal required parameters, and must be included in each 
    :header-rows: 1
    :stub-columns: 1
 
-The PIE github repository contains an example `minimal setup file <https://github.com/Siegallab/PIE/blob/doc_update/sample_PIE_setup_files/gr_phase_setup_simple.csv>`_.
+The PIE github repository contains an example `minimal setup file <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/gr_phase_setup_simple.csv>`_.
 
 .. _filename_convention:
 
@@ -48,7 +48,7 @@ Note that the values of many of these parameters determine the format of the fil
 |                            +----------------------------+----------------------------+
 | Parameter                  | *t1xy001c3.tif*            | *pos1tp01.jpg*             |
 +============================+============================+============================+
-| **label_order_list**       | timepoint;position;channel | position;timepoint;channel |
+| **label_order_list**       | timepoint;position;channel | position;timepoint         |
 +----------------------------+----------------------------+----------------------------+
 | **position_label_prefix**  | xy                         | pos                        |
 +----------------------------+----------------------------+----------------------------+
@@ -63,7 +63,8 @@ Note that the values of many of these parameters determine the format of the fil
 | **im_file_extension**      | tif                        | jpg                        |
 +----------------------------+----------------------------+----------------------------+
 
-Note that the reliance on **total_xy_position_num** and **total_timepoint_num** to set the number of digits in the position and timepoint of the filename can be problematic for analysis of data that includes only a subset of the originally collected images. For example, if a user initially collected 100 timepoints worth of data, filenames are most likely t001-t100. However, if the user wants to wants to only analyze the first 99 of these timepoints and sets **total_timepoint_num** to 99, PIE will expect only two digits in the timepoint (t01-t99). This issue can be circumvented by adding any extra 0s to **timepoint_label_prefix**, i.e. setting it to 't0' instead of 't' in this example.
+.. tip::
+    The reliance on **total_xy_position_num** and **total_timepoint_num** to set the number of digits in the position and timepoint of the filename can be problematic for analysis of data that includes only a subset of the originally collected images. For example, if a user initially collected 100 timepoints worth of data, filenames are most likely t001-t100. However, if the user wants to wants to only analyze the first 99 of these timepoints and sets **total_timepoint_num** to 99, PIE will expect only two digits in the timepoint (t01-t99). This issue can be circumvented by adding any extra 0s to **timepoint_label_prefix**, i.e. setting it to 't0' instead of 't' in this example.
 
 Running the experiment
 ----------------------
@@ -138,7 +139,7 @@ The following optional parameters allow users to modify how growth rates measure
    :header-rows: 1
    :stub-columns: 1
 
-The PIE github repository contains an example `setup file with non-default parameter values <https://github.com/Siegallab/PIE/blob/doc_update/sample_PIE_setup_files/gr_phase_setup_simple.csv>`_.
+The PIE github repository contains an example `setup file with non-default parameter values <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/gr_phase_setup_simple.csv>`_.
 
 Adding fluorescent measurements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -156,7 +157,7 @@ In experiments in which fluorescence data is collected alonside brightfield/phas
 
 Colony outlines are always calculated based on a "main channel", which should consist of either brightfield or phase contrast images; the colonies identified in the main channel will then be overlaid on any fluorescent images in the phase to calculate fluorescence levels.
 
-We provide an example `setup file with fluorescence data analysis <https://github.com/Siegallab/PIE/blob/doc_update/sample_PIE_setup_files/gr_with_fluor_setup_simple.csv>`_ in the PIE github repository.
+We provide an example `setup file with fluorescence data analysis <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/gr_with_fluor_setup_simple.csv>`_ in the PIE github repository.
 
 Analysis of complex experiments
 -------------------------------
@@ -176,7 +177,7 @@ Because each phase of a multi-phase experiment should be imaged with the same se
 + ``total_xy_position_num``
 + ``extended_display_positions``.
 
-We provide an example `two-phase setup file with fluorescence data analysis <https://github.com/Siegallab/PIE/blob/doc_update/sample_PIE_setup_files/two_phase_setup_simple.csv>`_ in the PIE github repository.
+We provide an example `two-phase setup file with fluorescence data analysis <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/two_phase_setup_simple.csv>`_ in the PIE github repository.
 
 Post-phase fluorescent measurement and fluorescence-based classification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -203,5 +204,5 @@ These 'post-phase fluorescence' phases require only a subset of parameters to be
 + ``position_label_prefix``
 + ``im_format``
 
-We provide an example `post-phase fluorescence setup file <https://github.com/Siegallab/PIE/blob/doc_update/sample_PIE_setup_files/gr_with_postfluor_setup_simple.csv>`_ in the PIE github repository.
+We provide an example `post-phase fluorescence setup file <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/gr_with_postfluor_setup_simple.csv>`_ in the PIE github repository.
 

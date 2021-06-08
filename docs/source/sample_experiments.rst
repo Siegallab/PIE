@@ -11,7 +11,7 @@ If you downloaded the full `PIE github repository <https://github.com/Siegallab/
 If you do not want to download the full github repository, you can use DownGit to selectively download these two folders:
 
 + `Sample dataset download <https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/Siegallab/PIE/tree/master/PIE_test_data>`_ (~390 Mb)
-+ `Sample setup files download <https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/Siegallab/PIE/tree/doc_update/sample_PIE_setup_files>`_
++ `Sample setup files download <https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/Siegallab/PIE/tree/master/sample_PIE_setup_files>`_
 
 After downloading the folders, you will need to unzip them.
 
