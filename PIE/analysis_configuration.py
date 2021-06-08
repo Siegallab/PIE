@@ -289,26 +289,22 @@ class MinimalAnalysisConfig(object):
 		self.output_path = output_path
 		# file extension of input images
 		self.im_file_extension = im_file_extension.strip(punctuation)
-		# save order in which time, position, channel labels are listed,
-		# after checking that it contains the necessary info
-		# note that timepoint still required in this list even though not used
-		if set(label_order_list) == set(['timepoint', 'channel', 'position']):
-			self.label_order_list = label_order_list
-		else:
-			raise ValueError(
-				'Label order list must consist of timepoint, channel, and ' +
-				'position, even if not all these are used')
+		# labels used for xy position
+		self.position_label_prefix = position_label_prefix
+		# labels used for timepoint number 
+		self.timepoint_label_prefix = timepoint_label_prefix
+		self.fluor_channel_df = fluor_channel_df
+			# column names: fluor_channel_label,
+			# fluor_channel_column_name, fluor_threshold
+		# save order in which time, position, channel labels are listed
+		self.label_order_list = label_order_list
+		self._check_label_order_list()
 		# set up folder to save outputs
 		self._create_output_paths()
 		# set up list of possible xy positions
 		self.xy_position_vector = xy_position_vector
-		# labels used for xy position
-		self.position_label_prefix = position_label_prefix
 		# find size of images
 		self._find_im_size()
-		self.fluor_channel_df = fluor_channel_df
-			# column names: fluor_channel_label,
-			# fluor_channel_column_name, fluor_threshold
 		# set up image retriever depending on im_format
 		if im_format == 'individual':
 			self.image_retriever = _IndivImageRetriever()
@@ -318,13 +314,51 @@ class MinimalAnalysisConfig(object):
 			self.extended_display_positions = extended_display_positions
 		else:
 			self.extended_display_positions = [int(extended_display_positions)]
-		# labels used for timepoint number 
-		self.timepoint_label_prefix = timepoint_label_prefix
+		
 
 	def __eq__(self, other):
 		identical_vars = self.__dict__ == other.__dict__
 		identical_class = self.__class__ == other.__class__
 		return(identical_vars and identical_class)
+
+	def _check_fluor_channel_label_spec(self):
+		'''
+		Check whether there are fluorescent channels that should have 
+		labels in filenames
+		'''
+		fluor_channel_labels_specified = \
+			len(self.fluor_channel_df.index)>0 and (
+				len(self.fluor_channel_df.index)>1 or
+				any(self.fluor_channel_df.fluor_channel_label != '') or
+				any(pd.notnull(self.fluor_channel_df.fluor_channel_label))
+				)
+		return(fluor_channel_labels_specified)
+
+	def _check_label_order_list(self):
+		'''
+		Check that only elements specified in label_order_list have 
+		prefixes (i.e. are expected to be in filenames)
+		'''
+		if self.timepoint_label_prefix and \
+			'timepoint' not in self.label_order_list:
+			raise ValueError(
+				"'timepoint' missing from label_order_list; either include it, "
+				"or set timepoint_label_prefix to a blank value"
+				)
+		if self.position_label_prefix and \
+			'position' not in self.label_order_list:
+			raise ValueError(
+				"'position' missing from label_order_list; either include it, "
+				"or set position_label_prefix to a blank value"
+				)
+		fluor_channel_labels_specified = self._check_fluor_channel_label_spec()
+		if fluor_channel_labels_specified and \
+			'channel' not in self.label_order_list:
+			raise ValueError(
+				"'channel' missing from label_order_list; either include it, "
+				"or don't specify any fluorescent channels with "
+				"fluor_channel_scope_labels"
+				)
 
 	def _create_output_paths(self):
 		'''
@@ -501,6 +535,8 @@ class AnalysisConfig(MinimalAnalysisConfig):
 		'''
 		Reads setup_file and creates analysis configuration
 		'''
+		# set up channel labels
+		self.main_channel_label = main_channel_label
 		super(AnalysisConfig, self).__init__(
 			phase_num, input_path, output_path, im_file_extension,
 			label_order_list, total_xy_position_num, position_label_prefix,
@@ -537,9 +573,26 @@ class AnalysisConfig(MinimalAnalysisConfig):
 		# specify type of image (brightfield or phase_contrast) is in
 		# the main channel
 		self.main_channel_imagetype = main_channel_imagetype
-		# set up channel labels
-		self.main_channel_label = main_channel_label
 		self._run_parameter_tests()
+
+	def _check_fluor_channel_label_spec(self):
+		'''
+		Check whether there are fluorescent channels that should have 
+		labels in filenames
+		'''
+		fluor_channel_labels_specified = \
+			self.main_channel_label or (
+				len(self.fluor_channel_df.index)>0 and (
+					len(self.fluor_channel_df.index)>1
+					or
+					any(self.fluor_channel_df.fluor_channel_label != '')
+					or
+					any(pd.notnull(
+						self.fluor_channel_df.fluor_channel_label
+						))
+					)
+				)
+		return(fluor_channel_labels_specified)
 
 	def _set_up_timevector(self, timepoint_spacing, first_timepoint):
 		'''
