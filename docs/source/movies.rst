@@ -16,7 +16,7 @@ The ``make_position_movie`` function takes four inputs:
     + **growing**: label only those colonies that receive a growth rate measurement after filtration
     + **tracked**: label all colonies that were tracked, but not include those that were recognized but then removed because they were e.g. a minor part of a broken-up colony
     + **all**: label all 'colonies' initially detected by PIE
-+ ``movie_format``, the group of colonies to highlight on the image and growth plot. This argument is optional and defaults to 'gif' if omitted. The options for this argument are:
++ ``movie_format``, the file format of the movie to create. This argument is optional and defaults to 'gif' if omitted. The options for this argument are:
     + **jpg** (or **jpeg**): creates a folder with a .jpg format image for each timepoint
     + **tif** (or **tiff**): creates a folder with a .tif format image for each timepoint
     + **gif**: (default) creates gif

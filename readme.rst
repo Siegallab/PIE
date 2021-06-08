@@ -7,6 +7,8 @@ To learn how to install and use PIE, see the `PIE documentation <https://pie-ima
 
 To learn how PIE works, see `our preprint <https://doi.org/10.1101/253724>`_.
 
+To test microcolony recognition and growth tracking on your images, try our `web application <pie.hpc.nyu.edu>`_.
+
 PIE Quickstart
 ^^^^^^^^^^^^^^
 
@@ -55,7 +57,7 @@ See `Running PIE single-image analysis <https://pie-image.readthedocs.io/en/late
 Analyzing timelapse experiments
 -------------------------------
 
-To analyze a timelapse experiment, you need to create a setup file containing analysis parameters, and then run the analysis itself.
+To analyze a time lapse experiment, you need to create a setup file containing analysis parameters, and then run the analysis itself.
 
 To interactively create a setup file:
 
@@ -70,6 +72,10 @@ To analyze the timelapse experiment:
     pie run_timelapse_analysis PATH_TO_SETUP_FILE
 
 Where ``PATH_TO_SETUP_FILE`` is the path to the setup file created by the setup wizard.
+
+    .. note::
+
+    	PIE enforces specific naming conventions for input files in time lapse experiments (e.g. *t01xy0004.tif*). See `Filenames <https://pie-image.readthedocs.io/en/latest/full_experiment.html#filenames>`_ for file naming conventions for time lapse experiments and information on how to encode imaging position, timepoint, and channel during setup.
 
 See `Running PIE timelapse experiments <https://pie-image.readthedocs.io/en/latest/full_experiment.html>`_ for information on analyzing complex, multi-phase experiments.
 
@@ -86,7 +92,7 @@ To create simple movies of PIE analysis output for a single imaging position:
 
 Where:
 
-+ ``XY_POS`` is the imaging position number for which the movie should be created
-+ ``PATH_TO_SETUP_FILE`` is the path to the setup file created by the setup wizard
++ **XY_POS** is the imaging position number for which the movie should be created (see `Filenames <https://pie-image.readthedocs.io/en/latest/full_experiment.html#filenames>`_ for information on how to encode imaging position in filenames and the setup file)
++ **PATH_TO_SETUP_FILE** is the path to the setup file created by the setup wizard
 
 See `Creating movies of image analysis results <https://pie-image.readthedocs.io/en/latest/movies.html>`_ for additional options and examples of more movie types that can be created from PIE output.

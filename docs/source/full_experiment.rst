@@ -39,7 +39,7 @@ The PIE github repository contains an example `minimal setup file <https://githu
 .. _filename_convention:
 
 Filenames
-*********
+^^^^^^^^^
 
 Note that the values of many of these parameters determine the format of the filenames; see examples below for sample filenames and corresponding parameter values. Note that the number of digits in the time point and position is dependent on ``total_time point_num`` and ``total_xy_position_num``, respectively.
 

@@ -23,7 +23,9 @@ PIE can be installed using `pip <https://pip.pypa.io/en/stable/>`_, which should
 
 .. tabs::
 
-    .. tab:: Unix/macOS
+    .. tab:: Unix/macOS 
+
+        If you are using a Linux or MacOS operating system, python comes pre-installed on your computer. All you need to do to install the PIE package is open the Terminal application, paste the following line, and press 'enter'.
 
         .. code-block:: bash
 
@@ -31,7 +33,28 @@ PIE can be installed using `pip <https://pip.pypa.io/en/stable/>`_, which should
 
     .. tab:: Windows
 
+        If you do not already have python installed on your computer, you can download the latest version for free from the Python website: https://www.python.org/downloads/
+
+        .. note::
+
+            In order to be able to complete the PIE installation steps below, please make sure that you select "Add Python to PATH" during installation.
+
+        Once you have python installed, open the ``cmd`` program from the Start Menu, and type the following:
+
         .. code-block:: bash
 
             py -m pip install git+https://github.com/Siegallab/PIE
+
+        .. admonition:: Troubleshooting
+            :class: dropdown, tip
+
+            If you see either:
+
+            #. A warning telling you the script is not installed in your PATH, or
+            #. ``py is not recognized as an internal or external command``,
+            
+            then Windows likely does not know where to find the python program. You have to resolve this issue before proceeding with installation; see `here <https://www.architectryan.com/2018/03/17/add-to-the-path-on-windows-10/>`_ for directions on how to do this.
+
+            Depending on your version of Windows, you may see ``WARNING: Couldn't compute FAST_CWD pointer`` and/or ``cygwin_warning``, with additional text, during installation; this may be followed by a period of a few minutes when nothing else changes on the screen. These warnings can safely be ignored, and package installation will continue automatically.
+
 

@@ -1,7 +1,7 @@
 PIE Outputs
 ===========
 
-Outputs of the PIE experiment can be found in the directory provided by the ``output_folder`` path in the setup file. Each output folder includes one or multiple folders corresponding to phases of the experiment, named **phase_[*phase_name*]**, with all phase-specific data contained within.
+Outputs of the PIE experiment can be found in the directory provided by the ``output_folder`` path in the setup file. Each output folder includes one or multiple folders corresponding to phases of the experiment, named **phase_[*phase_name*]**, with all phase-specific data contained within (see :doc:full_experiment.html#phases for more information on experimental phases).
 
 Complete time-lapse experiment outputs
 --------------------------------------
@@ -100,7 +100,7 @@ Colony properties across time
     * - label
       - the label of the colony in the ``colony_mask`` image (in the *phase_``phase_num``/colony_mask* directory) corresponding to the current **main_image_name**
     
-If fluorescent measurements are made, they will also be listed in **colony_properties_combined.csv** for every colony. Each fluroescent column will be followed by _``fluor_channel_name``; if multiple fluorescent channels are specified, the list of columns below will be reported for each one. All measurements (for both background and colony fluorescence) exclude an approximately 3-pixel-wide strip centered on the colony edge (see the PIE paper for details). Note that measurements made during post-phase fluorescence are recorded as belonging to the phase whose colony segmentation they use.
+If fluorescent measurements are made, they will also be listed in **colony_properties_combined.csv** for every colony. Each fluroescent column will be followed by _``fluor_channel_name``; if multiple fluorescent channels are specified, the list of columns below will be reported for each one. All measurements (for both background and colony fluorescence) exclude an approximately 3-pixel-wide strip centered on the colony edge (see the PIE paper for details). Background fluorescence is measured within an area of the colony bounding box (the smallest rectangle containing the identified colony) extended by 5 pixels in all four directions but outside of the colony area itself, or of any other colony within the extended bounding box. Note that measurements made during post-phase fluorescence are recorded as belonging to the phase whose colony segmentation they use.
 
 .. list-table:: Colony fluorescence properties across time reported in **colony_properties_combined**
     :name: Colony fluorescence properties across time reported in **colony_properties_combined**

@@ -1,6 +1,8 @@
 PIE Inputs
 ==========
 
+PIE can use any image files (.tiff, .png, .jpg) as inputs.
+
 Imaging conditions
 ------------------
 
