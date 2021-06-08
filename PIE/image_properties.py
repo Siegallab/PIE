@@ -624,7 +624,7 @@ def analyze_single_image(
 	input_im_path,
 	output_path,
 	image_type,
-	hole_fill_area = np.inf,
+	hole_fill_area = 'inf',
 	cleanup = False,
 	max_proportion_exposed_edge = 0.75,
 	save_extra_info = True):
@@ -639,7 +639,7 @@ def analyze_single_image(
 	image = cv2.imread(input_im_path, cv2.IMREAD_ANYDEPTH)
 	image_name = os.path.splitext(os.path.basename(input_im_path))[0]
 	image_analyzer = _ImageAnalyzer(image, image_name, output_path,
-		image_type, hole_fill_area, cleanup, max_proportion_exposed_edge,
+		image_type, float(hole_fill_area), cleanup, max_proportion_exposed_edge,
 		save_extra_info, max_col_num = max_col_num)
 	colony_mask, colony_property_df = image_analyzer.process_image()
 	return(colony_mask, colony_property_df)
