@@ -1662,7 +1662,9 @@ class MovieGenerator(object):
 		comb_colony_prop_df_glob_tp = \
 			self._add_global_timepoints(comb_colony_prop_df)
 		# check that colony ids exist
-		if not crossphase_colony_id_list:
+		if not isinstance(crossphase_colony_id_list,(list,pd.core.series.Series,np.ndarray)):
+			raise ValueError('crossphase_colony_id_list must be a list, numpy array, or pandas series')
+		if len(crossphase_colony_id_list)==0:
 			raise ValueError('crossphase_colony_id_list contains no entries')
 		# check that colony ids are unique
 		if len(crossphase_colony_id_list) != \
