@@ -802,7 +802,7 @@ class ColonyTracker(object):
 			self.cross_phase_tracked_col_prop_df = \
 				pd.DataFrame(columns = 
 					['time_tracking_id', 'phase_num', 'xy_pos_idx',
-						'cross_phase_tracking_id'])
+						'cross_phase_tracking_id','timepoint'])
 		return(self.cross_phase_tracked_col_prop_df)
 
 def generate_match_key_df(cross_phase_tracked_col_prop_df):

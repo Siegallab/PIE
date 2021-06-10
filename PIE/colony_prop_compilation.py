@@ -114,7 +114,7 @@ class CompileColonyData(object):
 		'''
 		# set up dictionary that will be returned for growth rate calc
 		properties_to_return = ['area', 'time_in_seconds', 'cX', 'cY']
-		dict_for_gr = dict.fromkeys(properties_to_return)
+		dict_for_gr = dict.fromkeys(properties_to_return, pd.DataFrame())
 		# identify fluorescent properties to return
 		fluor_prop_dict = dict()
 		# loop through colony properties and create and save a matrix

@@ -456,9 +456,9 @@ class MinimalAnalysisConfig(object):
 		correct order
 		'''
 		### !!! NEEDS UNITTEST
-		current_timepoint_str = self.timepoint_label_prefix + \
+		current_timepoint_str = str(self.timepoint_label_prefix) + \
 			self._reformat_values(timepoint, self.total_timepoint_num)
-		current_position_str = self.position_label_prefix + \
+		current_position_str = str(self.position_label_prefix) + \
 			self._reformat_values(position, self.total_xy_position_num)
 		current_point_label_dict = \
 			{'timepoint': current_timepoint_str,
@@ -1108,7 +1108,7 @@ class _AnalysisConfigFileProcessor(object):
 			if len(self.analysis_config_df.columns)==0 and \
 				len(self.analysis_config_df.index)==0:
 				# all parameters are global
-				current_phase_setup = self._global_param_ser
+				current_phase_setup = self._global_param_ser.copy()
 			else:
 				current_phase_setup = pd.concat([
 					self._global_param_ser,

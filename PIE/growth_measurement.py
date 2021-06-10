@@ -132,9 +132,12 @@ class _GrowthMeasurer(object):
 		1st image captured
 		'''
 		### !!! NEEDS UNITTEST
-		rel_times_in_seconds = \
-			times_in_seconds - self.analysis_config.first_timepoint_time
-		rel_times_in_hrs = rel_times_in_seconds.astype(float)/3600
+		if len(times_in_seconds.index)>0:
+			rel_times_in_seconds = \
+				times_in_seconds - self.analysis_config.first_timepoint_time
+			rel_times_in_hrs = rel_times_in_seconds.astype(float)/3600
+		else:
+			rel_times_in_hrs = times_in_seconds
 		return(rel_times_in_hrs)
 
 	def _filter_pre_gr(self):
@@ -575,21 +578,29 @@ def _concat_csv_files(dir_to_concat, output_file_path):
 	when output_file_path has already been created and input files
 	destroyed, but code is run again)
 	'''
-	file_list = [f for f in os.listdir(dir_to_concat) if f.endswith('csv')]
-	df_list = []
-	if os.path.isfile(output_file_path):
-		output_path_base = os.path.basename(output_file_path)
-		file_list.remove(output_path_base)
-		output_df_part = pd.read_csv(output_file_path)
-		df_list.append(output_df_part)
-	for fname in file_list:
-		fpath = os.path.join(dir_to_concat,fname)
-		input_df = pd.read_csv(fpath, index_col = 0)
-		df_list.append(input_df)	
-		os.remove(fpath)
-	if df_list:
-		output_df = pd.concat(df_list).drop_duplicates()
-		output_df.to_csv(output_file_path)
+	if os.path.isdir(dir_to_concat):
+		file_list = [f for f in os.listdir(dir_to_concat) if f.endswith('csv')]
+		df_list = []
+		if os.path.isfile(output_file_path):
+			output_path_base = os.path.basename(output_file_path)
+			file_list.remove(output_path_base)
+			output_df_part = pd.read_csv(output_file_path)
+			df_list.append(output_df_part)
+		for fname in file_list:
+			fpath = os.path.join(dir_to_concat,fname)
+			input_df = pd.read_csv(fpath, index_col = 0)
+			df_list.append(input_df)	
+			os.remove(fpath)
+		if df_list:
+			output_df = pd.concat(df_list).drop_duplicates()
+			output_df.to_csv(output_file_path)
+	else:
+		warnings.warn(
+					f"No such directory: {dir_to_concat}\n"
+					"You are likely seeing this warning because no image files "
+					"were found or colonies were detected",
+					UserWarning
+					)
 
 def _post_analysis_file_process(output_path, phase_list,
 		col_properties_output_folder):
