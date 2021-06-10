@@ -639,7 +639,7 @@ class _GaussianFitThresholdMethod(_ThresholdMethod, DensityFitterLS):
 				self.fit_result_dict['mu_'+str(dist_count)],
 				self.fit_result_dict['sigma_'+str(dist_count)]
 				),
-			'data_type': 'individual fit gaussians',
+			'data_type': 'individual fit Gaussians',
 			'linetype': 'dashed',
 			'id': 'gauss'+str(dist_count)
 			})
@@ -664,7 +664,7 @@ class _GaussianFitThresholdMethod(_ThresholdMethod, DensityFitterLS):
 				sort = True)
 		color_dict = \
 			{'smoothed data': '#377eb8', 'combined fit model': '#e41a1c',
-				'individual fit gaussians': '#4daf4a'}
+				'individual fit Gaussians': '#4daf4a'}
 #		color_dict = ['#377eb8', '#e41a1c', '#4daf4a']
 		p = self._create_ggplot(combined_df, color_dict)
 		return(p)
