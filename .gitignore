@@ -49,3 +49,4 @@ coverage.xml
 *.pdf
 PIE_untracked
 PIE_test_data/out/
+PIE_tests/test_functional_output_dir/
