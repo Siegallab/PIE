@@ -56,6 +56,12 @@ def run_timelapse_analysis(configfile, repeat_image_analysis_and_tracking):
     type=click.FloatRange(min=0, max=1)
     )
 @click.option(
+    '-i',
+    '--cell_intensity_num',
+    default=1,
+    type=click.IntRange(min=1, max=2)
+    )
+@click.option(
     '-s', '--save_extra_info', default=True, type=bool
     )
 def analyze_single_image(
@@ -65,6 +71,7 @@ def analyze_single_image(
     hole_fill_area,
     cleanup,
     max_proportion_exposed_edge,
+    cell_intensity_num,
     save_extra_info
     ):
     """Run a full image analysis experiment."""
@@ -75,6 +82,7 @@ def analyze_single_image(
         hole_fill_area = hole_fill_area,
         cleanup = cleanup,
         max_proportion_exposed_edge = max_proportion_exposed_edge,
+        cell_intensity_num = cell_intensity_num,
         save_extra_info = save_extra_info
         )
 

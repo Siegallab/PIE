@@ -197,7 +197,8 @@ required_fields_general = \
 	['fluor_channel_scope_labels', 'fluor_channel_names',
 	'fluor_channel_thresholds', 'fluor_channel_timepoints',
 	'timepoint_spacing', 'hole_fill_area',
-	'cleanup', 'perform_registration', 'max_proportion_exposed_edge', 'input_path',
+	'cleanup', 'perform_registration', 'max_proportion_exposed_edge',
+	'cell_intensity_num', 'input_path',
 	'output_path', 'im_file_extension', 'label_order_list',
 	'total_xy_position_num', 'first_timepoint', 'total_timepoint_num',
 	'first_xy_position', 'extended_display_positions',
@@ -523,7 +524,8 @@ class AnalysisConfig(MinimalAnalysisConfig):
 	Handles experimental configuration details
 	'''
 	def __init__(self, phase_num, hole_fill_area, cleanup, perform_registration,
-		max_proportion_exposed_edge, input_path, output_path, im_file_extension,
+		max_proportion_exposed_edge, cell_intensity_num,
+		input_path, output_path, im_file_extension,
 		label_order_list, total_xy_position_num, first_timepoint,
 		total_timepoint_num, timepoint_spacing, timepoint_label_prefix,
 		position_label_prefix, main_channel_label, main_channel_imagetype,
@@ -550,6 +552,7 @@ class AnalysisConfig(MinimalAnalysisConfig):
 		self.cleanup = bool(cleanup)
 		self.perform_registration = bool(perform_registration)
 		self.max_proportion_exposed_edge = float(max_proportion_exposed_edge)
+		self.cell_intensity_num = int(cell_intensity_num)
 		# specify growth rate analysis parameters
 		self.minimum_growth_time = int(minimum_growth_time)
 		growth_window_timepoint_int = int(growth_window_timepoints)
@@ -1031,6 +1034,7 @@ class _AnalysisConfigFileProcessor(object):
 			phase_conf_ser.cleanup,
 			phase_conf_ser.perform_registration,
 			phase_conf_ser.max_proportion_exposed_edge,
+			phase_conf_ser.cell_intensity_num,
 			phase_conf_ser.input_path,
 			phase_conf_ser.output_path,
 			phase_conf_ser.im_file_extension,

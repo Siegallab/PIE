@@ -57,24 +57,26 @@ class _ThresholdMethodSelector(object):
 	'''
 	Returns threshold method object to use
 	'''
-	def __init__(self, image_type, manual_method_order_list = None):
+	def __init__(self, cell_intensity_num, manual_method_order_list = None):
 		if manual_method_order_list is not None:
 			self.method_order = self._check_manual_method_order_list(
 				manual_method_order_list
 				)
 		else:
-			if image_type == 'bf':
+			if cell_intensity_num == 1:
 				self.method_order = [
 					'mu1PosThresholdMethodTwoGauss',
 					'mu1ReleasedThresholdMethod',
 					'sliding_circle_selector'
 					]
-			elif image_type == 'pc':
+			elif cell_intensity_num == 2:
 				self.method_order = [
 					'mu1PosThresholdMethodThreeGauss',
 					'mu1ReleasedThresholdMethod',
 					'sliding_circle_selector'
 					]
+			else:
+				raise ValueError('cell_intensity_num must be 1 or 2')
 
 	def _check_manual_method_order_list(self, manual_method_order_list):
 		'''
@@ -159,7 +161,13 @@ class _ThresholdFinder(_LogHistogramSmoother):
 	'''
 	Finds adaptive threshold for image
 	'''
-	def __init__(self, input_im, image_type, manual_method_order_list = None):
+	def __init__(
+		self,
+		input_im,
+		image_type,
+		cell_intensity_num, 
+		manual_method_order_list = None
+		):
 		# treat input_im
 		if image_type == 'bf':
 			self.input_im = input_im
@@ -178,7 +186,7 @@ class _ThresholdFinder(_LogHistogramSmoother):
 				"'pc' (phase contrast)"
 				)
 		self.threshold_method_selector = \
-			_ThresholdMethodSelector(image_type, manual_method_order_list)
+			_ThresholdMethodSelector(cell_intensity_num, manual_method_order_list)
 		# set tophat structural element to circle with radius 10
 		# using the default ellipse struct el from cv2 gives a different
 		# result than in matlab
@@ -1317,13 +1325,13 @@ class _FitSlidingCircleThresholdMethod(_SlidingCircleThresholdMethod):
 		p = self._create_ggplot(combined_df, color_dict)
 		return(p)
 
-def threshold_image(input_im, image_type, return_plot = False):
+def threshold_image(input_im, image_type, cell_intensity_num, return_plot = False):
 	'''
 	Reads in input_im and returns an automatically thresholded bool mask
 	If return_plot is true, also returns a plotnine plot object
 	'''
 	### !!! NEEDS UNITTEST
-	threshold_finder = _ThresholdFinder(input_im, image_type)
+	threshold_finder = _ThresholdFinder(input_im, image_type, cell_intensity_num)
 	try:
 		threshold_mask = threshold_finder.get_threshold_mask()
 		threshold_method_name = threshold_finder.threshold_method.method_name

@@ -12,14 +12,14 @@ import pandas as pd
 from PIE import adaptive_threshold, ported_matlab, colony_edge_detect
 from PIE.image_coloring import create_color_overlay
 
-class _ImageAnalyzer(object):
+class ImageAnalyzer(object):
 	'''
 	Runs image analysis and creates necessary output files
 	'''
 	# TODO: save all jpegs as jpeg2000s instead?
 	def __init__(self, original_im, image_name, output_path, image_type = 'brightfield',
 				hole_fill_area = np.inf, cleanup = False,
-				max_proportion_exposed_edge = 0.75,
+				max_proportion_exposed_edge = 0.75, cell_intensity_num = 1,
 				save_extra_info = False, threshold_plot_width = 6,
 				threshold_plot_height = 4, threshold_plot_dpi = 200,
 				threshold_plot_filetype = 'png',
@@ -48,6 +48,7 @@ class _ImageAnalyzer(object):
 		self._create_pie_overlay = create_pie_overlay
 		self.write_col_props_file = write_col_props_file
 		self.max_proportion_exposed_edge = max_proportion_exposed_edge
+		self.cell_intensity_num = cell_intensity_num
 		self.max_col_num = max_col_num
 		# get name of image file without path or extension
 		self.image_name = image_name
@@ -136,7 +137,8 @@ class _ImageAnalyzer(object):
 		self.cell_centers, threshold_method_name, threshold_plot, \
 			threshold, default_threshold_method_usage = \
 			adaptive_threshold.threshold_image(
-				self.norm_im, self.image_type, self._save_extra_info
+				self.norm_im, self.image_type, self.cell_intensity_num,
+				self._save_extra_info
 				)
 		# always save 'extra info' (boundary ims, threshold plots,
 		# combined cell center/boundary images) if default
@@ -490,7 +492,13 @@ class _ColonyPropertyFinder(object):
 		'''
 		Returns a 1D float numpy array of pixels in fluor_image that are
 		True in mask and below fluor_threshold
+
+		If fluor_threshold is an empty string, defaults to np.inf
 		'''
+		if fluor_threshold == '' or \
+			fluor_threshold is None or \
+			np.isnan(fluor_threshold):
+			fluor_threshold = np.inf
 		mask_intensities_unfiltered = fluor_image[mask]
 		mask_intensities_filtered = \
 			mask_intensities_unfiltered[
@@ -627,6 +635,7 @@ def analyze_single_image(
 	hole_fill_area = 'inf',
 	cleanup = False,
 	max_proportion_exposed_edge = 0.75,
+	cell_intensity_num = 1,
 	save_extra_info = True):
 	'''
 	Reads image from input_im_path and runs PIE colony detection on it,
@@ -638,23 +647,8 @@ def analyze_single_image(
 	max_col_num = np.inf
 	image = cv2.imread(input_im_path, cv2.IMREAD_ANYDEPTH)
 	image_name = os.path.splitext(os.path.basename(input_im_path))[0]
-	image_analyzer = _ImageAnalyzer(image, image_name, output_path,
+	image_analyzer = ImageAnalyzer(image, image_name, output_path,
 		image_type, float(hole_fill_area), cleanup, max_proportion_exposed_edge,
-		save_extra_info, max_col_num = max_col_num)
+		cell_intensity_num, save_extra_info, max_col_num = max_col_num)
 	colony_mask, colony_property_df = image_analyzer.process_image()
 	return(colony_mask, colony_property_df)
-
-def detect_image_colonies(image, image_name, output_path, image_type,
-	hole_fill_area, cleanup, max_proportion_exposed_edge, save_extra_info,
-	max_col_num):
-	'''
-	Runs PIE colony detections on image
-	Returns colony mask and image property df
-	'''
-	image_analyzer = _ImageAnalyzer(image, image_name, output_path,
-		image_type, hole_fill_area, cleanup, max_proportion_exposed_edge,
-		save_extra_info, max_col_num = max_col_num)
-	colony_mask, colony_property_df = image_analyzer.process_image()
-	return(colony_mask, colony_property_df)
-
-# !!! NB: explain in doc that this assumes that there will never be two images with the same name being placed in the same output folder

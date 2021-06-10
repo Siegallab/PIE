@@ -18,6 +18,8 @@ Inputs:
     whether or not to perform 'cleanup' of spurious pieces of background attached to colonies. (We recommend trying PIE both with and without cleanup on a set of sample images; you can see the Li, Plavskin *et al.* paper for details)
 + **max_proportion_exposed_edge**: *{0-1} optional, default 1*
     maximum proportion of the perimeter of a PIE-detected gradient object ('PIE piece') that may be non-adjacent to another PIE piece to avoid being removed during 'cleanup' steps; only used if **cleanup** is *True*. 0.75 works well for 10x yeast images, and many other images tried
++ **cell_intensity_num**: *{1 or 2} optional, default 1*
+    number of distinct intensity categories belonging to cells in the image; determines whether 2 or 3 Gaussians are used to fit intensity log histogram for threshold determination. Can be set to 1 (default) or (in rare cases) 2.
 + **save_extra_info**: *{True or False} optional, default True*
     whether to write additional files described above
 
@@ -36,6 +38,7 @@ Inputs:
                     hole_fill_area = 'inf',
                     cleanup = False,
                     max_proportion_exposed_edge = 0.75,
+                    cell_intensity_num = 1,
                     save_extra_info = True
                     )
 

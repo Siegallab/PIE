@@ -63,12 +63,13 @@ class SinglePhaseSinglePosCompiler(object):
 						'It looks like not all image sizes are the same!'
 						'Compare ' + image_name + ' with ' +
 						self.analysis_config.size_ref_im)
-				image_analyzer = image_properties._ImageAnalyzer(image,
+				image_analyzer = image_properties.ImageAnalyzer(image,
 					image_name, self.analysis_config.phase_output_path, 
 					self.analysis_config.main_channel_imagetype,
 						self.analysis_config.hole_fill_area,
 						self.analysis_config.cleanup,
 						self.analysis_config.max_proportion_exposed_edge,
+						self.analysis_config.cell_intensity_num,
 						self.analysis_config.save_extra_info,
 						max_col_num = self.analysis_config.max_colony_num,
 						write_col_props_file = False)
