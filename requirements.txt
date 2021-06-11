@@ -6,3 +6,4 @@ scipy>=1.1.0
 plotnine >= 0.7.1
 pyarrow
 Click>=7.0
+git+https://github.com/scailfin/flowserv-core.git#egg=flowserv-core[gui]

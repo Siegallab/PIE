@@ -1,0 +1,5 @@
+name: 'Colony Recognition Page'
+description: 'Analyze single colony image using PIE'
+instructions: 'instructions.md'
+files: []
+specfile: 'workflow.yaml'

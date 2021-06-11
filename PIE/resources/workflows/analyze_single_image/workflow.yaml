@@ -1,0 +1,80 @@
+workflow:
+    files:
+        inputs:
+        - 'data/IN/image.tif'
+        outputs:
+        - 'data/OUT/boundary_ims/image.jpg'
+        - 'data/OUT/single_im_colony_properties/image.csv'
+    parameters:
+        input_im_path: 'data/IN/image.tif'
+        output_path: 'data/OUT/'
+        imageType: $[[imageType]]
+        holeFillArea: $[[holeFillArea]]
+        maxProportion: $[[maxProportion]]
+        cleanup: $[[cleanup]]
+        save_extra_info: True
+    steps:
+        - name: 'colony_recognition'
+          files:
+            inputs:
+            - 'data/IN/image.tif'
+            outputs:
+            - 'data/OUT/boundary_ims/image.jpg'
+            - 'data/OUT/single_im_colony_properties/image.csv'
+          action:
+            func: 'PIE.analyze_single_image'
+            variables:
+            - arg: 'image_type'
+              var: 'imageType'
+            - arg: 'hole_fill_area'
+              var: 'holeFillArea'
+            - arg: 'max_proportion_exposed_edge'
+              var: 'maxProportion'
+parameters:
+    - name: 'infile'
+      label: 'Input Image File'
+      dtype: 'file'
+      target: 'data/IN/image.tif'
+    - name: 'imageType'
+      label: 'Image Type'
+      help: 'The type of micrscopy used to generate images'
+      dtype: 'select'
+      defaultValue: 'brightfield'
+      values:
+          - name: 'Brightfield'
+            value: 'brightfield'
+            isDefault: true
+          - name: 'Phasecontrast'
+            value: 'phasecontrast'
+            isDefault: false
+      isRequired: true
+    - name: 'holeFillArea'
+      label: 'Hole Fill Area'
+      help: 'Size (in pixels) of the largest empty space between cells'
+      dtype: 'int'
+      defaultValue: 'inf'
+    - name: 'cleanup'
+      label: 'Cleanup'
+      help: 'Perform cleanup of spurious pieces of background attached to colonies.'
+      dtype: 'bool'
+      defaultValue: true
+    - name: 'maxProportion'
+      label: 'Max. Proportion'
+      help: 'The max proportion of the edge of a detected colony "pie piece" that is allowed to not touch a neighboring "pie piece".'
+      dtype: 'float'
+      defaultValue: 0.75
+      range: '[0,1]'
+outputs:
+    - source: 'data/OUT/boundary_ims/image.jpg'
+      key: 'boundary-image'
+      title: 'Boundary Image'
+      caption: 'The image created by PIE that has colonies outlined.'
+      format:
+          type: 'image'
+    - source: 'data/OUT/single_im_colony_properties/image.csv'
+      key: 'colony-properties'
+      title: 'Cells'
+      caption: 'Table of detected cells and their areas and positions.'
+      format:
+          type: 'csv'
+          header: true

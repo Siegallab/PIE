@@ -4,8 +4,11 @@ Simple command-line interface to run PIE experiment.
 
 import click
 import numpy as np
+import os
+import streamlit.cli
 
 import PIE
+
 
 # -- Commands -----------------------------------------------------------------
 
@@ -23,6 +26,7 @@ def run_timelapse_analysis(configfile, repeat_image_analysis_and_tracking):
         analysis_config_file = configfile,
         repeat_image_analysis_and_tracking = repeat_image_analysis_and_tracking
         )
+
 
 @click.command(name='analyze_single_image')
 @click.argument(
@@ -98,7 +102,7 @@ def track_single_pos(xy_pos_idx, configfile):
     """Analyze a single image using PIE.
 
     XY_POS_IDX is an integer corresponding to xy position to be analyzed
-    
+
     CONFIGFILE is the path to configuration setup file for this
     experiment
     """
@@ -118,13 +122,13 @@ def track_single_pos(xy_pos_idx, configfile):
 )
 @click.option(
     '-s', '--colony_subset',
-    type=click.Choice(['growing','tracked','all'], case_sensitive=False),
+    type=click.Choice(['growing', 'tracked', 'all'], case_sensitive=False),
     default='growing'
 )
 @click.option(
     '-m', '--movie_format',
     type=click.Choice(
-        ['jpeg','jpg','tiff','tif','gif','h264','mjpg','mjpeg'],
+        ['jpeg', 'jpg', 'tiff', 'tif', 'gif', 'h264', 'mjpg', 'mjpeg'],
         case_sensitive=False
         ),
     default='gif'
@@ -133,14 +137,14 @@ def make_position_movie(xy_pos_idx, configfile, colony_subset, movie_format):
     """Create a movie of a single position after PIE analysis.
 
     XY_POS_IDX is an integer corresponding to xy position to be analyzed
-    
+
     CONFIGFILE is the path to configuration setup file for this
     experiment
 
     COLONY_SUBSET can be:
-    -   'growing': to label only those colonies that receive a growth 
+    -   'growing': to label only those colonies that receive a growth
         rate measurement after filtration
-    -   'tracked': to label all colonies that were tracked, but not 
+    -   'tracked': to label all colonies that were tracked, but not
         include those that were recognized but then removed because
         they were e.g. a minor part of a broken-up colony
     -   'all': to label all colonies detected by PIE
@@ -151,6 +155,29 @@ def make_position_movie(xy_pos_idx, configfile, colony_subset, movie_format):
         colony_subset = colony_subset,
         movie_format = movie_format)
 
+
+# -- User Interface -----------------------------------------------------------
+
+@click.command(name='analyze_single_image')
+def analyze_single_image_ui():
+    """User Interface for Single Image Analysis."""
+    # Run single image analysis from GUI. Base on:
+    # https://discuss.streamlit.io/t/running-streamlit-inside-my-own-executable-with-the-click-module/1198/4
+    dirname = os.path.dirname(__file__)
+    filename = os.path.join(dirname, 'gui_analyze_single_image.py')
+    args = []
+    streamlit.cli._main_run(filename, args)
+
+
+@click.group(name='gui')
+def cli_gui():
+    """Streamlit User Interface."""
+    pass
+
+
+cli_gui.add_command(analyze_single_image_ui)
+
+
 # -- Create command group -----------------------------------------------------
 
 @click.group()
@@ -158,8 +185,10 @@ def cli():  # pragma: no cover
     """Command line interface for PIE."""
     pass
 
+
 cli.add_command(analyze_single_image)
 cli.add_command(run_timelapse_analysis)
 cli.add_command(track_single_pos)
 cli.add_command(make_position_movie)
 cli.add_command(run_setup_wizard)
+cli.add_command(cli_gui)
