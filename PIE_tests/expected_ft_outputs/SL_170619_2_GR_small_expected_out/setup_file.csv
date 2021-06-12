@@ -8,7 +8,7 @@ position_label_prefix,xy,all,Label to be used for positions (e.g. 'xy' if positi
 timepoint_label_prefix,t,all,Label to be used for timepoints (e.g. 't' if position labels look like t01); if left blank timepoint label will not be included in filename
 first_timepoint,1,all,First timepoint at which time count starts (likely 1 or 0)
 first_xy_position,1,all,First xy position at which time count starts (likely 1 or 0)
-total_xy_position_num,1000,all,Highest imaged xy position number
+max_xy_position_num,1000,all,Highest imaged xy position number
 extended_display_positions,1;4;11,all,list of imaging positions (as integers separated by semicolons) for which additional image processing info (eg threshold plots and colony mask boundaries overlaid on original images) are saved
 ,,,
 hole_fill_area,Inf,all,"Size (in pixels) of the largest empty space between cells (on the inside of a colony) to consider part of the colony. Intercell space is not typically easily identified in colonies of round cells; for these we recommend first trying the default setting (Inf). However, intercell space can often be accurately parsed in colonies of rod-shaped cells"
@@ -18,7 +18,7 @@ max_proportion_exposed_edge,0.75,all,The max proportion of the edge of a detecte
 ,,,
 input_path,PIE_test_data/IN/SL_170619_2_GR_small,1,Full path to folder from which images for this phase will be drawn (PHASE-SPECIFIC)
 timepoint_spacing,3600,1,Spacing between timepoints (in seconds). Can be left blank to extract this information from file modification times; an integer for evenly spaced timepoints; or consecutive numbers separated by semicolons to provide the time at which each timepoint image was taken
-total_timepoint_num,10,1,Highest imaged timepoint number
+max_timepoint_num,10,1,Highest imaged timepoint number
 ,,,
 main_channel_label,,1,Label used by the microscope for the main channel being imaged (e.g. 'c1'); if channel is not labeled channel label will not be included in filename
 main_channel_imagetype,brightfield,1,Type of image in the main channel of this phase; can be 'brightfield' or 'phase_contrast'

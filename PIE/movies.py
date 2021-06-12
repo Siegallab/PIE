@@ -1706,7 +1706,7 @@ class MovieGenerator(object):
 			# update the number of timepoints to add to the next phase
 			prev_phases_tps = prev_phases_tps + \
 				self.analysis_config_obj_df.at[phase,
-					'analysis_config'].total_timepoint_num
+					'analysis_config'].max_timepoint_num
 		return(comb_colony_prop_df)
 
 	def _subset_colony_prop_df(self, comb_colony_prop_df,

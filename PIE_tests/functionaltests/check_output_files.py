@@ -45,8 +45,8 @@ class OutputChecker(unittest.TestCase):
 		self.expected_positionwise_colony_prop_dir = \
 			os.path.join(self.expected_output_path,
 				'positionwise_colony_properties')
-		self.total_xy_position_num = \
-			analysis_config_file_processor.total_xy_position_num
+		self.max_xy_position_num = \
+			analysis_config_file_processor.max_xy_position_num
 		self.xy_position_vector = \
 			analysis_config_file_processor.xy_position_vector
 		self.extended_display_positions = \

@@ -8,9 +8,9 @@ label_order_list,required,,Order in which timepoint position and channel are lis
 position_label_prefix,required,,Label to be used for positions (e.g. 'xy' if position labels look like xy001); if left blank position label will not be included in filename,FALSE,TRUE
 timepoint_label_prefix,required,,Label to be used for timepoints (e.g. 't' if position labels look like t01); if left blank timepoint label will not be included in filename,FALSE,TRUE
 first_xy_position,general,1,First xy position at which time count starts (likely 1 or 0),TRUE,FALSE
-total_xy_position_num,required,,Highest imaged xy position number,TRUE,FALSE
+max_xy_position_num,required,,Highest imaged xy position number,TRUE,FALSE
 first_timepoint,general,1,First timepoint at which time count starts (likely 1 or 0),FALSE,FALSE
-total_timepoint_num,required,,Highest imaged timepoint number,FALSE,FALSE
+max_timepoint_num,required,,Highest imaged timepoint number,FALSE,FALSE
 timepoint_spacing,required,,Spacing between timepoints (in seconds). Can be left blank to extract this information from file modification times; an integer for evenly spaced timepoints; or consecutive numbers separated by semicolons to provide the time at which each timepoint image was taken,FALSE,TRUE
 extended_display_positions,general,1,list of imaging positions (as integers separated by semicolons) for which additional image processing info (eg threshold plots and colony mask boundaries overlaid on original images) are saved,TRUE,TRUE
 hole_fill_area,image analysis,Inf,Size (in pixels) of the largest empty space between cells (on the inside of a colony) to consider part of the colony. If set to Inf all intercell spaces within a colony are filled; if set to 0 no intercell spaces are filled. Intercell space is not typically easily identified in colonies of round cells; for these we recommend first trying the default setting (Inf). However intercell space can often be accurately parsed in colonies of rod-shaped cells,FALSE,FALSE

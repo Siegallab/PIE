@@ -23,9 +23,9 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		self.output_path = os.path.join('PIE_tests','temp_out')
 		self.im_file_extension = 'tif'
 		self.label_order_list = ['channel', 'timepoint', 'position']
-		self.total_xy_position_num = 1000
+		self.max_xy_position_num = 1000
 		self.first_timepoint = 1
-		self.total_timepoint_num = 10
+		self.max_timepoint_num = 10
 		self.timepoint_spacing = 3600
 		self.timepoint_label_prefix = 't'
 		self.position_label_prefix = 'xy'
@@ -69,8 +69,8 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config = \
 			object.__new__(AnalysisConfig)
 		expected_analysis_config.phase_num = self.phase_num
-		expected_analysis_config.total_xy_position_num = self.total_xy_position_num
-		expected_analysis_config.total_timepoint_num = self.total_timepoint_num
+		expected_analysis_config.max_timepoint_num = self.max_timepoint_num
+		expected_analysis_config.max_xy_position_num = self.max_xy_position_num
 		expected_analysis_config.hole_fill_area = self.hole_fill_area
 		expected_analysis_config.cleanup = self.cleanup
 		expected_analysis_config.max_proportion_exposed_edge = \
@@ -130,8 +130,8 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		test_analysis_config = AnalysisConfig(self.phase_num, self.hole_fill_area,
 			self.cleanup, self.max_proportion_exposed_edge, self.input_path,
 			self.output_path, self.im_file_extension, self.label_order_list,
-			self.total_xy_position_num, self.first_timepoint,
-			self.total_timepoint_num, self.timepoint_spacing,
+			self.max_xy_position_num, self.first_timepoint,
+			self.max_timepoint_num, self.timepoint_spacing,
 			self.timepoint_label_prefix, self.position_label_prefix,
 			self.main_channel_label, self.main_channel_imagetype,
 			self.fluor_channel_df, self.im_format,

@@ -724,13 +724,14 @@ def run_timelapse_analysis(analysis_config_file,
 			)
 
 def run_default_growth_rate_analysis(input_path, output_path,
-	total_timepoint_num, phase_num = 1,
+	max_timepoint_num, phase_num = 1,
 	hole_fill_area = np.inf, cleanup = False,
 	max_proportion_exposed_edge = 0.75,
+	cell_intensity_num = 1,
 	perform_registration = True,
 	im_file_extension = 'tif', minimum_growth_time = 4,
 	label_order_list = ['channel', 'timepoint', 'position'],
-	total_xy_position_num = 1, first_timepoint = 1,
+	max_xy_position_num = 1, first_timepoint = 1,
 	timepoint_spacing = 3600, timepoint_label_prefix = 't',
 	position_label_prefix = 'xy', main_channel_label = '',
 	main_channel_imagetype = 'brightfield', im_format = 'individual',
@@ -762,11 +763,11 @@ def run_default_growth_rate_analysis(input_path, output_path,
 		pass
 	analysis_config_file_standin = os.path.join(output_path, 'setup_file.csv')
 	parameter_list = [
-		'input_path', 'output_path', 'total_timepoint_num',
+		'input_path', 'output_path', 'max_timepoint_num',
 		'hole_fill_area', 'cleanup', 'max_proportion_exposed_edge',
-		'perform_registration',
+		'cell_intensity_num', 'perform_registration',
 		'im_file_extension', 'minimum_growth_time', 'label_order_list',
-		'total_xy_position_num', 'first_timepoint', 'timepoint_spacing',
+		'max_xy_position_num', 'first_timepoint', 'timepoint_spacing',
 		'timepoint_label_prefix', 'position_label_prefix', 'main_channel_label',
 		'main_channel_imagetype', 'im_format',
 		'extended_display_positions', 'first_xy_position',
@@ -792,7 +793,7 @@ def run_default_growth_rate_analysis(input_path, output_path,
 	# need to change PhaseNum in required global parameters to 'all'
 	required_global_params = [
 		'output_path', 'im_format', 'first_xy_position',
-		'total_xy_position_num', 'extended_display_positions']
+		'max_xy_position_num', 'extended_display_positions']
 	analysis_config_df.PhaseNum[[param in required_global_params for
 		param in analysis_config_df.Parameter]] = 'all'
 	analysis_config_df.to_csv(analysis_config_file_standin,

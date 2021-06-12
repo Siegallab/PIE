@@ -41,7 +41,7 @@ The PIE github repository contains an example `minimal setup file <https://githu
 Filenames
 ^^^^^^^^^
 
-Note that the values of many of these parameters determine the format of the filenames; see examples below for sample filenames and corresponding parameter values. Note that the number of digits in the time point and position is dependent on ``total_time point_num`` and ``total_xy_position_num``, respectively.
+Note that the values of many of these parameters determine the format of the filenames; see examples below for sample filenames and corresponding parameter values. Note that the number of digits in the time point and position is dependent on ``total_time point_num`` and ``max_xy_position_num``, respectively.
 
 +----------------------------+---------------------------------------------------------+
 |                            | filename                                                |
@@ -56,15 +56,15 @@ Note that the values of many of these parameters determine the format of the fil
 +----------------------------+----------------------------+----------------------------+
 | **main_channel_label**     | c3                         |                            |
 +----------------------------+----------------------------+----------------------------+
-| **total_xy_position_num**  | 999                        | 9                          |
+| **max_xy_position_num**    | 999                        | 9                          |
 +----------------------------+----------------------------+----------------------------+
-| **total_timepoint_num**    | 9                          | 99                         |
+| **max_timepoint_num**      | 9                          | 99                         |
 +----------------------------+----------------------------+----------------------------+
 | **im_file_extension**      | tif                        | jpg                        |
 +----------------------------+----------------------------+----------------------------+
 
 .. tip::
-    The reliance on **total_xy_position_num** and **total_timepoint_num** to set the number of digits in the position and timepoint of the filename can be problematic for analysis of data that includes only a subset of the originally collected images. For example, if a user initially collected 100 timepoints worth of data, filenames are most likely t001-t100. However, if the user wants to wants to only analyze the first 99 of these timepoints and sets **total_timepoint_num** to 99, PIE will expect only two digits in the timepoint (t01-t99). This issue can be circumvented by adding any extra 0s to **timepoint_label_prefix**, i.e. setting it to 't0' instead of 't' in this example.
+    The reliance on **max_xy_position_num** and **max_timepoint_num** to set the number of digits in the position and timepoint of the filename can be problematic for analysis of data that includes only a subset of the originally collected images. For example, if a user initially collected 100 timepoints worth of data, filenames are most likely t001-t100. However, if the user wants to wants to only analyze the first 99 of these timepoints and sets **max_timepoint_num** to 99, PIE will expect only two digits in the timepoint (t01-t99). This issue can be circumvented by adding any extra 0s to **timepoint_label_prefix**, i.e. setting it to 't0' instead of 't' in this example.
 
 Running the experiment
 ----------------------
@@ -176,7 +176,7 @@ Because each phase of a multi-phase experiment should be imaged with the same se
 + ``output_path``
 + ``im_format``
 + ``first_xy_position``
-+ ``total_xy_position_num``
++ ``max_xy_position_num``
 + ``extended_display_positions``.
 
 We provide an example `two-phase setup file with fluorescence data analysis <https://github.com/Siegallab/PIE/blob/master/sample_PIE_setup_files/two_phase_setup_simple.csv>`_ in the PIE github repository.
@@ -202,7 +202,7 @@ These 'post-phase fluorescence' phases require only a subset of parameters to be
 + ``output_path``
 + ``im_file_extension``
 + ``label_order_list``
-+ ``total_xy_position_num``
++ ``max_xy_position_num``
 + ``position_label_prefix``
 + ``im_format``
 

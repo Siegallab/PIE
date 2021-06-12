@@ -200,7 +200,7 @@ required_fields_general = \
 	'cleanup', 'perform_registration', 'max_proportion_exposed_edge',
 	'cell_intensity_num', 'input_path',
 	'output_path', 'im_file_extension', 'label_order_list',
-	'total_xy_position_num', 'first_timepoint', 'total_timepoint_num',
+	'max_xy_position_num', 'first_timepoint', 'max_timepoint_num',
 	'first_xy_position', 'extended_display_positions',
 	'timepoint_label_prefix', 'position_label_prefix',
 	'main_channel_label', 'main_channel_imagetype', 'im_format',
@@ -216,7 +216,7 @@ required_fields_minimal = \
 	'input_path', 'first_xy_position', 'extended_display_positions',
 	'timepoint_label_prefix',
 	'output_path', 'im_file_extension', 'label_order_list',
-	'total_xy_position_num',
+	'max_xy_position_num',
 	'position_label_prefix',
 	'im_format',
 	'parent_phase']
@@ -272,18 +272,18 @@ class MinimalAnalysisConfig(object):
 	without timepoints or main channel
 	'''
 	def __init__(self, phase_num, input_path, output_path, im_file_extension,
-		label_order_list, total_xy_position_num, position_label_prefix,
+		label_order_list, max_xy_position_num, position_label_prefix,
 		fluor_channel_df, im_format, extended_display_positions,
 		timepoint_label_prefix, xy_position_vector):
 		'''
 		Reads setup_file and creates analysis configuration
 		'''
 		# max timepoint number
-		self.total_timepoint_num = 1
+		self.max_timepoint_num = 1
 		# specify phase
 		self.phase_num = phase_num
 		# max xy position label
-		self.total_xy_position_num = int(total_xy_position_num)
+		self.max_xy_position_num = int(max_xy_position_num)
 		# path of input images
 		self.input_path = input_path
 		# path of output image folder
@@ -458,9 +458,9 @@ class MinimalAnalysisConfig(object):
 		'''
 		### !!! NEEDS UNITTEST
 		current_timepoint_str = str(self.timepoint_label_prefix) + \
-			self._reformat_values(timepoint, self.total_timepoint_num)
+			self._reformat_values(timepoint, self.max_timepoint_num)
 		current_position_str = str(self.position_label_prefix) + \
-			self._reformat_values(position, self.total_xy_position_num)
+			self._reformat_values(position, self.max_xy_position_num)
 		current_point_label_dict = \
 			{'timepoint': current_timepoint_str,
 			'channel': channel_label,
@@ -526,8 +526,8 @@ class AnalysisConfig(MinimalAnalysisConfig):
 	def __init__(self, phase_num, hole_fill_area, cleanup, perform_registration,
 		max_proportion_exposed_edge, cell_intensity_num,
 		input_path, output_path, im_file_extension,
-		label_order_list, total_xy_position_num, first_timepoint,
-		total_timepoint_num, timepoint_spacing, timepoint_label_prefix,
+		label_order_list, max_xy_position_num, first_timepoint,
+		max_timepoint_num, timepoint_spacing, timepoint_label_prefix,
 		position_label_prefix, main_channel_label, main_channel_imagetype,
 		fluor_channel_df, im_format, extended_display_positions,
 		xy_position_vector, minimum_growth_time,
@@ -541,12 +541,12 @@ class AnalysisConfig(MinimalAnalysisConfig):
 		self.main_channel_label = main_channel_label
 		super(AnalysisConfig, self).__init__(
 			phase_num, input_path, output_path, im_file_extension,
-			label_order_list, total_xy_position_num, position_label_prefix,
+			label_order_list, max_xy_position_num, position_label_prefix,
 			fluor_channel_df, im_format, extended_display_positions,
 			timepoint_label_prefix, xy_position_vector
 			)
 		# max timepoint number
-		self.total_timepoint_num = int(total_timepoint_num)
+		self.max_timepoint_num = int(max_timepoint_num)
 		# specify image analysis parameters
 		self.hole_fill_area = float(hole_fill_area)
 		self.cleanup = bool(cleanup)
@@ -557,7 +557,7 @@ class AnalysisConfig(MinimalAnalysisConfig):
 		self.minimum_growth_time = int(minimum_growth_time)
 		growth_window_timepoint_int = int(growth_window_timepoints)
 		if growth_window_timepoint_int == 0:
-			self.growth_window_timepoints = self.total_timepoint_num
+			self.growth_window_timepoints = self.max_timepoint_num
 		else:
 			self.growth_window_timepoints = growth_window_timepoint_int
 		self.max_area_pixel_decrease = float(max_area_pixel_decrease)
@@ -610,7 +610,7 @@ class AnalysisConfig(MinimalAnalysisConfig):
 		'''
 		### !!! NEEDS UNITTEST
 		self.timepoint_list = \
-			range(first_timepoint, (self.total_timepoint_num + 1))
+			range(first_timepoint, (self.max_timepoint_num + 1))
 		if type(timepoint_spacing) is list:
 			self.timepoint_dict = \
 				dict(zip(self.timepoint_list, timepoint_spacing))
@@ -770,12 +770,12 @@ class _AnalysisConfigFileProcessor(object):
 				)
 		self.output_path = self._global_param_ser.output_path
 		self.im_format = self._global_param_ser.im_format
-		self.total_xy_position_num = \
-			self._global_param_ser.total_xy_position_num
+		self.max_xy_position_num = \
+			self._global_param_ser.max_xy_position_num
 		# set up list of possible xy positions
 		self.xy_position_vector = \
 			range(self._global_param_ser.first_xy_position,
-				(self.total_xy_position_num + 1))
+				(self.max_xy_position_num + 1))
 		if not self._global_param_ser.extended_display_positions:
 			self.extended_display_positions = []
 		elif isinstance(
@@ -1039,9 +1039,9 @@ class _AnalysisConfigFileProcessor(object):
 			phase_conf_ser.output_path,
 			phase_conf_ser.im_file_extension,
 			phase_conf_ser.label_order_list,
-			phase_conf_ser.total_xy_position_num,
+			phase_conf_ser.max_xy_position_num,
 			phase_conf_ser.first_timepoint,
-			phase_conf_ser.total_timepoint_num,
+			phase_conf_ser.max_timepoint_num,
 			timepoint_spacing,
 			phase_conf_ser.timepoint_label_prefix,
 			phase_conf_ser.position_label_prefix,
@@ -1081,7 +1081,7 @@ class _AnalysisConfigFileProcessor(object):
 			phase_conf_ser.output_path,
 			phase_conf_ser.im_file_extension,
 			phase_conf_ser.label_order_list,
-			phase_conf_ser.total_xy_position_num,
+			phase_conf_ser.max_xy_position_num,
 			phase_conf_ser.position_label_prefix,
 			fluor_channel_df,
 			phase_conf_ser.im_format,
