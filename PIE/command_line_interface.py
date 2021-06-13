@@ -35,7 +35,7 @@ def run_timelapse_analysis(configfile, repeat_image_analysis_and_tracking):
     )
 @click.argument(
     'image_type',
-    type=click.Choice(['brightfield','phase_contrast'], case_sensitive=False)
+    type=click.Choice(['bright','dark'], case_sensitive=False)
     )
 @click.option(
     '-h',

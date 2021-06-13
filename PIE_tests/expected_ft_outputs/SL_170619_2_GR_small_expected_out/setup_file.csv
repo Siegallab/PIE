@@ -21,7 +21,7 @@ timepoint_spacing,3600,1,Spacing between timepoints (in seconds). Can be left bl
 max_timepoint_num,10,1,Highest imaged timepoint number
 ,,,
 main_channel_label,,1,Label used by the microscope for the main channel being imaged (e.g. 'c1'); if channel is not labeled channel label will not be included in filename
-main_channel_imagetype,brightfield,1,Type of image in the main channel of this phase; can be 'brightfield' or 'phase_contrast'
+main_channel_imagetype,bright,1,Type of image in the main channel of this phase; can be 'bright' if cell bodies are brighter than background or 'dark' if they are darker than background (e.g. in phase contrast images)
 fluor_channel_scope_labels,,1,Labels in the filename for each fluorescent channel being imaged (e.g. 'c2'); separated by semicolons for each channel
 fluor_channel_names,,1,Names for each additional_channel_label as they show up in the final dataframe column labels (e.g. 'RFP' 'mito_label' etc); separated by semicolons for each channel
 fluor_channel_thresholds,,1,Thresholds to be used for removing saturated pixels in images (in absolute intensity); separated by semicolons for each channel

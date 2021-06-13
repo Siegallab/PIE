@@ -3,7 +3,7 @@ output_path,required,,Full path to folder from in which image analysis and growt
 input_path,required,,Full path to folder from which images for this phase will be drawn (PHASE-SPECIFIC),FALSE,FALSE
 im_format,required,,Format in which images are saved; can be either 'individual' (i.e. where every timepoint-position-channel combination is saved to its own image) or 'stack' (i.e. where every image at a position is saved to a single file),TRUE,FALSE
 im_file_extension,required,,File extension for image files in input_dir,FALSE,FALSE
-main_channel_imagetype,required,,Type of image in the main channel of this phase; can be 'brightfield' or 'phase_contrast',FALSE,FALSE
+main_channel_imagetype,required,,Type of image in the main channel of this phase; can be 'bright' if cell bodies are brighter than background or 'dark' if they are darker than background (e.g. in phase contrast images),FALSE,FALSE
 label_order_list,required,,Order in which timepoint position and channel are listed in filenames (separated by semicolons): e.g. channel;timepoint;position for image names like c2t01xy4030 or position;timepoint for image names like xy420t5,FALSE,FALSE
 position_label_prefix,required,,Label to be used for positions (e.g. 'xy' if position labels look like xy001); if left blank position label will not be included in filename,FALSE,TRUE
 timepoint_label_prefix,required,,Label to be used for timepoints (e.g. 't' if position labels look like t01); if left blank timepoint label will not be included in filename,FALSE,TRUE

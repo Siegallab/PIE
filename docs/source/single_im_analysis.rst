@@ -10,8 +10,8 @@ Inputs:
     the path to the image to be analyzed
 + **output_path**: *{path}*
     the directory in which image analysis folders should be created
-+ **image_type**: *{'brightfield' or 'phase_contrast'}*
-    The type of micrscopy used to generate images
++ **image_type**: *{'bright' or 'dark'}*
+    The brightness of the cell bodies relative to the image background.
 + **hole_fill_area**: *{integer or 'inf'}, optional, default 'inf'*
     the area (in pixels) of the largest size hole to fill in colony masks after image analysis. For low-resolution yeast imaging, we recommend setting this value to 'inf' (i.e. all the holes in the colonies get filled)
 + **cleanup**: *{True or False} optional, default False*
@@ -56,7 +56,7 @@ Inputs:
         .. admonition:: Examples
             :class: dropdown, tip
 
-            Analyze a bright field image, *E:\\trial\\my_image.tif*, and save outputs in a new folder called *E:\\my output folder*
+            Analyze an image with bright cells on a dark background, *E:\\trial\\my_image.tif*, and save outputs in a new folder called *E:\\my output folder*
 
             .. code-block:: python
 
@@ -65,7 +65,7 @@ Inputs:
                     PIE.analyze_single_image(
                         'E:\trial\my_image.tif',
                         'E:\my output folder',
-                        'brightfield'
+                        'bright'
                         )
 
             or, with **cleanup** set to *True* and **hole_fill_area** set to *40*:
@@ -77,7 +77,7 @@ Inputs:
                     PIE.analyze_single_image(
                         'E:\trial\my_image.tif',
                         'E:\my output folder',
-                        'brightfield',
+                        'bright',
                         hole_fill_area = 40,
                         cleanup = True
                         )
@@ -101,17 +101,17 @@ Inputs:
         .. admonition:: Windows cmd Examples
             :class: dropdown, tip
 
-            Analyze a bright field image, *E:\\trial\\my_image.tif*, and save outputs in a new folder called *E:\\trial_output_images*
+            Analyze an image with bright cells on a dark background, *E:\\trial\\my_image.tif*, and save outputs in a new folder called *E:\\trial_output_images*
 
             .. code-block:: console
 
-                pie analyze_single_image E:\trial\t01xy0001.tif E:\trial_output_images brightfield
+                pie analyze_single_image E:\trial\t01xy0001.tif E:\trial_output_images bright
 
             or, with **cleanup** set to *True* and **hole_fill_area** set to *40*:
 
             .. code-block:: console
 
-                pie analyze_single_image E:\trial\t01xy0001.tif E:\trial_output_images brightfield -h 40 -c True
+                pie analyze_single_image E:\trial\t01xy0001.tif E:\trial_output_images bright -h 40 -c True
 
             .. caution::
 
@@ -119,22 +119,22 @@ Inputs:
 
                 .. code-block:: console
 
-                    pie analyze_single_image E:\trial\t01xy0001.tif "E:\my output folder" brightfield
+                    pie analyze_single_image E:\trial\t01xy0001.tif "E:\my output folder" bright
 
         .. admonition:: MacOS/Unix Terminal Examples
             :class: dropdown, tip
 
-            Analyze a bright field image, *~/trial/my_image.tif*, and save outputs in a new folder called *~/trial_output_images*
+            Analyze an image with bright cells on a dark background, *~/trial/my_image.tif*, and save outputs in a new folder called *~/trial_output_images*
 
             .. code-block:: console
 
-                pie analyze_single_image ~/trial/t01xy0001.tif ~/trial_output_images brightfield
+                pie analyze_single_image ~/trial/t01xy0001.tif ~/trial_output_images bright
 
             or, with **cleanup** set to *True* and **hole_fill_area** set to *40*:
 
             .. code-block:: console
 
-                pie analyze_single_image ~/trial/t01xy0001.tif ~/trial_output_images brightfield -h 40 -c True
+                pie analyze_single_image ~/trial/t01xy0001.tif ~/trial_output_images bright -h 40 -c True
 
             .. caution::
 
@@ -142,7 +142,7 @@ Inputs:
 
                 .. code-block:: console
 
-                    pie analyze_single_image ~/trial/t01xy0001.tif ~/my\ output\ folder brightfield
+                    pie analyze_single_image ~/trial/t01xy0001.tif ~/my\ output\ folder bright
 
 
 This function runs PIE, creates output folders within **output_path**, and writes files to:

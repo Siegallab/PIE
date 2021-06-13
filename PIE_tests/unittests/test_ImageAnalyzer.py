@@ -60,11 +60,11 @@ class TestPrepImage(unittest.TestCase):
 		self.image_analyzer_standin.original_im = \
 			np.uint16([[0, 1024, 2047], [0, 2047, 0]])
 
-	def test_brightfield(self):
+	def test_bright(self):
 		'''
 		Tests input_im and norm_im creation for brightfield 11-bit image
 		'''
-		self.image_analyzer_standin.image_type = 'brightfield'
+		self.image_analyzer_standin.image_type = 'bright'
 		self.image_analyzer_standin._prep_image()
 		expected_norm_im = np.uint16([[0, 32784, 65535], [0, 65535, 0]])
 		expected_input_im = np.copy(expected_norm_im)
@@ -73,12 +73,12 @@ class TestPrepImage(unittest.TestCase):
 		assert_array_equal(expected_input_im,
 			self.image_analyzer_standin.input_im)
 
-	def test_phasecontrast(self):
+	def test_dark(self):
 		'''
 		Tests input_im and norm_im creation for phase constrast 11-bit
 		image, for which image should be inverted
 		'''
-		self.image_analyzer_standin.image_type = 'phasecontrast'
+		self.image_analyzer_standin.image_type = 'dark'
 		self.image_analyzer_standin._prep_image()
 		expected_norm_im = np.uint16([[0, 32784, 65535], [0, 65535, 0]])
 		expected_input_im = np.uint16([[65535, 32751, 0], [65535, 0, 65535]])

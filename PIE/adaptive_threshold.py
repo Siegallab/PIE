@@ -169,9 +169,9 @@ class _ThresholdFinder(_LogHistogramSmoother):
 		manual_method_order_list = None
 		):
 		# treat input_im
-		if image_type == 'bf':
+		if image_type == 'bright':
 			self.input_im = input_im
-		elif image_type == 'pc':
+		elif image_type == 'dark':
 			# the image needs to be inverted before thresholding,
 			# then normalized so that assumptions about
 			# peak values being close to 0 are true
@@ -182,8 +182,9 @@ class _ThresholdFinder(_LogHistogramSmoother):
 				)
 		else:
 			raise ValueError(
-				"image_type must be either 'bf' (brightfield) or "
-				"'pc' (phase contrast)"
+				"image_type must be either 'bright' (bright cells on "
+				"darker background) or 'dark' (dark cells on brighter "
+				"background)"
 				)
 		self.threshold_method_selector = \
 			_ThresholdMethodSelector(cell_intensity_num, manual_method_order_list)

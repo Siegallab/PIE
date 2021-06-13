@@ -30,7 +30,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		self.timepoint_label_prefix = 't'
 		self.position_label_prefix = 'xy'
 		self.main_channel_label = ''
-		self.main_channel_imagetype = 'brightfield'
+		self.main_channel_imagetype = 'bright'
 		self.fluor_channel_df = pd.DataFrame(columns = ['fluor_channel_label',
 			'fluor_channel_column_name', 'fluor_threshold'])
 		self.im_format = 'individual'

@@ -573,7 +573,7 @@ class AnalysisConfig(MinimalAnalysisConfig):
 		self._set_up_timevector(timepoint_spacing, first_timepoint)
 		# find time of first existing file
 		self._find_first_timepoint()
-		# specify type of image (brightfield or phase_contrast) is in
+		# specify type of image ('bright' or 'dark') that is in
 		# the main channel
 		self.main_channel_imagetype = main_channel_imagetype
 		self._run_parameter_tests()
@@ -1255,14 +1255,14 @@ class _SetupWizard(object):
 
 	def _get_num_main_phases(self):
 		'''
-		Get the number of brightfield/phase-contrast phases in the 
+		Get the number of colony recognition phases in the 
 		experiment
 		'''
 		while True:
 			num_main_phases = \
 				input(
-					"\nHow many independent phases of brightfield/phase-contrast "
-					"imaging does your experiment include? "
+					"\nHow many independent phases of colony recognition "
+					"imaging (brightfield/phase contrast) does your experiment include? "
 					)
 			try:
 				num_main_phases = int(num_main_phases)
@@ -1465,7 +1465,7 @@ class _SetupWizard(object):
 	def _get_regular_phase_params(self, mainphase_counter_ordinal):
 		'''
 		Get parameter values for regular experimental phase (with 
-		brightfield/phase-contrast images)
+		brightfield/phase-contrast images to segment)
 		'''
 		phase_preintro_text = (
 			'For the {0}main imaging phase:'

@@ -8,7 +8,7 @@ Imaging conditions
 
 PIE can segment colonies from brightfield or phase-contrast images, and can use fluorescent images to calculate fluorescence levels within segmented colonies.
 
-For **brightfield imaging**, ideal images for PIE analysis are slightly defocused, with dark outlining surrounding cells that are brighter than the background. For **phase-contrast imaging**, a wide range of imaging conditions are acceptable. See figures 1-4 in the `PIE preprint <https://doi.org/10.1101/253724>`_ for example images. Importantly, PIE performs well on low-resolution images.
+For **brightfield imaging**, ideal images for PIE analysis are slightly defocused, with dark outlining surrounding cells that are brighter than the background. For **phase-contrast imaging**, a wide range of imaging conditions are acceptable. See figures 1-5 in the `PIE preprint <https://doi.org/10.1101/253724>`_ for example images. Importantly, PIE performs well on low-resolution images.
 
 Setup files
 -----------

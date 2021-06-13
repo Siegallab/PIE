@@ -50,7 +50,7 @@ Where:
 
 + ``INPUT_IM_PATH`` is the path to the image you want to analyze
 + ``OUTPUT_PATH`` is a directory you'd like to store the results of the analysis in
-+ ``IMAGE_TYPE`` is 'brightfield' or 'phase_contrast'
++ ``IMAGE_TYPE`` is 'bright' (for cells that are brighter than the image background) or 'dark' (for cells that are darker than the image background)
 
 See `Running PIE single-image analysis <https://pie-image.readthedocs.io/en/latest/single_im_analysis.html>`_ for details on the inputs and outputs, as well as additional analysis options.
 

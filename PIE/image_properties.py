@@ -17,7 +17,7 @@ class ImageAnalyzer(object):
 	Runs image analysis and creates necessary output files
 	'''
 	# TODO: save all jpegs as jpeg2000s instead?
-	def __init__(self, original_im, image_name, output_path, image_type = 'brightfield',
+	def __init__(self, original_im, image_name, output_path, image_type = 'bright',
 				hole_fill_area = np.inf, cleanup = False,
 				max_proportion_exposed_edge = 0.75, cell_intensity_num = 1,
 				save_extra_info = False, threshold_plot_width = 6,
@@ -34,15 +34,11 @@ class ImageAnalyzer(object):
 		self._threshold_plot_filetype = threshold_plot_filetype
 		self._save_extra_info = save_extra_info
 		self.original_im = original_im
-		if image_type.lower() == 'phasecontrast' or \
-			image_type.lower() == 'phase_contrast':
-			self.image_type = 'pc'
-		elif image_type.lower() == 'brightfield' or \
-			image_type.lower() == 'bright_field':
-			self.image_type = 'bf'
+		if image_type.lower() in ['bright','dark']:
+			self.image_type = image_type.lower()
 		else:
 			raise ValueError(
-				"image_type must be either 'brightfield' or 'phase_contrast'")
+				"image_type must be either 'bright' or 'dark'")
 		self.hole_fill_area = hole_fill_area
 		self.cleanup = cleanup
 		self._create_pie_overlay = create_pie_overlay
@@ -79,8 +75,8 @@ class ImageAnalyzer(object):
 	def _prep_image(self):
 		'''
 		Reads the image, performs normalization
-		If image_type is brightfield, reads as is
-		If image_type is phase_contrast, inverts image before analysis
+		If image_type is 'bright', reads as is
+		If image_type is 'dark', inverts image before analysis
 		'''
 		# create a normalized image so that assumptions about
 		# low-intensity pixel peak being close to 0 made by thresholding
@@ -95,9 +91,9 @@ class ImageAnalyzer(object):
 				# decrease bitdepth of norm_im to 8-bit while normalizing
 		self.norm_im_8_bit = cv2.normalize(self.original_im, None, alpha=0, beta=(2**8-1),
 			norm_type=cv2.NORM_MINMAX)
-		if self.image_type == 'bf':
+		if self.image_type == 'bright':
 			self.edge_input_im = self.norm_im
-		elif self.image_type == 'pc':
+		elif self.image_type == 'dark':
 			self.edge_input_im = cv2.bitwise_not(self.norm_im)
 		
 	def _write_threshold_plot(self, threshold_plot):
