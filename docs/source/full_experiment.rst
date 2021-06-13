@@ -186,11 +186,11 @@ Post-phase fluorescent measurement and fluorescence-based classification
 
 For experiments in which fluorescent and non-fluorescent strains (or strains with different fluorescent markers) are co-cultured, PIE can use fluorescence data to classify colonies by strain. It can be useful to collect this kind of 'classification' fluorescence data after an experiment (or experimental phase) is complete, to avoid spending time imaging in a fluorescent channel between each set of time points. Colony segmentation from brightfield or phase-contrast imaging in the previous phase can then be used to assign fluorescent values to colonies.
 
-PIE allows for the creation of a special phase that includes only fluorescent images for a single time point, in which case the ``parent_phase`` parameter should be set to the phase number of the phase containing the brightfield/phase contrast data to be used for colony segmentation (we strongly recommend that this be the phase immediately before the fluorescent classification phase).
+PIE allows for the creation of a special phase that includes only fluorescent images for a single time point, in which case the ``linked_phase`` parameter should be set to the phase number of the phase containing the brightfield/phase contrast data to be used for colony segmentation (we strongly recommend that this be the phase immediately before the fluorescent classification phase).
 
 These 'post-phase fluorescence' phases require only a subset of parameters to be specified:
 
-+ ``parent_phase``
++ ``linked_phase``
 + ``fluor_channel_scope_labels``
 + ``fluor_channel_names``
 + ``fluor_channel_thresholds``

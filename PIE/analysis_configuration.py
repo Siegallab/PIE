@@ -204,7 +204,7 @@ required_fields_general = \
 	'first_xy_position', 'extended_display_positions',
 	'timepoint_label_prefix', 'position_label_prefix',
 	'main_channel_label', 'main_channel_imagetype', 'im_format',
-	'parent_phase', 'max_area_pixel_decrease',
+	'linked_phase', 'max_area_pixel_decrease',
 	'max_area_fold_decrease', 'max_area_fold_increase',
 	'min_colony_area', 'max_colony_area', 'min_correlation',
 	'min_foldX', 'minimum_growth_time', 'growth_window_timepoints',
@@ -219,7 +219,7 @@ required_fields_minimal = \
 	'max_xy_position_num',
 	'position_label_prefix',
 	'im_format',
-	'parent_phase']
+	'linked_phase']
 
 class _ImageRetriever(object):
 	'''
@@ -903,13 +903,13 @@ class _AnalysisConfigFileProcessor(object):
 				)))
 		# for each phase, fill in missing values with defaults
 		analysis_config_dict = dict()
-		# if no parent_phase in any phases, skip over that part
-		if 'parent_phase' in global_param_ser_part.index:
-			if global_param_ser_part.parent_phase == '':
+		# if no linked_phase in any phases, skip over that part
+		if 'linked_phase' in global_param_ser_part.index:
+			if global_param_ser_part.linked_phase == '':
 				self._no_postphase = True
 			elif len(self.analysis_config_df.columns) > 1:
 				raise ValueError(
-					'If parent_phase is specified for all phases ' +
+					'If linked_phase is specified for all phases ' +
 						'simultaneously, it must be left blank')
 		else:
 			self._no_postphase = False
@@ -917,9 +917,9 @@ class _AnalysisConfigFileProcessor(object):
 			# get only the parameters specified for the current phase
 			curr_phase_vals_part = analysis_config_df_indiv[phase].dropna()
 			if self._no_postphase or \
-				(('parent_phase' not in curr_phase_vals_part.index) &
-					(self._default_param_ser.parent_phase in ['', phase])) or \
-				curr_phase_vals_part.parent_phase in ['', phase]:
+				(('linked_phase' not in curr_phase_vals_part.index) &
+					(self._default_param_ser.linked_phase in ['', phase])) or \
+				curr_phase_vals_part.linked_phase in ['', phase]:
 				curr_req_fields = required_fields_general
 			else:
 				curr_req_fields = required_fields_minimal
@@ -1120,7 +1120,7 @@ class _AnalysisConfigFileProcessor(object):
 					])
 			current_phase_setup.name = phase_num
 			# set where to store object
-			if self._no_postphase or current_phase_setup.parent_phase in \
+			if self._no_postphase or current_phase_setup.linked_phase in \
 				['',phase_num]:
 				storage_phase = phase_num
 				config_type = 'analysis_config'
@@ -1132,23 +1132,23 @@ class _AnalysisConfigFileProcessor(object):
 						)
 			elif not (
 				self.analysis_config_df.at[
-					'parent_phase', current_phase_setup.parent_phase
+					'linked_phase', current_phase_setup.linked_phase
 					]
-				in ['', current_phase_setup.parent_phase]
+				in ['', current_phase_setup.linked_phase]
 				):
-				# check that parent_phase doesn't have its own 
-				# parent_phase
+				# check that linked_phase doesn't have its own 
+				# linked_phase
 				raise ValueError(
 					(
-						'Phase {0}\'s parent phase listed as Phase {1}, but '
-						'that has its own parent phase.'
+						'Phase {0}\'s linked phase listed as Phase {1}, but '
+						'that has its own linked phase.'
 						).format(
-							str(phase_num),str(current_phase_setup.parent_phase)
+							str(phase_num),str(current_phase_setup.linked_phase)
 							)
 					)
 			else:
 				# treat as postphase
-				storage_phase = current_phase_setup.parent_phase
+				storage_phase = current_phase_setup.linked_phase
 				config_type = 'postphase_analysis_config'
 				# create AnalysisConfig object from current phase setup ser
 				current_analysis_config = \
@@ -1516,11 +1516,11 @@ class _SetupWizard(object):
 				phase_intro_text,
 				skip_default = True
 				)
-		param_df_parent = self.param_description_df.loc[
-			['parent_phase']
+		param_df_linked = self.param_description_df.loc[
+			['linked_phase']
 			][['Explanation']].copy()
-		param_df_parent['Value'] = mainphase_phase_num
-		param_df_list = [param_df_req, param_df_fluor, param_df_parent]
+		param_df_linked['Value'] = mainphase_phase_num
+		param_df_list = [param_df_req, param_df_fluor, param_df_linked]
 		for param_type in self._type_list_optional_postphase:
 			curr_param_df = \
 				self._loop_through_param_type(

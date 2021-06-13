@@ -754,9 +754,9 @@ def run_default_growth_rate_analysis(input_path, output_path,
 	properties file already exists, skip image analysis and tracking
 	and go straight to growth rate assay
 	'''
-	# set parent_phase to empty string, since only one phase and no
+	# set linked_phase to empty string, since only one phase and no
 	# postphase data
-	parent_phase = ''
+	linked_phase = ''
 	try:
 		os.makedirs(output_path)
 	except:
@@ -776,7 +776,7 @@ def run_default_growth_rate_analysis(input_path, output_path,
 		'max_colony_area', 'min_correlation', 'min_foldX', 'min_neighbor_dist',
 		'max_colony_num', 'fluor_channel_scope_labels', 'fluor_channel_names',
 		'fluor_channel_thresholds', 'fluor_channel_timepoints',
-		'parent_phase']
+		'linked_phase']
 	param_val_list = []
 	for param in parameter_list:
 		param_val = eval(param)
