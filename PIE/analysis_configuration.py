@@ -6,6 +6,7 @@ Tracks colonies through time in a single imaging field
 
 import cv2
 import numpy as np
+import glob
 import os
 import warnings
 import pandas as pd
@@ -428,21 +429,44 @@ class MinimalAnalysisConfig(object):
 		'''
 		Returns int_to_format as string, padded with 0s to match the
 		number of digits in max_val_num
+
 		If int_to_format is None, returns empty string
+
+		If int_to_format is special character #, returns a string with 
+		'#' repeated the same number of times as digits in max_val_num
+
+		If int_to_format is special character *, returns a string of a 
+		glob expression specifying 0-9 repeated the same number of 
+		times as digits in max_val_num
 		'''
 		### !!! NEEDS UNITTEST
+		digit_num = np.ceil(np.log10(max_val_num+1)).astype(int)
 		if int_to_format is None:
 			formatted_string = ''
+		elif int_to_format == '#':
+			formatted_string = '#'*digit_num
+		elif int_to_format == '*':
+			formatted_string = '[0-9]'*digit_num
 		else:
-			digit_num = np.ceil(np.log10(max_val_num+1)).astype(int)
 			formatted_string = '{:0>{}d}'.format(int_to_format, digit_num)
 		return(formatted_string)
 
-	def _generate_filename(self, timepoint, position, channel_label):
+	def generate_filename(self, timepoint, position, channel_label):
 		'''
 		Returns filename for image file given timepoint, position,
 		channel_label, as well as its image label (filename without
 		extension)
+
+		If timepoint, position, or channel_label is None, they are not 
+		included
+
+		If timepoint or position is special character #, time/position 
+		digits are replaced with # repeated the appropriate number of 
+		times
+
+		If timepoint or position is special character *, time/position 
+		digits are replaced with a glob expression searching for a 
+		digit present the correct number of times
 		'''
 		### !!! NEEDS UNITTEST
 		im_label = self.create_file_label(timepoint, position, channel_label)
@@ -455,6 +479,17 @@ class MinimalAnalysisConfig(object):
 		Creates label for image filename, concatenating formatted
 		timepoint, xy position, and provided channel label in the
 		correct order
+
+		If timepoint, position, or channel_label is None, they are not 
+		included
+
+		If timepoint or position is special character #, time/position 
+		digits are replaced with # repeated the appropriate number of 
+		times
+
+		If timepoint or position is special character *, time/position 
+		digits are replaced with a glob expression searching for a 
+		digit present the correct number of times
 		'''
 		### !!! NEEDS UNITTEST
 		current_timepoint_str = str(self.timepoint_label_prefix) + \
@@ -483,7 +518,7 @@ class MinimalAnalysisConfig(object):
 		'''
 		### !!! NEEDS UNITTEST
 		im_filepath, im_label = \
-			self._generate_filename(timepoint, self.xy_position_idx, channel)
+			self.generate_filename(timepoint, self.xy_position_idx, channel)
 		image = self.image_retriever.get_image(im_filepath = im_filepath,
 			timepoint = timepoint, channel = channel)
 		# get image time
@@ -1164,6 +1199,30 @@ class _AnalysisConfigFileProcessor(object):
 		analysis_config_obj_df.dropna(0, how = 'all', inplace = True)
 		return(analysis_config_obj_df)
 
+	def _check_file_existance(self, analysis_config_obj_df):
+		"""
+		Print expected generic input file for each phase and print 
+		warning if no expected input files found
+		"""
+		for phase_num, row in analysis_config_obj_df.iterrows():
+			analysis_config = row.analysis_config
+			generic_file, _ = analysis_config.generate_filename(
+				'#', '#', analysis_config.main_channel_label
+				)
+			glob_filename, _ = analysis_config.generate_filename(
+				'*', '*', analysis_config.main_channel_label
+				)
+			file_expect_str = \
+				"Expected input file location and format for main channel " + \
+				"(colony recogntion) images from phase {phase_num} is:\n" + \
+				"{generic_file}"
+			print(file_expect_str.format(phase_num=phase_num,generic_file=generic_file))
+			curr_files = glob.glob(glob_filename)
+			if len(curr_files)==0:
+				warnings.warn(
+					f"No expected main channel files found for phase {phase_num}"
+					)
+
 	def process_analysis_config_file(self, analysis_config_path):
 		'''
 		Reads csv file in analysis_config_path and creates pandas df of
@@ -1203,6 +1262,8 @@ class _AnalysisConfigFileProcessor(object):
 		self._set_global_vals()
 		# create df of analysis config objects
 		analysis_config_obj_df = self._create_analysis_config_df()
+		# test that expected files exist
+		self._check_file_existance(analysis_config_obj_df)
 		return(analysis_config_obj_df)
 
 class _SetupWizard(object):
@@ -1590,6 +1651,11 @@ class _SetupWizard(object):
 			global_param_ser,
 			analysis_config_df_indiv,
 			self.setup_df.PhaseNum.unique()
+			)
+		# process config file to get output on expected image file path
+		analysis_config_file_processor = _AnalysisConfigFileProcessor()
+		analysis_config_file_processor.process_analysis_config_file(
+			self.setup_file_path
 			)
 
 def process_setup_file(analysis_config_path):
