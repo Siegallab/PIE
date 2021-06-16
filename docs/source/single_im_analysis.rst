@@ -84,7 +84,7 @@ Inputs:
                         
              .. note::
              
-             this example uses Windows path format. For MacOS/Unix Terminal, replace **input_im_path** with the format ~/trial/my_image.tif and **output_path** with the format ~/trial_output_images.
+             This example uses Windows path format. For MacOS/Unix Terminal, replace **input_im_path** with the format ~/trial/my_image.tif and **output_path** with the format ~/trial_output_images.
 
     .. tab:: command-line
 
