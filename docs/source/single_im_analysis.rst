@@ -3,8 +3,8 @@ Running PIE single-image analysis
 
 To analyze a single image using PIE, you can use the ``analyze_single_image`` function.
 
-Inputs:
-^^^^^^^
+Inputs
+^^^^^^
 
 + **input_im_path**: *{path}*
     the path to the image to be analyzed
@@ -148,7 +148,7 @@ Inputs:
 
                     pie analyze_single_image ~/trial/t01xy0001.tif ~/my\ output\ folder bright
 
-Outputs:
+Outputs
 ^^^^^^^
 
 This function runs PIE, creates output folders within **output_path**, and writes files to:
