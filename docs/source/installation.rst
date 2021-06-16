@@ -60,4 +60,4 @@ PIE can be installed using `pip <https://pip.pypa.io/en/stable/>`_, which should
 Upgrade
 -------
 
-For now, to upgrade PIE to the most current version, you will have to uninstall PIE first and reinstall. Directly reinstall PIE without uninstall may not include all the upgrades. Please refer to this section and the next section for uninstall and install guidelines. 
+For now, to upgrade PIE to the most current version, you will have to uninstall PIE first and reinstall. Directly reinstall PIE without uninstall may not include all the upgrades. Please refer to this section and the :doc:`uninstall PIE section <uninstallation>` for install and uninstall guidelines. 
