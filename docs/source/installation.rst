@@ -1,4 +1,4 @@
-Installing PIE
+Install and upgrade PIE
 ==============
 
 Requirements
@@ -57,4 +57,7 @@ PIE can be installed using `pip <https://pip.pypa.io/en/stable/>`_, which should
 
             Depending on your version of Windows, you may see ``WARNING: Couldn't compute FAST_CWD pointer`` and/or ``cygwin_warning``, with additional text, during installation; this may be followed by a period of a few minutes when nothing else changes on the screen. These warnings can safely be ignored, and package installation will continue automatically.
 
+Upgrade
+-------
 
+For now, to upgrade PIE to the most current version, you will have to uninstall PIE first and reinstall. Directly reinstall PIE without uninstall may not include all the upgrades. Please refer to this section and the next section for uninstall and install guidelines. 
