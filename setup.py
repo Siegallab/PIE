@@ -14,7 +14,8 @@ install_requires = [
     'scipy>=1.1.0',
     'plotnine >= 0.7.1',
     'pyarrow',
-    'Click>=7.0'
+    'Click>=7.0',
+    'flowserv-core[gui]>=0.9.0'
 ]
 
 

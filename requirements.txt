@@ -3,7 +3,7 @@ opencv-contrib-python>4.0.0.0
 pandas>=1.1.0
 Pillow>=7.2.0
 scipy>=1.1.0
-plotnine >= 0.7.1
+plotnine>=0.7.1
 pyarrow
 Click>=7.0
-git+https://github.com/scailfin/flowserv-core.git#egg=flowserv-core[gui]
+flowserv-core[gui]>=0.9.0
