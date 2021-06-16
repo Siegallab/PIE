@@ -19,7 +19,7 @@ If you have any questions about setting up or using PIE, we'd love to help! Feel
 
 .. toctree::
     :maxdepth: 1
-    :caption: Install and uninstall
+    :caption: Install upgrade and uninstall
 
     installation
     uninstallation
