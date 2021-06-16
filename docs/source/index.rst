@@ -19,13 +19,14 @@ If you have any questions about setting up or using PIE, we'd love to help! Feel
 
 .. toctree::
     :maxdepth: 1
-    :caption: Installation
+    :caption: Install and uninstall
 
     installation
+    uninstallation
     
 .. toctree::
     :maxdepth: 1
-    :caption: inputs and outputs
+    :caption: Inputs and outputs
     
     inputs
     outputs
