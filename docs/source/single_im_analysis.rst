@@ -148,6 +148,8 @@ Inputs:
 
                     pie analyze_single_image ~/trial/t01xy0001.tif ~/my\ output\ folder bright
 
+Outputs:
+^^^^^^^
 
 This function runs PIE, creates output folders within **output_path**, and writes files to:
 
