@@ -2,7 +2,7 @@ Uninstall PIE
 ==============
 
 
-PIE can be uninstalled using `pip <https://pip.pypa.io/en/stable/>`_, which should come with your python installation.
+PIE can be uninstalled using `pip uninstall <https://pip.pypa.io/en/stable/cli/pip_uninstall/>`_, which should come with your python installation.
 
 .. tabs::
 
