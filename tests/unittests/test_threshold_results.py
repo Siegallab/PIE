@@ -38,7 +38,7 @@ class Test_mu1PosThresholdMethod(unittest.TestCase):
 		im_name, reads in smoothed log histogram, calculates and returns
 		threshold via PIE.adaptive_threshold._mu1PosThresholdMethod
 		'''
-		im_path = os.path.join('PIE_tests', 'test_ims',
+		im_path = os.path.join('tests', 'test_ims',
 			(im_name + '_best_hist.csv'))
 		hist_data = np.loadtxt(im_path, delimiter=',')
 		x_pos = hist_data[0]
@@ -85,7 +85,7 @@ class Test_mu1ReleasedThresholdMethod(unittest.TestCase):
 		im_name, reads in smoothed log histogram, calculates and returns
 		threshold via PIE.adaptive_threshold._mu1ReleasedThresholdMethod
 		'''
-		im_path = os.path.join('PIE_tests', 'test_ims',
+		im_path = os.path.join('tests', 'test_ims',
 			(im_name + '_best_hist.csv'))
 		hist_data = np.loadtxt(im_path, delimiter=',')
 		x_pos = hist_data[0]
@@ -131,7 +131,7 @@ class Test_DataSlidingCircleThresholdMethod(unittest.TestCase):
 		threshold via
 		PIE.adaptive_threshold._DataSlidingCircleThresholdMethod
 		'''
-		im_path = os.path.join('PIE_tests', 'test_ims',
+		im_path = os.path.join('tests', 'test_ims',
 			(im_name + '_best_hist.csv'))
 		hist_data = np.loadtxt(im_path, delimiter=',')
 		x_pos = hist_data[0]
@@ -200,7 +200,7 @@ class Test_FitSlidingCircleThresholdMethod(unittest.TestCase):
 		im_name, reads in smoothed log histogram, calculates and returns
 		threshold via PIE.adaptive_threshold._FitSlidingCircleThresholdMethod
 		'''
-		im_path = os.path.join('PIE_tests', 'test_ims',
+		im_path = os.path.join('tests', 'test_ims',
 			(im_name + '_best_hist.csv'))
 		hist_data = np.loadtxt(im_path, delimiter=',')
 		x_pos = hist_data[0]

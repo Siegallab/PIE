@@ -12,7 +12,7 @@ class TestSetUpFolders(unittest.TestCase):
 
 	@classmethod
 	def setUpClass(self):
-		self.output_path = 'PIE_tests/test_output_dir'
+		self.output_path = 'tests/test_output_dir'
 
 	def setUp(self):
 		self.image_analyzer_standin = object.__new__(_ImageAnalyzer)
@@ -22,12 +22,12 @@ class TestSetUpFolders(unittest.TestCase):
 		Tests that PIE quadrants correctly creates folders in target directory
 		'''
 		self.image_analyzer_standin._set_up_folders(self.output_path)
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/jpgGRimages'))
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/boundary_ims'))
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/colony_masks'))
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/threshold_plots'))
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/colony_center_overlays'))
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/single_im_colony_properties'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/jpgGRimages'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/boundary_ims'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/colony_masks'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/threshold_plots'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/colony_center_overlays'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/single_im_colony_properties'))
 
 	def test_folder_creation(self):
 		'''
@@ -35,19 +35,19 @@ class TestSetUpFolders(unittest.TestCase):
 		directory without throwing a warning even when one of the
 		folders already exists
 		'''
-		os.makedirs('PIE_tests/test_output_dir/jpgGRimages')
+		os.makedirs('tests/test_output_dir/jpgGRimages')
 		with warnings.catch_warnings(record=True) as w:
 			# Cause all warnings to always be triggered.
 			warnings.simplefilter("always")
 			self.image_analyzer_standin._set_up_folders(self.output_path)
 			# Check that 2 warnings issued
 			self.assertEqual(len(w),0)
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/jpgGRimages'))
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/boundary_ims'))
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/colony_masks'))
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/threshold_plots'))
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/colony_center_overlays'))
-		self.assertTrue(os.path.exists('PIE_tests/test_output_dir/single_im_colony_properties'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/jpgGRimages'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/boundary_ims'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/colony_masks'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/threshold_plots'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/colony_center_overlays'))
+		self.assertTrue(os.path.exists('tests/test_output_dir/single_im_colony_properties'))
 
 	def tearDown(self):
 		# remove directories created

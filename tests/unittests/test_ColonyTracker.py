@@ -13,12 +13,12 @@ from PIE import track_colonies
 # NB: this case is quite pathological, preliminary analysis on bad
 # images, with poor tracking, but this is probably better for testing
 timecourse_colony_prop_df = \
-	pd.read_csv(os.path.join('PIE_tests','test_ims',
+	pd.read_csv(os.path.join('tests','test_ims',
 		'SL_170619_2_GR_small_xy0001_phase_colony_data_tracked.csv'),
 	index_col = 0)
 
 satellite_prop_df = \
-	pd.read_csv(os.path.join('PIE_tests','test_ims',
+	pd.read_csv(os.path.join('tests','test_ims',
 		'test_sat_data.csv'),
 	index_col = 0)
 

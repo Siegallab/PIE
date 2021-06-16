@@ -621,11 +621,11 @@ class TestSetUpFluorMeasurements(unittest.TestCase):
 		Reads saved IMs for colony mask and eroded colony and background
 		masks
 		'''
-		colony_mask_path = os.path.join('PIE_tests', 'test_ims',
+		colony_mask_path = os.path.join('tests', 'test_ims',
 			(im_name + '_colony_mask.tif'))
-		eroded_background_mask_path = os.path.join('PIE_tests', 'test_ims',
+		eroded_background_mask_path = os.path.join('tests', 'test_ims',
 			(im_name + '_eroded_background_mask.tif'))
-		eroded_colony_mask_path = os.path.join('PIE_tests', 'test_ims',
+		eroded_colony_mask_path = os.path.join('tests', 'test_ims',
 			(im_name + '_eroded_colony_mask.tif'))
 		colony_mask = \
 			cv2.imread(colony_mask_path, cv2.IMREAD_ANYDEPTH).astype(bool)
@@ -759,13 +759,13 @@ class TestMakeFluorMeasurements(unittest.TestCase):
 
 		'''
 		# get colony mask
-		colony_mask_path = os.path.join('PIE_tests', 'test_ims',
+		colony_mask_path = os.path.join('tests', 'test_ims',
 			'xy0001c1_small_colony_mask.tif')
 		colony_mask = \
 			cv2.imread(colony_mask_path, cv2.IMREAD_ANYDEPTH).astype(bool)
 		# get fluorescent image
 		fluor_im_path = \
-			os.path.join('PIE_tests', 'test_ims', 'xy0001c2_small.tif')
+			os.path.join('tests', 'test_ims', 'xy0001c2_small.tif')
 		fluor_im = \
 			cv2.imread(fluor_im_path, cv2.IMREAD_ANYDEPTH)
 		# create _ColonyPropertyFinder object, set up for measurement

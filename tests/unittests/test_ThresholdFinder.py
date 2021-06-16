@@ -11,10 +11,10 @@ class TestGetTophat(unittest.TestCase):
 	@classmethod
 	def setUpClass(self):
 		self.input_im = \
-			cv2.imread('PIE_tests/test_ims/test_im_small.tif',
+			cv2.imread('tests/test_ims/test_im_small.tif',
 				cv2.IMREAD_ANYDEPTH)
 		self.expected_tophat = \
-			cv2.imread('PIE_tests/test_ims/test_im_small_tophat.tif',
+			cv2.imread('tests/test_ims/test_im_small_tophat.tif',
 				cv2.IMREAD_ANYDEPTH)
 
 	def setUp(self):
@@ -128,7 +128,7 @@ class TestGetLogTophatHist(unittest.TestCase):
 		provided for bin number
 		'''
 		self.threshold_finder_standin.tophat_im = \
-			cv2.imread('PIE_tests/test_ims/test_im_small_tophat.tif',
+			cv2.imread('tests/test_ims/test_im_small_tophat.tif',
 				cv2.IMREAD_ANYDEPTH)
 		tophat_bins = 10
 		test_ln_tophat_hist, test_bin_centers = \
@@ -153,7 +153,7 @@ class TestGetLogTophatHist(unittest.TestCase):
 		centers is provided
 		'''
 		self.threshold_finder_standin.tophat_im = \
-			cv2.imread('PIE_tests/test_ims/test_im_small_tophat.tif',
+			cv2.imread('tests/test_ims/test_im_small_tophat.tif',
 				cv2.IMREAD_ANYDEPTH)
 		tophat_bins = np.array([250, 750, 1100])
 		expected_bin_centers = tophat_bins
@@ -208,7 +208,7 @@ class TestCheckForAutocorrelationPeaks(unittest.TestCase):
 			np.array(
 				[65, 70, 75, 80, 92, 90, 95, 100, 95, 90, 92, 80, 75, 70, 65])
 		self.threshold_finder_standin.tophat_im = \
-			cv2.imread('PIE_tests/test_ims/test_im_small_tophat.tif',
+			cv2.imread('tests/test_ims/test_im_small_tophat.tif',
 				cv2.IMREAD_ANYDEPTH)
 
 	def test_yes_peaks(self):
@@ -270,10 +270,10 @@ class TestIdentifyBestHistogram(unittest.TestCase):
 	@classmethod
 	def setUpClass(self):
 		self.tophat_im_from_file = \
-			cv2.imread('PIE_tests/test_ims/test_im_small_tophat.tif',
+			cv2.imread('tests/test_ims/test_im_small_tophat.tif',
 				cv2.IMREAD_ANYDEPTH)
 		self.tophat_im_with_autocorr_from_file = \
-			cv2.imread('PIE_tests/test_ims/test_im_small_tophat_autocorr.tif',
+			cv2.imread('tests/test_ims/test_im_small_tophat_autocorr.tif',
 				cv2.IMREAD_ANYDEPTH)
 
 	def setUp(self):
@@ -287,7 +287,7 @@ class TestIdentifyBestHistogram(unittest.TestCase):
 		self.threshold_finder_standin.tophat_im = self.tophat_im_from_file
 		self.threshold_finder_standin._identify_best_histogram()
 		expected_array_data = \
-			np.loadtxt('PIE_tests/test_ims/tophat_im_small_best_hist.csv',
+			np.loadtxt('tests/test_ims/tophat_im_small_best_hist.csv',
 				delimiter=',')
 		expected_x_pos = expected_array_data[0]
 		expected_ln_hist = expected_array_data[1]
@@ -308,7 +308,7 @@ class TestIdentifyBestHistogram(unittest.TestCase):
 			np.tile(self.tophat_im_from_file, (5,5))
 		self.threshold_finder_standin._identify_best_histogram()
 		expected_array_data = \
-			np.loadtxt('PIE_tests/test_ims/tophat_im_small_5x5_best_hist.csv',
+			np.loadtxt('tests/test_ims/tophat_im_small_5x5_best_hist.csv',
 				delimiter=',')
 		expected_x_pos = expected_array_data[0]
 		expected_ln_hist = expected_array_data[1]
@@ -330,7 +330,7 @@ class TestIdentifyBestHistogram(unittest.TestCase):
 			self.tophat_im_with_autocorr_from_file
 		self.threshold_finder_standin._identify_best_histogram()
 		expected_array_data = \
-			np.loadtxt('PIE_tests/test_ims/tophat_im_small_autocorr_best_hist.csv',
+			np.loadtxt('tests/test_ims/tophat_im_small_autocorr_best_hist.csv',
 				delimiter=',')
 		expected_x_pos = expected_array_data[0]
 		expected_ln_hist = expected_array_data[1]

@@ -10,8 +10,8 @@ from numpy.testing import assert_array_equal
 
 def _set_up_edge_detector(im_name, cleanup, max_proportion_exposed_edge):
 	# read in images
-	im_path = os.path.join('PIE_tests', 'test_ims', (im_name + '.tif'))
-	center_path = os.path.join('PIE_tests', 'test_ims',
+	im_path = os.path.join('tests', 'test_ims', (im_name + '.tif'))
+	center_path = os.path.join('tests', 'test_ims',
 		(im_name + '_cell_centers.tif'))
 	input_im = cv2.imread(im_path, cv2.IMREAD_ANYDEPTH)
 	cell_centers = cv2.imread(center_path, cv2.IMREAD_ANYDEPTH).astype(bool)
@@ -26,13 +26,13 @@ class TestGetPiePieces(unittest.TestCase):
 
 	edge_detector_standin = object.__new__(_EdgeDetector)
 	edge_detector_standin.input_im = \
-		cv2.imread('PIE_tests/test_ims/test_im_small.tif',
+		cv2.imread('tests/test_ims/test_im_small.tif',
 			cv2.IMREAD_ANYDEPTH)
 	pie_quadrants = ['i', 'ii', 'iii', 'iv']
 	expected_pie_piece_dict = dict()
 	for current_quadrant in pie_quadrants:
 		expected_pie_piece_dict[current_quadrant] = \
-			cv2.imread('PIE_tests/test_ims/test_im_small_pie_pieces_' +
+			cv2.imread('tests/test_ims/test_im_small_pie_pieces_' +
 				current_quadrant + '.tif', cv2.IMREAD_ANYDEPTH).astype(bool)
 
 	def test_get_pie_pieces(self):
@@ -172,10 +172,10 @@ class TestCreateInitialColonyMask(unittest.TestCase):
 	def _compare_overlays(self, im_name):
 		hole_fill_area = 0
 		# read in images
-		im_path = os.path.join('PIE_tests', 'test_ims', (im_name + '.tif'))
-		center_path = os.path.join('PIE_tests', 'test_ims',
+		im_path = os.path.join('tests', 'test_ims', (im_name + '.tif'))
+		center_path = os.path.join('tests', 'test_ims',
 			(im_name + '_cell_centers.tif'))
-		initial_overlay_path = os.path.join('PIE_tests', 'test_ims',
+		initial_overlay_path = os.path.join('tests', 'test_ims',
 			(im_name + '_initial_overlay.tif'))
 		input_im = cv2.imread(im_path, cv2.IMREAD_ANYDEPTH)
 		cell_centers = cv2.imread(center_path, cv2.IMREAD_ANYDEPTH).astype(bool)
@@ -488,7 +488,7 @@ class TestSingleRoundEdgeFiltering(unittest.TestCase):
 		edge_detector = \
 			_set_up_edge_detector(
 				'EP_160110_t02xy1005_small', True, max_proportion_exposed_edge)
-		initial_colony_mask_path = os.path.join('PIE_tests', 'test_ims',
+		initial_colony_mask_path = os.path.join('tests', 'test_ims',
 			'EP_160110_t02xy1005_small_initial_overlay.tif')
 		initial_colony_mask = cv2.imread(initial_colony_mask_path,
 			cv2.IMREAD_ANYDEPTH).astype(bool)
@@ -500,7 +500,7 @@ class TestSingleRoundEdgeFiltering(unittest.TestCase):
 			current_pie_piece_im_name = 'EP_160110_t02xy1005_small_round1_pie_' + \
 				pie_quad_name + '_edge_cleared'
 			expected_pie_edge_mask_path = \
-				os.path.join('PIE_tests', 'test_ims',
+				os.path.join('tests', 'test_ims',
 					(current_pie_piece_im_name + '.tif'))
 			expected_edge_filtered_mask = \
 				cv2.imread(expected_pie_edge_mask_path,
@@ -548,10 +548,10 @@ class TestSingleRoundNeighborFiltering(unittest.TestCase):
 			edge_filtered_pie_mask_file_name = 'EP_160110_t02xy1005_small_round1_pie_' + \
 				pie_quad_name + '_edge_cleared.tif'
 			edge_mask_path = \
-				os.path.join('PIE_tests', 'test_ims',
+				os.path.join('tests', 'test_ims',
 					edge_filtered_pie_mask_file_name)
 			labeled_pie_piece_path = \
-				os.path.join('PIE_tests', 'test_ims',
+				os.path.join('tests', 'test_ims',
 					labeled_pie_piece_file_name)
 			pie_piece_quadrant.edge_filtered_pie_mask = \
 				cv2.imread(edge_mask_path,
@@ -572,7 +572,7 @@ class TestSingleRoundNeighborFiltering(unittest.TestCase):
 			current_pie_piece_im_name = 'EP_160110_t02xy1005_small_round1_pie_' + \
 				pie_quad_name
 			neighbor_mask_path = \
-				os.path.join('PIE_tests', 'test_ims',
+				os.path.join('tests', 'test_ims',
 					(current_pie_piece_im_name + '_neighbor_cleared.tif'))
 			expected_neighbor_filtered_mask = \
 				cv2.imread(neighbor_mask_path,
@@ -597,7 +597,7 @@ class TestRunCleanup(unittest.TestCase):
 		edge_detector.hole_fill_area = hole_fill_area
 		# edge_detector needs input_im for size
 		# (and to overlay masks onto in case of failed test)
-		im_path = os.path.join('PIE_tests', 'test_ims', (im_name + '.tif'))
+		im_path = os.path.join('tests', 'test_ims', (im_name + '.tif'))
 		edge_detector.input_im = cv2.imread(im_path, cv2.IMREAD_ANYDEPTH)
 		# create 'pie' quadrants
 		edge_detector.pie_piece_position_dict = \
@@ -617,10 +617,10 @@ class TestRunCleanup(unittest.TestCase):
 			current_pie_piece_im_name = im_name + '_pie_' + \
 				pie_quad_name
 			pie_piece_path = \
-				os.path.join('PIE_tests', 'test_ims',
+				os.path.join('tests', 'test_ims',
 					(current_pie_piece_im_name + '_pie_pieces_cell_center_cleared.tif'))
 			labeled_pie_piece_path = \
-				os.path.join('PIE_tests', 'test_ims',
+				os.path.join('tests', 'test_ims',
 					(current_pie_piece_im_name + '_labeled_pie_mask.tif'))
 			pie_piece_quadrant.cell_overlap_pie_mask = \
 				cv2.imread(pie_piece_path,
@@ -629,11 +629,11 @@ class TestRunCleanup(unittest.TestCase):
 				cv2.imread(labeled_pie_piece_path,
 					cv2.IMREAD_ANYDEPTH)
 		# load initial colony masks
-		initial_colony_mask_file = os.path.join('PIE_tests', 'test_ims',
+		initial_colony_mask_file = os.path.join('tests', 'test_ims',
 			(im_name + '_initial_overlay.tif'))
-		colony_mask_filled_holes_file = os.path.join('PIE_tests', 'test_ims',
+		colony_mask_filled_holes_file = os.path.join('tests', 'test_ims',
 			(im_name + '_colony_mask.tif'))
-		expected_colony_mask_filled_holes_file = os.path.join('PIE_tests',
+		expected_colony_mask_filled_holes_file = os.path.join('tests',
 			'test_ims', (im_name + '_colony_mask_cleanup.tif'))
 		initial_colony_mask = cv2.imread(initial_colony_mask_file,
 			cv2.IMREAD_ANYDEPTH).astype(bool)
@@ -672,14 +672,14 @@ class TestRunEdgeDetection(unittest.TestCase):
 	def _compare_overlays(self, im_name, cleanup):
 		hole_fill_area = np.inf
 		# read in images
-		im_path = os.path.join('PIE_tests', 'test_ims', (im_name + '.tif'))
-		center_path = os.path.join('PIE_tests', 'test_ims',
+		im_path = os.path.join('tests', 'test_ims', (im_name + '.tif'))
+		center_path = os.path.join('tests', 'test_ims',
 			(im_name + '_cell_centers.tif'))
 		if cleanup:
-			colony_mask_path = os.path.join('PIE_tests', 'test_ims',
+			colony_mask_path = os.path.join('tests', 'test_ims',
 				(im_name + '_colony_mask_cleanup.tif'))
 		else:
-			colony_mask_path = os.path.join('PIE_tests', 'test_ims',
+			colony_mask_path = os.path.join('tests', 'test_ims',
 				(im_name + '_colony_mask.tif'))
 		input_im = cv2.imread(im_path, cv2.IMREAD_ANYDEPTH)
 		cell_centers = cv2.imread(center_path, cv2.IMREAD_ANYDEPTH).astype(bool)

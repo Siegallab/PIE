@@ -29,6 +29,6 @@ def show_mask_diffs(green_mask, mag_mask, im, im_name):
 	green_mag_im = create_color_overlay(green_im, mag_pixels, [255, 0, 255], 1)
 	bound_im_1 = create_color_overlay(green_mag_im, green_bounds, [0, 255, 0], 0.5)
 	bound_im_2 = create_color_overlay(bound_im_1, mag_bounds, [255, 0, 255], 0.5)
-	out_path = os.path.join('PIE_tests', 'test_ims',
+	out_path = os.path.join('tests', 'test_ims',
 		('test_overlap_' + im_name + '.tif'))
 	cv2.imwrite(out_path, bound_im_2 * 2**8)

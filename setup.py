@@ -57,7 +57,7 @@ setup(
     author_email='eugene.plavskin@nyu.edu, sl2803@nyu.edu',
     license='New BSD',
     license_file='LICENSE',
-    packages=find_packages(exclude=('PIE_tests',)),
+    packages=find_packages(exclude=('tests',)),
     include_package_data=True,
     test_suite='nose.collector',
     extras_require=extras_require,

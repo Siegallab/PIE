@@ -42,7 +42,7 @@ class TestSmoothLogHistogram(unittest.TestCase):
 	def setUp(self):
 		self.log_hist_smoother_standin = object.__new__(_LogHistogramSmoother)
 		hist_array_data = \
-			np.loadtxt('PIE_tests/test_ims/tophat_im_small_best_hist.csv',
+			np.loadtxt('tests/test_ims/tophat_im_small_best_hist.csv',
 				delimiter=',')
 		self.ln_tophat_hist = hist_array_data[1]
 		self.expected_ln_tophat_smooth = hist_array_data[2]

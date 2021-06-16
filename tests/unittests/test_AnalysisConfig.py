@@ -20,7 +20,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		self.cleanup = True
 		self.max_proportion_exposed_edge = 0.75
 		self.input_path = os.path.join('PIE_test_data','IN','SL_170619_2_GR_small')
-		self.output_path = os.path.join('PIE_tests','temp_out')
+		self.output_path = os.path.join('tests','temp_out')
 		self.im_file_extension = 'tif'
 		self.label_order_list = ['channel', 'timepoint', 'position']
 		self.max_xy_position_num = 1000

@@ -5,10 +5,10 @@ import shutil
 import unittest
 import PIE
 import numpy as np
-from PIE_tests.functionaltests.check_output_files import OutputChecker, make_setup_filepath_standin
+from tests.functionaltests.check_output_files import OutputChecker, make_setup_filepath_standin
 from io import StringIO
 
-output_path = 'PIE_tests/test_functional_output_dir'
+output_path = 'tests/test_functional_output_dir'
 
 class ParentTestClass(object):
 	'''
@@ -21,7 +21,7 @@ class ParentTestClass(object):
 		Tests running full single-phase experiment
 		'''
 		expected_output_path = os.path.join(
-			'PIE_tests',
+			'tests',
 			'expected_ft_outputs',
 			'SL_170619_2_GR_small_expected_out'
 			)
@@ -35,7 +35,7 @@ class ParentTestClass(object):
 		Tests running full single-phase experiment without setup file
 		'''
 		expected_output_path = os.path.join(
-			'PIE_tests',
+			'tests',
 			'expected_ft_outputs',
 			'SL_170619_2_GR_small_expected_out'
 			)
@@ -48,7 +48,7 @@ class ParentTestClass(object):
 		fluorescence imaging
 		'''
 		expected_output_path = os.path.join(
-			'PIE_tests',
+			'tests',
 			'expected_ft_outputs',
 			'EP_170202_small_expected_out'
 			)
@@ -63,7 +63,7 @@ class ParentTestClass(object):
 		Tests running full two-phase experiment
 		'''
 		expected_output_path = os.path.join(
-			'PIE_tests',
+			'tests',
 			'expected_ft_outputs',
 			'SL_180519_small_expected_out'
 			)

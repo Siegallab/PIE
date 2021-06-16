@@ -12,12 +12,12 @@ class TestInit(unittest.TestCase):
 		'''
 		Test initialization of _PiePiece object
 		'''
-		Gx = np.genfromtxt('PIE_tests/test_ims/test_im_small_Gx.csv',
+		Gx = np.genfromtxt('tests/test_ims/test_im_small_Gx.csv',
 			delimiter=',')
-		Gy = np.genfromtxt('PIE_tests/test_ims/test_im_small_Gy.csv',
+		Gy = np.genfromtxt('tests/test_ims/test_im_small_Gy.csv',
 			delimiter=',')
 		expected_pie_i_overlay = \
-			cv2.imread('PIE_tests/test_ims/test_im_small_pie_pieces_i.tif',
+			cv2.imread('tests/test_ims/test_im_small_pie_pieces_i.tif',
 			cv2.IMREAD_ANYDEPTH).astype(bool)
 		Gx_right = Gx < 0
 		Gy_top = Gy > 0
@@ -35,17 +35,17 @@ class TestIDCenterOverlappingPieces(unittest.TestCase):
 		'''
 		self.pie_piece_standin = object.__new__(_PiePiece)
 		self.cell_centers = \
-			cv2.imread('PIE_tests/test_ims/test_im_small_cell_centers.tif',
+			cv2.imread('tests/test_ims/test_im_small_cell_centers.tif',
 				cv2.IMREAD_ANYDEPTH).astype(bool)
 		pie_quadrants = ['i', 'ii', 'iii', 'iv']
 		self.input_and_output_pie_quadrants = []
 		for current_quadrant in pie_quadrants:
 			pie_quadrant = \
-				cv2.imread('PIE_tests/test_ims/test_im_small_pie_pieces_' +
+				cv2.imread('tests/test_ims/test_im_small_pie_pieces_' +
 					current_quadrant + '.tif', cv2.IMREAD_ANYDEPTH).astype(bool)
 			pie_quadrant_selected = \
 				cv2.imread(
-					'PIE_tests/test_ims/test_im_small_pie_pieces_center_overlap_' +
+					'tests/test_ims/test_im_small_pie_pieces_center_overlap_' +
 					current_quadrant + '.tif', cv2.IMREAD_ANYDEPTH).astype(bool)
 			current_input_output_tuple = \
 				tuple([pie_quadrant, pie_quadrant_selected])

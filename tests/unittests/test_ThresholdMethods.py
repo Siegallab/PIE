@@ -90,7 +90,7 @@ class TestIDStartingVals(unittest.TestCase):
 	@classmethod
 	def setUpClass(self):
 		self.array_data = \
-			np.loadtxt('PIE_tests/test_ims/tophat_im_small_best_hist.csv',
+			np.loadtxt('tests/test_ims/tophat_im_small_best_hist.csv',
 				delimiter=',')
 
 	def test_small_im_hist(self):
@@ -219,7 +219,7 @@ class TestFitGaussians(unittest.TestCase):
 	@classmethod
 	def setUpClass(self):
 		array_data = \
-			np.loadtxt('PIE_tests/test_ims/tophat_im_small_best_hist.csv',
+			np.loadtxt('tests/test_ims/tophat_im_small_best_hist.csv',
 				delimiter=',')
 		self.x = array_data[0]
 		self.y = array_data[2]
@@ -395,7 +395,7 @@ class TestFitThresholdWithDistantPeaks(unittest.TestCase):
 	@classmethod
 	def setUpClass(self):
 		self.array_data = \
-			np.loadtxt('PIE_tests/test_ims/tophat_im_small_best_hist.csv',
+			np.loadtxt('tests/test_ims/tophat_im_small_best_hist.csv',
 				delimiter=',')
 
 	def setUp(self):
@@ -475,7 +475,7 @@ class TestIDThreshold_mu1Pos(unittest.TestCase):
 	@classmethod
 	def setUpClass(self):
 		self.array_data = \
-			np.loadtxt('PIE_tests/test_ims/tophat_im_small_best_hist.csv',
+			np.loadtxt('tests/test_ims/tophat_im_small_best_hist.csv',
 				delimiter=',')
 
 	def setUp(self):
@@ -578,7 +578,7 @@ class TestIDThreshold_mu1Released(unittest.TestCase):
 	@classmethod
 	def setUpClass(self):
 		self.array_data = \
-			np.loadtxt('PIE_tests/test_ims/tophat_im_small_best_hist.csv',
+			np.loadtxt('tests/test_ims/tophat_im_small_best_hist.csv',
 				delimiter=',')
 
 	def setUp(self):
