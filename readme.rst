@@ -54,9 +54,9 @@ Where:
 
 See `Running PIE single-image analysis <https://pie-image.readthedocs.io/en/latest/single_im_analysis.html>`_ for details on the inputs and outputs, as well as additional analysis options.
 
-.. note:: **Filepaths on Windows**
+    .. note::
 
-    If your path contains backslash ('\\') characters (e.g. on Windows) you will need to use a double backslash instead ('\\\\') when specifying the path
+        If your path contains backslash ('\\') characters (e.g. on Windows) you will need to use a double backslash instead ('\\\\') when specifying the path
 
 Analyzing timelapse experiments
 -------------------------------
