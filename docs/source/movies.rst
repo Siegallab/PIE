@@ -27,6 +27,12 @@ For example, the code below generates a *.gif*-format movie for any colonies in 
 
 .. tabs::
 
+    .. tab:: command-line
+
+        .. code-block:: bash
+
+            pie make_position_movie 12 /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv -s growing -m gif
+
     .. tab:: python
 
         .. code-block:: python
@@ -39,12 +45,6 @@ For example, the code below generates a *.gif*-format movie for any colonies in 
                 colony_subset='growing',
                 movie_format = 'gif'
                 )
-
-    .. tab:: command-line
-
-        .. code-block:: bash
-
-            pie make_position_movie 12 /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv -s growing -m gif
 
 This code should generate the following movie in the **movies** directory in the output folder of the experiment:
 

@@ -73,6 +73,12 @@ To run a full image analysis experiment using PIE, you can use the ``run_timelap
 
 .. tabs::
 
+    .. tab:: command-line
+
+        .. code-block:: bash
+
+            pie run_timelapse_analysis /full/path/to/setup_file.csv
+            
     .. tab:: python
 
         .. code-block:: python
@@ -82,13 +88,7 @@ To run a full image analysis experiment using PIE, you can use the ``run_timelap
                 '/full/path/to/setup_file.csv'
                 )
 
-    .. tab:: command-line
-
-        .. code-block:: bash
-
-            pie run_timelapse_analysis /full/path/to/setup_file.csv
-
-.. note:: Replace ``/full/path/to/setup_file.csv`` in the code above with the full path to the setup file for your experiment; also, see :doc:`Sample Experiments <sample_experiments>`. For file path format of Windows, MacOS or Unix, please refer to examples in :doc:`Running PIE single-image analysis <single_im_analysis>`. 
+.. note:: Replace ``/full/path/to/setup_file.csv`` in the code above with the full path to the setup file for your experiment; also, see :doc:`Sample Experiments <sample_experiments>`. For file path format of Windows, MacOS or Unix, please refer to **Examples** in :ref:`Running PIE single-image analysis <single_im_analysis_code>`. 
 
 Although many modifications to experiment setup and analysis can be made (see below), these changes are achieved by altering the setup file; all experiments can then be run using the code above.
 

@@ -1,7 +1,7 @@
 Parameter,Value,PhaseNum,Explanation
-output_path,PIE_test_data/out/EP_170202_small,all,Full path to folder from in which image analysis and growth rate outputs will be stored ACROSS ALL PHASES
-input_path,PIE_test_data/IN/EP_170202_small/EP_170202_2_GR,1,Full path to folder from which images for this phase will be drawn (PHASE-SPECIFIC)
-input_path,PIE_test_data/IN/EP_170202_small/EP_170202_2_FC,2,Full path to folder from which images for this phase will be drawn (PHASE-SPECIFIC)
+output_path,PIE_test_data/out/EP_170202_small,all,Full path to folder from in which image analysis and growth rate outputs will be stored ACROSS ALL PHASES. Note: if your path contains backslash ('\') characters (e.g. on Windows) you will need to use a double backslash instead ('\\') when specifying the path
+input_path,PIE_test_data/IN/EP_170202_small/EP_170202_2_GR,1,Full path to folder from which images for this phase will be drawn (PHASE-SPECIFIC). Note: if your path contains backslash ('\') characters (e.g. on Windows) you will need to use a double backslash instead ('\\') when specifying the path
+input_path,PIE_test_data/IN/EP_170202_small/EP_170202_2_FC,2,Full path to folder from which images for this phase will be drawn (PHASE-SPECIFIC). Note: if your path contains backslash ('\') characters (e.g. on Windows) you will need to use a double backslash instead ('\\') when specifying the path
 im_format,individual,all,Format in which images are saved; can be either 'individual' (i.e. where every timepoint-position-channel combination is saved to its own image) or 'stack' (i.e. where every image at a position is saved to a single file)
 im_file_extension,jpg,1,File extension for image files in input_dir
 im_file_extension,tif,2,File extension for image files in input_dir

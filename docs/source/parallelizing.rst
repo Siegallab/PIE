@@ -10,6 +10,12 @@ To analyze each imaged position individually (e.g. via batch jobs), you need to 
 
 .. tabs::
 
+    .. tab:: command-line
+
+        .. code-block:: bash
+
+            pie track_single_pos 11 /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv
+
     .. tab:: python
 
         .. code-block:: python
@@ -19,12 +25,6 @@ To analyze each imaged position individually (e.g. via batch jobs), you need to 
                 11,
                 '/local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv'
                 )
-
-    .. tab:: command-line
-
-        .. code-block:: bash
-
-            pie track_single_pos 11 /local/path/to/PIE/sample_PIE_setup_files/gr_phase_setup.csv
 
 Combining position-wise data and calculating growth rates
 ---------------------------------------------------------

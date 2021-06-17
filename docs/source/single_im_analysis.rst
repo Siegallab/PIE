@@ -7,7 +7,7 @@ Inputs
 ^^^^^^
 
 + **input_im_path**: *{path}*
-    the path to the image to be analyzed
+    the path to the image to be analyzed.
 + **output_path**: *{path}*
     the directory in which image analysis folders should be created
 + **image_type**: *{'bright' or 'dark'}*
@@ -23,7 +23,73 @@ Inputs
 + **save_extra_info**: *{True or False} optional, default True*
     whether to write additional files described above
 
+.. _single_im_analysis_code:
+
 .. tabs::
+
+    .. tab:: command-line
+
+        .. code-block:: bash
+
+            pie analyze_single_image INPUT_IM_PATH OUTPUT_PATH IMAGE_TYPE
+
+        or, with options
+
+        .. code-block:: bash
+
+            pie analyze_single_image INPUT_IM_PATH OUTPUT_PATH IMAGE_TYPE -h HOLE_FILL_AREA -c CLEANUP -m MAX_PROPORTION_EXPOSED_EDGE -s SAVE_EXTRA_INFO
+
+        .. note::
+
+            Inputs besides **INPUT_IM_PATH**, **OUTPUT_PATH**, and **IMAGE_TYPE** are optional.
+
+        .. admonition:: Windows cmd Examples
+            :class: dropdown, tip
+
+            Analyze an image with bright cells on a dark background, *E:\\trial\\my_image.tif*, and save outputs in a new folder called *E:\\trial_output_images*
+
+            .. code-block:: console
+
+                pie analyze_single_image E:\\trial\\t01xy0001.tif E:\\trial_output_images bright
+
+            or, with **cleanup** set to *True* and **hole_fill_area** set to *40*:
+
+            .. code-block:: console
+
+                pie analyze_single_image E:\\trial\\t01xy0001.tif E:\\trial_output_images bright -h 40 -c True
+
+            .. caution::
+
+                You will need to use a double backslash ('\\\\') instead of any backslash ('\\') characters in any file paths.
+
+                If your filepath has a space in it, you will need to surround the path name with quotation marks, e.g.:
+
+                .. code-block:: console
+
+                    pie analyze_single_image E:\\trial\\t01xy0001.tif "E:\\my output folder" bright
+
+        .. admonition:: MacOS/Unix Terminal Examples
+            :class: dropdown, tip
+
+            Analyze an image with bright cells on a dark background, *~/trial/my_image.tif*, and save outputs in a new folder called *~/trial_output_images*
+
+            .. code-block:: console
+
+                pie analyze_single_image ~/trial/t01xy0001.tif ~/trial_output_images bright
+
+            or, with **cleanup** set to *True* and **hole_fill_area** set to *40*:
+
+            .. code-block:: console
+
+                pie analyze_single_image ~/trial/t01xy0001.tif ~/trial_output_images bright -h 40 -c True
+
+            .. caution::
+
+                If your filepath has a space in it, you will need to prepend the space with '\\', e.g.:
+
+                .. code-block:: console
+
+                    pie analyze_single_image ~/trial/t01xy0001.tif ~/my\ output\ folder bright
 
     .. tab:: python
 
@@ -63,8 +129,8 @@ Inputs
                 import PIE
                 colony_mask, colony_property_df = \
                     PIE.analyze_single_image(
-                        'E:\trial\my_image.tif',
-                        'E:\my output folder',
+                        'E:\\trial\\my_image.tif',
+                        'E:\\my output folder',
                         'bright'
                         )
 
@@ -75,78 +141,20 @@ Inputs
                 import PIE
                 colony_mask, colony_property_df = \
                     PIE.analyze_single_image(
-                        'E:\trial\my_image.tif',
-                        'E:\my output folder',
+                        'E:\\trial\\my_image.tif',
+                        'E:\\my output folder',
                         'bright',
                         hole_fill_area = 40,
                         cleanup = True
                         )
 
+            .. caution::
+
+                You will need to use a double backslash ('\\\\') instead of any backslash ('\\') characters in any file paths.
+
             .. note::
 
                 These examples use Windows path format. For MacOS/Unix Terminal, replace **input_im_path** with the format ~/trial/my_image.tif and **output_path** with the format ~/trial_output_images.
-
-    .. tab:: command-line
-
-        .. code-block:: bash
-
-            pie analyze_single_image INPUT_IM_PATH OUTPUT_PATH IMAGE_TYPE
-
-        or, with options
-
-        .. code-block:: bash
-
-            pie analyze_single_image INPUT_IM_PATH OUTPUT_PATH IMAGE_TYPE -h HOLE_FILL_AREA -c CLEANUP -m MAX_PROPORTION_EXPOSED_EDGE -s SAVE_EXTRA_INFO
-
-        .. note::
-
-            Inputs besides **INPUT_IM_PATH**, **OUTPUT_PATH**, and **IMAGE_TYPE** are optional.
-
-        .. admonition:: Windows cmd Examples
-            :class: dropdown, tip
-
-            Analyze an image with bright cells on a dark background, *E:\\trial\\my_image.tif*, and save outputs in a new folder called *E:\\trial_output_images*
-
-            .. code-block:: console
-
-                pie analyze_single_image E:\trial\t01xy0001.tif E:\trial_output_images bright
-
-            or, with **cleanup** set to *True* and **hole_fill_area** set to *40*:
-
-            .. code-block:: console
-
-                pie analyze_single_image E:\trial\t01xy0001.tif E:\trial_output_images bright -h 40 -c True
-
-            .. caution::
-
-                If your filepath has a space in it, you will need to surround the path name with quotation marks, e.g.:
-
-                .. code-block:: console
-
-                    pie analyze_single_image E:\trial\t01xy0001.tif "E:\my output folder" bright
-
-        .. admonition:: MacOS/Unix Terminal Examples
-            :class: dropdown, tip
-
-            Analyze an image with bright cells on a dark background, *~/trial/my_image.tif*, and save outputs in a new folder called *~/trial_output_images*
-
-            .. code-block:: console
-
-                pie analyze_single_image ~/trial/t01xy0001.tif ~/trial_output_images bright
-
-            or, with **cleanup** set to *True* and **hole_fill_area** set to *40*:
-
-            .. code-block:: console
-
-                pie analyze_single_image ~/trial/t01xy0001.tif ~/trial_output_images bright -h 40 -c True
-
-            .. caution::
-
-                If your filepath has a space in it, you will need to prepend the space with '\\', e.g.:
-
-                .. code-block:: console
-
-                    pie analyze_single_image ~/trial/t01xy0001.tif ~/my\ output\ folder bright
 
 Outputs
 ^^^^^^^

@@ -1,6 +1,6 @@
 Parameter,Value,PhaseNum,Explanation
-output_path,PIE_test_data/out/SL_170619_2_GR_small,1,Full path to folder from in which image analysis and growth rate outputs will be stored ACROSS ALL PHASES
-input_path,PIE_test_data/IN/SL_170619_2_GR_small,1,Full path to folder from which images for this phase will be drawn (PHASE-SPECIFIC)
+output_path,PIE_test_data/out/SL_170619_2_GR_small,1,Full path to folder from in which image analysis and growth rate outputs will be stored ACROSS ALL PHASES. Note: if your path contains backslash ('\') characters (e.g. on Windows) you will need to use a double backslash instead ('\\') when specifying the path
+input_path,PIE_test_data/IN/SL_170619_2_GR_small,1,Full path to folder from which images for this phase will be drawn (PHASE-SPECIFIC). Note: if your path contains backslash ('\') characters (e.g. on Windows) you will need to use a double backslash instead ('\\') when specifying the path
 im_format,individual,1,Format in which images are saved; can be either 'individual' (i.e. where every timepoint-position-channel combination is saved to its own image) or 'stack' (i.e. where every image at a position is saved to a single file)
 im_file_extension,tif,1,File extension for image files in input_dir
 main_channel_imagetype,bright,1,Type of image in the main channel of this phase; can be 'bright' if cell bodies are brighter than background or 'dark' if they are darker than background (e.g. in phase contrast images)

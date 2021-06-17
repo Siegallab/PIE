@@ -1,5 +1,5 @@
 Install and upgrade PIE
-==============
+=======================
 
 Requirements
 ------------
@@ -30,6 +30,10 @@ PIE can be installed using `pip <https://pip.pypa.io/en/stable/>`_, which should
         .. code-block:: bash
 
             python -m pip install git+https://github.com/Siegallab/PIE
+
+        .. warning::
+
+            OpenCV, one of the key packages required for PIE, cannot yet be automatically installed on computers with Apple M1 CPUs. If your computer has an Apple M1 CPU, you will need to first build OpenCV on your computer following `these instructions <https://sayak.dev/install-opencv-m1/>`_, **before installing PIE** as described above. We expect this issue to be resolved in the near future.
 
     .. tab:: Windows
 
