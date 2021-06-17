@@ -30,6 +30,7 @@ class TestGetOverlap(unittest.TestCase):
 	def setUp(self):
 		self.colony_tracker = \
 			track_colonies.ColonyTracker()
+		self.colony_tracker.perform_registration = True
 
 	def test_get_overlap_t5t6(self):
 		'''

@@ -4,7 +4,7 @@ import unittest
 import cv2
 import numpy as np
 import os
-from PIE.colony_edge_detect import _EdgeDetector, _PiePiece
+from PIE.colony_edge_detect import EdgeDetector, _PiePiece
 import PIE.general_testing_functions as general_pie_testing_functions
 from numpy.testing import assert_array_equal
 
@@ -16,7 +16,7 @@ def _set_up_edge_detector(im_name, cleanup, max_proportion_exposed_edge):
 	input_im = cv2.imread(im_path, cv2.IMREAD_ANYDEPTH)
 	cell_centers = cv2.imread(center_path, cv2.IMREAD_ANYDEPTH).astype(bool)
 	# find pie pieces in initialization
-	edge_detector = _EdgeDetector(input_im, cell_centers, None, cleanup,
+	edge_detector = EdgeDetector(input_im, cell_centers, None, cleanup,
 		max_proportion_exposed_edge)
 	# create overlap of each piece piece with cell center
 	edge_detector._create_inital_colony_mask()
@@ -24,7 +24,7 @@ def _set_up_edge_detector(im_name, cleanup, max_proportion_exposed_edge):
 
 class TestGetPiePieces(unittest.TestCase):
 
-	edge_detector_standin = object.__new__(_EdgeDetector)
+	edge_detector_standin = object.__new__(EdgeDetector)
 	edge_detector_standin.input_im = \
 		cv2.imread('tests/test_ims/test_im_small.tif',
 			cv2.IMREAD_ANYDEPTH)
@@ -48,7 +48,7 @@ class TestFillHoles(unittest.TestCase):
 
 	@classmethod
 	def setUpClass(self):
-		self.edge_detector_standin = object.__new__(_EdgeDetector)
+		self.edge_detector_standin = object.__new__(EdgeDetector)
 		self.input_mask = np.array([
 			[False, False, False,  False, True,  True,  True],
 			[False, False, False,  False, True,  False,  True],
@@ -103,7 +103,7 @@ class TestClearMaskEdges(unittest.TestCase):
 
 	@classmethod
 	def setUpClass(self):
-		self.edge_detector_standin = object.__new__(_EdgeDetector)
+		self.edge_detector_standin = object.__new__(EdgeDetector)
 
 	def test_clear_nothing(self):
 		'''
@@ -182,7 +182,7 @@ class TestCreateInitialColonyMask(unittest.TestCase):
 		expected_initial_colony_mask = \
 			cv2.imread(initial_overlay_path, cv2.IMREAD_ANYDEPTH).astype(bool)
 		# run initial overlay identification
-		edge_detector = _EdgeDetector(input_im, cell_centers, hole_fill_area,
+		edge_detector = EdgeDetector(input_im, cell_centers, hole_fill_area,
 			False, 0.25)
 		test_initial_colony_mask = edge_detector._create_inital_colony_mask()
 		if not np.array_equal(expected_initial_colony_mask,
@@ -209,7 +209,7 @@ class TestCreateTranslationMatrix(unittest.TestCase):
 
 	@classmethod
 	def setUpClass(self):
-		self.edge_detector_standin = object.__new__(_EdgeDetector)
+		self.edge_detector_standin = object.__new__(EdgeDetector)
 		self.edge_detector_standin.pie_piece_position_dict = \
 			{'i': np.array([[0, 1], [0, 0]]),
 			'ii': np.array([[1, 0], [0, 0]]),
@@ -340,7 +340,7 @@ class TestCreateTranslationMatrix(unittest.TestCase):
 class TestPerformNeighborFiltering(unittest.TestCase):
 
 	def setUp(self):
-		self.edge_detector_standin = object.__new__(_EdgeDetector)
+		self.edge_detector_standin = object.__new__(EdgeDetector)
 		self.edge_detector_standin.pie_piece_position_dict = \
 			{'i': np.array([[0, 1], [0, 0]]),
 			'ii': np.array([[1, 0], [0, 0]]),
@@ -526,7 +526,7 @@ class TestSingleRoundNeighborFiltering(unittest.TestCase):
 #		edge_detector = \
 #			_set_up_edge_detector(
 #				'EP_160110_t02xy1005_small', True, max_proportion_exposed_edge)
-		edge_detector = object.__new__(_EdgeDetector)
+		edge_detector = object.__new__(EdgeDetector)
 		edge_detector.max_proportion_exposed_edge = max_proportion_exposed_edge
 		# create 'pie' quadrants
 		edge_detector.pie_piece_position_dict = \
@@ -592,7 +592,7 @@ class TestRunCleanup(unittest.TestCase):
 
 	def _compare_cleanup_results(self, im_name, max_proportion_exposed_edge, hole_fill_area):
 		# set up pie pieces for EP_160110_t02xy1005_small
-		edge_detector = object.__new__(_EdgeDetector)
+		edge_detector = object.__new__(EdgeDetector)
 		edge_detector.max_proportion_exposed_edge = max_proportion_exposed_edge
 		edge_detector.hole_fill_area = hole_fill_area
 		# edge_detector needs input_im for size
@@ -658,7 +658,7 @@ class TestRunCleanup(unittest.TestCase):
 		'''
 		Test cleanup on EP_160110_t02xy1005_small
 		The colony mask created here differs from matlab results; see
-		comment in PIE.colony_edge_detect._EdgeDetector._run_cleanup
+		comment in PIE.colony_edge_detect.EdgeDetector._run_cleanup
 		In addition, hole filling is 4-connected in matlab, but
 		8-connected in python PIE code
 		'''
@@ -686,7 +686,7 @@ class TestRunEdgeDetection(unittest.TestCase):
 		expected_final_colony_mask = \
 			cv2.imread(colony_mask_path, cv2.IMREAD_ANYDEPTH).astype(bool)
 		# run initial overlay identification
-		edge_detector = _EdgeDetector(input_im, cell_centers, hole_fill_area, cleanup, 0.75)
+		edge_detector = EdgeDetector(input_im, cell_centers, hole_fill_area, cleanup, 0.75)
 		test_final_colony_mask = edge_detector.run_edge_detection()
 		if not np.array_equal(expected_final_colony_mask,
 			test_final_colony_mask):
@@ -724,7 +724,7 @@ class TestRunEdgeDetection(unittest.TestCase):
 		Test initial overlay creation + cleanup on
 		EP_160110_t02xy1005_small
 		The colony mask created here differs from matlab results; see
-		comment in PIE.colony_edge_detect._EdgeDetector._run_cleanup
+		comment in PIE.colony_edge_detect.EdgeDetector._run_cleanup
 		In addition, hole filling is 4-connected in matlab, but
 		8-connected in python PIE code
 		'''

@@ -18,7 +18,9 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		self.phase_num = 1
 		self.hole_fill_area = np.inf
 		self.cleanup = True
+		self.perform_registration = True
 		self.max_proportion_exposed_edge = 0.75
+		self.cell_intensity_num = 2
 		self.input_path = os.path.join('PIE_test_data','IN','SL_170619_2_GR_small')
 		self.output_path = os.path.join('tests','temp_out')
 		self.im_file_extension = 'tif'
@@ -73,8 +75,10 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.max_xy_position_num = self.max_xy_position_num
 		expected_analysis_config.hole_fill_area = self.hole_fill_area
 		expected_analysis_config.cleanup = self.cleanup
+		expected_analysis_config.perform_registration = self.perform_registration
 		expected_analysis_config.max_proportion_exposed_edge = \
 			self.max_proportion_exposed_edge
+		expected_analysis_config.cell_intensity_num = self.cell_intensity_num
 		expected_analysis_config.minimum_growth_time = self.minimum_growth_time
 		expected_analysis_config.growth_window_timepoints = \
 			self.growth_window_timepoints
@@ -127,9 +131,11 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.image_retriever = _IndivImageRetriever()
 		expected_analysis_config.extended_display_positions = [1,4,11]
 		# create analysis config
-		test_analysis_config = AnalysisConfig(self.phase_num, self.hole_fill_area,
-			self.cleanup, self.max_proportion_exposed_edge, self.input_path,
-			self.output_path, self.im_file_extension, self.label_order_list,
+		test_analysis_config = AnalysisConfig(
+			self.phase_num, self.hole_fill_area, self.cleanup, 
+			self.perform_registration, self.max_proportion_exposed_edge, 
+			self.cell_intensity_num, self.input_path, self.output_path,
+			self.im_file_extension, self.label_order_list,
 			self.max_xy_position_num, self.first_timepoint,
 			self.max_timepoint_num, self.timepoint_spacing,
 			self.timepoint_label_prefix, self.position_label_prefix,
@@ -140,7 +146,8 @@ class TestAnalysisConfigInit(unittest.TestCase):
 			self.growth_window_timepoints, self.max_area_pixel_decrease,
 			self.max_area_fold_decrease, self.max_area_fold_increase,
 			self.min_colony_area, self.max_colony_area, self.min_correlation,
-			self.min_foldX, self.min_neighbor_dist, self.max_colony_num)
+			self.min_foldX, self.min_neighbor_dist, self.max_colony_num
+			)
 		# create dicts to compare objects
 		test_attribute_dict = vars(test_analysis_config)
 		expected_attribute_dict = vars(expected_analysis_config)

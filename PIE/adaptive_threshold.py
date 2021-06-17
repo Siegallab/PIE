@@ -1119,12 +1119,12 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		# would be in self._fit_im
 		# Corresponding matlab PIE code behaves identically, but without
 		# the shift in center values, and without padding in self._fit_im
-		circle_mask = np.zeros((im_height+2*self._radius, im_width+2*self._radius), dtype = bool)
+		circle_mask = np.zeros((im_height+2*radius, im_width+2*radius), dtype = bool)
 		# only calculate mask within a reasonable window around the
 		# center, or it will be too computationally expensive/slow
 		# create arrays of distances from a shifted center point,
-		x_cent_dist_list_full = np.arange(0, im_width + self._radius*2) - (center_x - 0.5) - self._radius
-		y_cent_dist_list_full = np.arange(0, im_height + self._radius*2) - (center_y - 0.5) - self._radius
+		x_cent_dist_list_full = np.arange(0, im_width + radius*2) - (center_x - 0.5) - radius
+		y_cent_dist_list_full = np.arange(0, im_height + radius*2) - (center_y - 0.5) - radius
 #		x_cent_dist_list = \
 #			x_cent_dist_list_full[
 #				np.logical_and(

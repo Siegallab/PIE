@@ -6,7 +6,7 @@ import shutil
 import warnings
 import numpy as np
 from numpy.testing import assert_array_equal
-from PIE.image_properties import _ImageAnalyzer
+from PIE.image_properties import ImageAnalyzer
 
 class TestSetUpFolders(unittest.TestCase):
 
@@ -15,7 +15,7 @@ class TestSetUpFolders(unittest.TestCase):
 		self.output_path = 'tests/test_output_dir'
 
 	def setUp(self):
-		self.image_analyzer_standin = object.__new__(_ImageAnalyzer)
+		self.image_analyzer_standin = object.__new__(ImageAnalyzer)
 
 	def test_folder_creation(self):
 		'''
@@ -56,36 +56,36 @@ class TestSetUpFolders(unittest.TestCase):
 class TestPrepImage(unittest.TestCase):
 
 	def setUp(self):
-		self.image_analyzer_standin = object.__new__(_ImageAnalyzer)
+		self.image_analyzer_standin = object.__new__(ImageAnalyzer)
 		self.image_analyzer_standin.original_im = \
 			np.uint16([[0, 1024, 2047], [0, 2047, 0]])
 
 	def test_bright(self):
 		'''
-		Tests input_im and norm_im creation for brightfield 11-bit image
+		Tests edge_input_im and norm_im creation for brightfield 11-bit image
 		'''
 		self.image_analyzer_standin.image_type = 'bright'
 		self.image_analyzer_standin._prep_image()
 		expected_norm_im = np.uint16([[0, 32784, 65535], [0, 65535, 0]])
-		expected_input_im = np.copy(expected_norm_im)
+		expected_edge_input_im = np.copy(expected_norm_im)
 		assert_array_equal(expected_norm_im,
 			self.image_analyzer_standin.norm_im)
-		assert_array_equal(expected_input_im,
-			self.image_analyzer_standin.input_im)
+		assert_array_equal(expected_edge_input_im,
+			self.image_analyzer_standin.edge_input_im)
 
 	def test_dark(self):
 		'''
-		Tests input_im and norm_im creation for phase constrast 11-bit
+		Tests edge_input_im and norm_im creation for phase constrast 11-bit
 		image, for which image should be inverted
 		'''
 		self.image_analyzer_standin.image_type = 'dark'
 		self.image_analyzer_standin._prep_image()
 		expected_norm_im = np.uint16([[0, 32784, 65535], [0, 65535, 0]])
-		expected_input_im = np.uint16([[65535, 32751, 0], [65535, 0, 65535]])
+		expected_edge_input_im = np.uint16([[65535, 32751, 0], [65535, 0, 65535]])
 		assert_array_equal(expected_norm_im,
 			self.image_analyzer_standin.norm_im)
-		assert_array_equal(expected_input_im,
-			self.image_analyzer_standin.input_im)
+		assert_array_equal(expected_edge_input_im,
+			self.image_analyzer_standin.edge_input_im)
 
 
 if __name__ == '__main__':
