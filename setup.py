@@ -24,7 +24,8 @@ tests_require = [
 
 
 extras_require = {
-    'tests': tests_require
+    'tests': tests_require,
+    'docs': 
 }
 
 
@@ -48,14 +49,25 @@ with open('readme.rst', 'rt') as f:
 setup(
     name='PIE',
     version=version,
-    description='Library for ...',
+    description=(
+        'Colony recognition and growth measurement for microbial imaging'
+        ),
     long_description=readme,
     long_description_content_type='text/markdown',
-    keywords='...',
+    keywords='image-analysis microscopy',
     url='https://github.com/Siegallab/PIE',
-    author='Yevgeniy Plavskin, Shuang Li',
-    author_email='eugene.plavskin@nyu.edu, sl2803@nyu.edu',
-    license='New BSD',
+    author=(
+        'Yevgeniy Plavskin, '
+        'Shuang Li, '
+        'Hyun Jung, '
+        'Federica M. O. Sartori, '
+        'Cassandra Buzby, '
+        'Heiko Müller, '
+        'Naomi Ziv, '
+        'Sasha F. Levy, '
+        'Mark L. Siegal'),
+    author_email='eugene.plavskin@nyu.edu, sl2803@nyu.edu, mark.siegal@nyu.edu',
+    license='MIT',
     license_file='LICENSE',
     packages=find_packages(exclude=('tests',)),
     include_package_data=True,
@@ -69,7 +81,7 @@ setup(
         ]
     },
     classifiers=[
-        'License :: OSI Approved :: BSD License',
+        'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.8',

@@ -18,8 +18,18 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'pie'
-copyright = '2021, Yevgeniy Plavskin, Shuang Li'
-author = 'Yevgeniy Plavskin, Shuang Li'
+copyright = '2021, New York University'
+author = (
+        'Yevgeniy Plavskin, '
+        'Shuang Li, '
+        'Hyun Jung, '
+        'Federica M. O. Sartori, '
+        'Cassandra Buzby, '
+        'Heiko Müller, '
+        'Naomi Ziv, '
+        'Sasha F. Levy, '
+        'Mark L. Siegal'
+        )
 
 
 # -- General configuration ---------------------------------------------------
