@@ -25,11 +25,11 @@ PIE can be installed using `pip <https://pip.pypa.io/en/stable/>`_, which should
 
     .. tab:: Unix/macOS 
 
-        If you are using a Linux or MacOS operating system, python comes pre-installed on your computer. All you need to do to install the PIE package is open the Terminal application, paste the following line, and press 'enter'.
+        If you are using a Linux or MacOS operating system, python comes pre-installed on your computer. All you need to do to install the latest stable version of the PIE package is open the Terminal application, paste the following line, and press 'enter'.
 
         .. code-block:: bash
 
-            python -m pip install git+https://github.com/Siegallab/PIE
+            python -m pip install git+https://github.com/Siegallab/PIE@1.0.0
 
         .. warning::
 
@@ -43,11 +43,11 @@ PIE can be installed using `pip <https://pip.pypa.io/en/stable/>`_, which should
 
             In order to be able to complete the PIE installation steps below, please make sure that you select "Add Python to PATH" during installation.
 
-        Once you have python installed, open the ``cmd`` program from the Start Menu, and type the following:
+        Once you have python installed, open the ``cmd`` program from the Start Menu, and type the following to install the latest stable version of the PIE package:
 
         .. code-block:: bash
 
-            py -m pip install git+https://github.com/Siegallab/PIE
+            py -m pip install git+https://github.com/Siegallab/PIE@1.0.0
 
         .. admonition:: Troubleshooting
             :class: dropdown, tip

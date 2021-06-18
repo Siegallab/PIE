@@ -27,13 +27,13 @@ In unix/macOS Terminal, run:
 
 .. code-block:: bash
 
-    python -m pip install git+https://github.com/Siegallab/PIE
+    python -m pip install git+https://github.com/Siegallab/PIE@1.0.0
 
 or, in Windows Command Prompt, run:
 
 .. code-block:: bash
 
-    py -m pip install git+https://github.com/Siegallab/PIE
+    py -m pip install git+https://github.com/Siegallab/PIE@1.0.0
 
 See `Installing PIE <https://pie-image.readthedocs.io/en/latest/installation.html>`_ for details.
 
