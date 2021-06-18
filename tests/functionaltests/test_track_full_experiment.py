@@ -8,7 +8,7 @@ import numpy as np
 from tests.functionaltests.check_output_files import OutputChecker, make_setup_filepath_standin
 from io import StringIO
 
-output_path = 'tests/test_functional_output_dir'
+output_path = os.path.join('tests','test_functional_output_dir')
 
 class ParentTestClass(object):
 	'''
@@ -88,16 +88,9 @@ class TestPythonRun(SetupTeardown, ParentTestClass):
 	def _run_full_analysis_test(self, analysis_config_filepath,
 		expected_output_path):
 		'''
-		Test running full experiment, both using analysis_config_file
-		and the object dataframe derived from it
+		Test running full experimen using analysis_config_file
 		'''
 		self._run_config_file_test(
-			analysis_config_filepath,
-			expected_output_path
-			)
-		shutil.rmtree(output_path)
-		self.output_checker = OutputChecker()
-		self._run_analysis_obj_df_test(
 			analysis_config_filepath,
 			expected_output_path
 			)

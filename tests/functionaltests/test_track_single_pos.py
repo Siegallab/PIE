@@ -4,10 +4,10 @@ import os
 import shutil
 import unittest
 import PIE
-from test.functionaltests.check_output_files import OutputChecker, make_setup_filepath_standin
+from tests.functionaltests.check_output_files import OutputChecker, make_setup_filepath_standin
 from io import StringIO
 
-output_path = os.path.join('test','test_functional_output_dir')
+output_path = os.path.join('tests','test_functional_output_dir')
 
 class ParentTestClass(object):
 	'''
@@ -21,7 +21,7 @@ class ParentTestClass(object):
 		position in single-phase experiment
 		'''
 		expected_output_path = os.path.join(
-			'test',
+			'tests',
 			'expected_ft_outputs',
 			'SL_170619_2_GR_small_expected_out'
 			)
@@ -39,7 +39,7 @@ class ParentTestClass(object):
 		position in single-phase experiment
 		'''
 		expected_output_path = os.path.join(
-			'test',
+			'tests',
 			'expected_ft_outputs',
 			'SL_170619_2_GR_small_expected_out'
 			)
@@ -57,7 +57,7 @@ class ParentTestClass(object):
 		position in two-phase experiment
 		'''
 		expected_output_path = os.path.join(
-			'test',
+			'tests',
 			'expected_ft_outputs',
 			'SL_180519_small_expected_out'
 			)
@@ -75,7 +75,7 @@ class ParentTestClass(object):
 		position in two-phase experiment
 		'''
 		expected_output_path = os.path.join(
-			'test',
+			'tests',
 			'expected_ft_outputs',
 			'EP_170202_small_expected_out'
 			)

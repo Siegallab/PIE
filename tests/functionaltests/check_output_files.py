@@ -12,7 +12,10 @@ def make_setup_filepath_standin(config_file_path, new_output_path):
 	Returns StringIO object standing for setup file in config_file_path,
 	but with output_path parameter changed to new_output_path
 	'''
-	os.mkdir(new_output_path)
+	try:
+		os.mkdir(new_output_path)
+	except:
+		pass
 	analysis_config_file_standin = os.path.join(new_output_path, 'temp_setup.csv')
 	analysis_config_df = pd.read_csv(config_file_path)
 	# set output path
@@ -182,7 +185,7 @@ class OutputChecker(unittest.TestCase):
 			for t in analysis_config.timepoint_list:
 				# get input im path and image name for main channel
 				input_filepath, main_channel_im_name = \
-					analysis_config._generate_filename(
+					analysis_config.generate_filename(
 						t, xy_pos_idx, analysis_config.main_channel_label)
 				# if input image exists, check existance of ouptut images
 				if os.path.isfile(input_filepath):
