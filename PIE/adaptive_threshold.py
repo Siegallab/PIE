@@ -1028,6 +1028,8 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 		# number of neighboring circles to sum/average over when
 		# calculating threshold position
 		self._area_sum_sliding_window_size = 5
+		# proportion of x-axis points to include in radius
+		self._radial_prop = 0.15
 
 	def _find_xstep(self, element_num, xstep_multiplier):
 		'''
@@ -1178,9 +1180,9 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 				self._upper_bound * self._x_stretch_factor))
 		self._x_centers = self._x_vals_stretched[x_center_bool]
 		self._y_centers = self._y_vals_stretched[x_center_bool]
-		# specify radius, in number of pixels (i.e. number of points
-		# along x-axis)
-		self._radius = np.max([2,np.round(np.count_nonzero(x_center_bool)/5).astype(int)])
+		# specify radius, in number of pixels
+		# (i.e. number of points along x-axis scaled by distance between points)
+		self._radius = np.max([2,np.round(np.count_nonzero(x_center_bool)*self._radial_prop*np.mean(np.diff(self._x_centers))).astype(int)])
 
 	def _calculate_circle_areas(self):
 		'''
@@ -1202,9 +1204,12 @@ class _SlidingCircleThresholdMethod(_ThresholdMethod):
 				np.count_nonzero(current_circle_mask)
 #			if idx == 0:
 #				msk = np.logical_xor(current_circle_mask, self._fit_im)
-#				cv2.imwrite('/Users/plavskin/Documents/yeast stuff/pie_paper_v2/Supp_threshold_ims/circle_0.tif', 255*np.uint8(msk))
+#				cv2.imwrite('/Users/plavskin/Documents/circle_0.tif', 255*np.uint8(msk))
+#			if self._inside_area[idx] == np.max(self._inside_area):
+#				msk = np.logical_xor(current_circle_mask, self._fit_im)
+#				cv2.imwrite('/Users/plavskin/Documents/circle_max.tif', 255*np.uint8(msk))
 #		msk = np.logical_xor(current_circle_mask, self._fit_im)
-#		cv2.imwrite('/Users/plavskin/Documents/yeast stuff/pie_paper_v2/Supp_threshold_ims/circle_last.tif', 255*np.uint8(msk))
+#		cv2.imwrite('/Users/plavskin/Documents/circle_last.tif', 255*np.uint8(msk))
 
 	def _perform_fit(self):
 		'''

@@ -102,7 +102,7 @@ class TestIDStartingVals(unittest.TestCase):
 		self.gaussian_method = \
 			_TwoGaussianFitThresholdMethod('test', 0, self.array_data[0],
 				self.array_data[2], np.ones(6), np.array([np.inf]*6),
-				1, sd_multiplier)
+				sd_multiplier)
 		expected_mu1 = 54.095238095238
 		expected_sigma1 = 90.1587301587302
 		expected_lambda1 = 10.4417048619897
@@ -168,12 +168,12 @@ class TestDigaussianResidualFunCalculator(unittest.TestCase):
 
 	@classmethod
 	def setUpClass(self):
-		self.gaussian_threshold_standin = \
-			object.__new__(_GaussianFitThresholdMethod)
-		self.gaussian_threshold_standin.param_idx_dict = \
+		self.two_gaussian_threshold_standin = \
+			object.__new__(_TwoGaussianFitThresholdMethod)
+		self.two_gaussian_threshold_standin.param_idx_dict = \
 			{'lambda_1': 0, 'mu_1': 1, 'sigma_1': 2, 'lambda_2': 3, 'mu_2': 4,
 				'sigma_2': 5}
-		self.gaussian_threshold_standin.data = pd.DataFrame({
+		self.two_gaussian_threshold_standin.data = pd.DataFrame({
 			'x':np.array([-3, -2, -1, 0, 1, 2, 3]),
 			'y':np.array([1, 1, 1, 1, 1, 1, 1])
 			})
@@ -194,7 +194,7 @@ class TestDigaussianResidualFunCalculator(unittest.TestCase):
 		expected_resid = \
 			np.array([0.81593687, 0.59228397, 0.13212056, -0.38940039,
 				0.44818084, 0.92898475, 0.99071877])
-		test_resid = self.gaussian_threshold_standin._residual_fun(
+		test_resid = self.two_gaussian_threshold_standin._residual_fun(
 			params)
 		assert_allclose(expected_resid, test_resid)
 
@@ -212,7 +212,7 @@ class TestDigaussianResidualFunCalculator(unittest.TestCase):
 		params = np.array([lambda_1, mu_1, sigma_1, lambda_2, mu_2, sigma_2])
 		# resid from y expected by matlab code
 		expected_resid = np.array([1, 1, 1, 0, 1, 1, 1])
-		test_resid = self.gaussian_threshold_standin._residual_fun(
+		test_resid = self.two_gaussian_threshold_standin._residual_fun(
 			params)
 		assert_allclose(expected_resid, test_resid)
 
@@ -227,12 +227,12 @@ class TestFitGaussians(unittest.TestCase):
 		self.y = array_data[2]
 
 	def setUp(self):
-		self.gaussian_threshold_standin = \
-			object.__new__(_GaussianFitThresholdMethod)
-		self.gaussian_threshold_standin.param_idx_dict = \
+		self.two_gaussian_threshold_standin = \
+			object.__new__(_TwoGaussianFitThresholdMethod)
+		self.two_gaussian_threshold_standin.param_idx_dict = \
 			{'lambda_1': 0, 'mu_1': 1, 'sigma_1': 2, 'lambda_2': 3, 'mu_2': 4,
 				'sigma_2': 5}
-		self.gaussian_threshold_standin.data=pd.DataFrame({
+		self.two_gaussian_threshold_standin.data=pd.DataFrame({
 			'x':self.x,
 			'y':self.y
 			})
@@ -243,24 +243,24 @@ class TestFitGaussians(unittest.TestCase):
 		(which finds a good fit to this data) when done with same
 		starting parameters and bounds
 		'''
-		self.gaussian_threshold_standin.starting_param_vals = \
+		self.two_gaussian_threshold_standin.starting_param_vals = \
 			np.array([10.4417048619897, 81.1428571428571, 113.90566370064,
 				4.96075048462661, 243.428571428571, 157.449461988403])
-		self.gaussian_threshold_standin.lower_bounds = \
+		self.two_gaussian_threshold_standin.lower_bounds = \
 			np.array([1, 0, 0, 0.5, -np.inf, 0])
-		self.gaussian_threshold_standin.upper_bounds = np.array([np.inf]*6)
+		self.two_gaussian_threshold_standin.upper_bounds = np.array([np.inf]*6)
 		expected_sse = 0.71
-		self.gaussian_threshold_standin.fit_density()
-		test_sse = self.gaussian_threshold_standin.fit_results.cost
+		self.two_gaussian_threshold_standin.fit_density()
+		test_sse = self.two_gaussian_threshold_standin.fit_results.cost
 		# check that the cost in the python fit is less than 1.25x of
 		# the cost of the matlab fit
 		self.assertTrue(test_sse < expected_sse * 1.25)
-		# check that self.gaussian_threshold_standin.y_hat is the output
+		# check that self.two_gaussian_threshold_standin.y_hat is the output
 		# of applying the model to the x values
-		expected_y_hat = self.gaussian_threshold_standin._digauss_calculator(
-			self.x, *self.gaussian_threshold_standin.fit_results.x)
+		expected_y_hat = self.two_gaussian_threshold_standin._digauss_calculator(
+			self.x, *self.two_gaussian_threshold_standin.fit_results.x)
 		assert_allclose(
-			expected_y_hat, self.gaussian_threshold_standin.data.y_hat)
+			expected_y_hat, self.two_gaussian_threshold_standin.data.y_hat)
 
 class TestCalcFitAdjRsq(unittest.TestCase):
 
@@ -405,26 +405,26 @@ class TestFitThresholdWithDistantPeaks(unittest.TestCase):
 				delimiter=',')
 
 	def setUp(self):
-		self.gaussian_method = \
-			_GaussianFitThresholdMethod('test', 0, self.array_data[0],
+		self.two_gaussian_method = \
+			_TwoGaussianFitThresholdMethod('test', 0, self.array_data[0],
 				self.array_data[2], np.ones(6), np.ones(6),
-				1, sd_multiplier)
-		# self.gaussian_method._min_real_peak_x_pos = 2.772380952380952
-		self.gaussian_method._close_to_peak_dist = 2000
+				sd_multiplier)
+		# self.two_gaussian_method._min_real_peak_x_pos = 2.772380952380952
+		self.two_gaussian_method._close_to_peak_dist = 2000
 
 	def test_threshold_based_on_mu_1(self):
 		'''
 		Calculate threshold based on mu, with the first distribution
 		used for threshold calculation
 		'''
-		self.gaussian_method.peak_x_pos = 50
-		self.gaussian_method.fit_result_dict = \
+		self.two_gaussian_method.peak_x_pos = 50
+		self.two_gaussian_method.fit_result_dict = \
 			{'lambda_1': 7.75, 'mu_1': 103.7, 'sigma_1': 154.9, \
 			'lambda_2': 4200, 'mu_2': -61096.85, 'sigma_2': 22622.0}
-		mu_to_peak_distvec = self.gaussian_method._calc_mu_distance_to_peak()
+		mu_to_peak_distvec = self.two_gaussian_method._calc_mu_distance_to_peak()
 		expected_threshold = 103.7 + 2*154.9
 		test_threshold = \
-			self.gaussian_method._find_threshold_with_distant_peaks(
+			self.two_gaussian_method._find_threshold_with_distant_peaks(
 				mu_to_peak_distvec)
 
 	def test_threshold_based_on_mu_2(self):
@@ -433,14 +433,14 @@ class TestFitThresholdWithDistantPeaks(unittest.TestCase):
 		used for threshold calculation
 		(Flip result values from test_threshold_based_on_mu_1)
 		'''
-		self.gaussian_method.peak_x_pos = 50
-		self.gaussian_method.fit_result_dict = \
+		self.two_gaussian_method.peak_x_pos = 50
+		self.two_gaussian_method.fit_result_dict = \
 			{'lambda_2': 7.75, 'mu_2': 103.7, 'sigma_2': 154.9, \
 			'lambda_1': 4200, 'mu_1': -61096.85, 'sigma_1': 22622.0}
-		mu_to_peak_distvec = self.gaussian_method._calc_mu_distance_to_peak()
+		mu_to_peak_distvec = self.two_gaussian_method._calc_mu_distance_to_peak()
 		expected_threshold = 103.7 + 2*154.9
 		test_threshold = \
-			self.gaussian_method._find_threshold_with_distant_peaks(
+			self.two_gaussian_method._find_threshold_with_distant_peaks(
 				mu_to_peak_distvec)
 
 	def test_threshold_based_on_sigma_1_peak_close_to_0(self):
@@ -449,14 +449,14 @@ class TestFitThresholdWithDistantPeaks(unittest.TestCase):
 		used for threshold calculation, due to the peak x position being
 		too close to 0
 		'''
-		self.gaussian_method.peak_x_pos = 2
-		self.gaussian_method.fit_result_dict = \
+		self.two_gaussian_method.peak_x_pos = 2
+		self.two_gaussian_method.fit_result_dict = \
 			{'lambda_1': 7.75, 'mu_1': -61096.85, 'sigma_1': 154.9, \
 			'lambda_2': 4200, 'mu_2': 103.7, 'sigma_2': 22622.0}
-		mu_to_peak_distvec = self.gaussian_method._calc_mu_distance_to_peak()
+		mu_to_peak_distvec = self.two_gaussian_method._calc_mu_distance_to_peak()
 		expected_threshold = -61096.85 + 2*154.9
 		test_threshold = \
-			self.gaussian_method._find_threshold_with_distant_peaks(
+			self.two_gaussian_method._find_threshold_with_distant_peaks(
 				mu_to_peak_distvec)
 
 	def test_threshold_based_on_sigma_2_mus_close_to_peak(self):
@@ -465,14 +465,14 @@ class TestFitThresholdWithDistantPeaks(unittest.TestCase):
 		used for threshold calculation, due to the peak x position being
 		too close to 0
 		'''
-		self.gaussian_method.peak_x_pos = 50
-		self.gaussian_method.fit_result_dict = \
+		self.two_gaussian_method.peak_x_pos = 50
+		self.two_gaussian_method.fit_result_dict = \
 			{'lambda_1': 7.75, 'mu_1': 103.7, 'sigma_1': 500.0, \
 			'lambda_2': 4200, 'mu_2': -1000, 'sigma_2': 154.9}
-		mu_to_peak_distvec = self.gaussian_method._calc_mu_distance_to_peak()
+		mu_to_peak_distvec = self.two_gaussian_method._calc_mu_distance_to_peak()
 		expected_threshold = -1000 + 2*154.9
 		test_threshold = \
-			self.gaussian_method._find_threshold_with_distant_peaks(
+			self.two_gaussian_method._find_threshold_with_distant_peaks(
 				mu_to_peak_distvec)
 	
 ### unittests for _mu1PosThresholdMethodTwoGauss ###
@@ -810,9 +810,40 @@ class TestCreateCircleMask(unittest.TestCase):
 		self.sliding_circle_standin = \
 			object.__new__(_SlidingCircleThresholdMethod)
 
-	def test_circle_mask(self):
+	def test_circle_mask_offset(self):
 		'''
 		Test circle mask creation
+		'''
+		center_x = 5
+		center_y = 4
+		radius = 2
+		im_width = 10
+		im_height = 9
+		expected_circle_mask = \
+			np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype = bool)
+		test_circle_mask = \
+			self.sliding_circle_standin._create_circle_mask(center_x, center_y,
+				radius, im_width, im_height)
+		assert_array_equal(expected_circle_mask, test_circle_mask)
+
+	def test_circle_mask_offset(self):
+		'''
+		Test circle mask creation for non-integer center
+		(No special treatment in these cases, but harder to parse mentally)
 		'''
 		center_x = 5.1
 		center_y = 4.1
@@ -838,9 +869,6 @@ class TestCreateCircleMask(unittest.TestCase):
 		test_circle_mask = \
 			self.sliding_circle_standin._create_circle_mask(center_x, center_y,
 				radius, im_width, im_height)
-		print('\n')
-		print(expected_circle_mask.astype(int))
-		print(test_circle_mask.astype(int))
 		assert_array_equal(expected_circle_mask, test_circle_mask)
 
 class TestIDCircleCenters(unittest.TestCase):
@@ -850,6 +878,7 @@ class TestIDCircleCenters(unittest.TestCase):
 			object.__new__(_SlidingCircleThresholdMethod)
 		self.sliding_circle_standin._x_stretch_factor = 0.1
 		self.sliding_circle_standin._y_stretch_factor = 100
+		self.sliding_circle_standin._radial_prop = 0.15
 		self.sliding_circle_standin._x_vals_stretched = \
 			np.array([10, 15, 25.02, 30, 50, 55, 69.98])
 		self.sliding_circle_standin._y_vals_stretched = \
@@ -874,8 +903,12 @@ class TestCalculateCircleAreas(unittest.TestCase):
 	def setUp(self):
 		self.sliding_circle_standin = \
 			object.__new__(_SlidingCircleThresholdMethod)
-		self.sliding_circle_standin._fit_im = \
-			np.vstack([np.ones([5,20]), np.zeros([5,20])])
+		self.sliding_circle_standin._x_vals_stretched = np.array([0, 20])
+		self.sliding_circle_standin._y_vals_stretched = np.array([4.5,4.5])
+		self.sliding_circle_standin._x_stretched_max_int = 20
+		self.sliding_circle_standin._y_stretched_max_int = 10
+#		self.sliding_circle_standin._fit_im = \
+#			np.vstack([np.ones([5,20]), np.zeros([5,20])])
 
 	def test_calculate_circle_areas(self):
 		'''
@@ -883,12 +916,12 @@ class TestCalculateCircleAreas(unittest.TestCase):
 		positions along x and y axis in a _fit_im whose top half is
 		white and whose bottom half is black
 		'''
+		self.sliding_circle_standin._radius = 3
+		# get self._fit_im
+		self.sliding_circle_standin._create_poly_mask()
 		self.sliding_circle_standin._x_centers = np.array([2, 6, 15])
 		self.sliding_circle_standin._y_centers = np.array([2, 5, 7])
-		self.sliding_circle_standin._radius = 3
-		self.sliding_circle_standin._x_stretched_max_int = 20
-		self.sliding_circle_standin._y_stretched_max_int = 10
-		expected_areas = np.array([20, 12, 2])
+		expected_areas = np.array([1, 0.5, 0.125])
 		self.sliding_circle_standin._calculate_circle_areas()
 		assert_array_equal(expected_areas,
 			self.sliding_circle_standin._inside_area)

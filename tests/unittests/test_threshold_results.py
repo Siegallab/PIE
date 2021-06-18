@@ -19,9 +19,9 @@ from numpy.testing import assert_allclose
 # Old SFig2D: 't02xy0225': 10338
 # Old SFig2E: 't09xy1107': 6816
 
-class Test_mu1PosThresholdMethod(unittest.TestCase):
+class Test_mu1PosThresholdMethodTwoGauss(unittest.TestCase):
 	'''
-	Tests images that were run through _mu1PosThresholdMethod-equivalent
+	Tests images that were run through _mu1PosThresholdMethodTwoGauss-equivalent
 	method in matlab, and compares thresholds arrived at there with the
 	ones identified by PIE.adaptive_threshold
 	'''
@@ -36,7 +36,7 @@ class Test_mu1PosThresholdMethod(unittest.TestCase):
 		'''
 		Opens histogram file (calculated in matlab) corresponding to
 		im_name, reads in smoothed log histogram, calculates and returns
-		threshold via PIE.adaptive_threshold._mu1PosThresholdMethod
+		threshold via PIE.adaptive_threshold._mu1PosThresholdMethodTwoGauss
 		'''
 		im_path = os.path.join('tests', 'test_ims',
 			(im_name + '_best_hist.csv'))
@@ -44,8 +44,11 @@ class Test_mu1PosThresholdMethod(unittest.TestCase):
 		x_pos = hist_data[0]
 		ln_hist_smooth = hist_data[2]
 		threshold_method = \
-			adaptive_threshold._mu1PosThresholdMethod(x_pos, ln_hist_smooth)
+			adaptive_threshold._mu1PosThresholdMethodTwoGauss(x_pos, ln_hist_smooth)
 		threshold = threshold_method.get_threshold()
+		p = threshold_method.plot()
+#		print(p)
+#		print(threshold)
 		return(threshold)
 
 	def test_xy01_08ms_3702(self):
@@ -139,6 +142,11 @@ class Test_DataSlidingCircleThresholdMethod(unittest.TestCase):
 		threshold_method = \
 			adaptive_threshold._DataSlidingCircleThresholdMethod(x_pos, ln_hist)
 		threshold = threshold_method.get_threshold()
+#		print('\n')
+#		p = threshold_method.plot()
+#		print(p)
+#		print(im_name)
+#		print(threshold)
 		return(threshold)
 
 	def test_xy01_08ms_3702(self):
@@ -150,12 +158,13 @@ class Test_DataSlidingCircleThresholdMethod(unittest.TestCase):
 
 #	def test_t10xy0320(self):
 #		'''
-#		Here, threshold differs a lot from that calculated via gaussians
-#		because default lower bound is higher than optimal threshold
+#		Here, matlab threshold pretty far off-base, but even if we use 
+#		gaussian threshold instead as the 'expected' value, data-based 
+#		sliding circle still does a poor job
 #		'''
-#		# 25533.0
+#		# 5437
 #		test_threshold = self._get_threshold('t10xy0320')
-#		expected_threshold = 7686
+#		expected_threshold = 3103
 #		assert_allclose(expected_threshold, test_threshold,
 #			rtol = self.rel_tolerance)
 
@@ -209,6 +218,8 @@ class Test_FitSlidingCircleThresholdMethod(unittest.TestCase):
 			adaptive_threshold._FitSlidingCircleThresholdMethod(x_pos, ln_hist_smooth)
 		threshold = threshold_method.get_threshold()
 #		print('\n')
+#		print(threshold_method._x_centers)
+#		print(threshold_method._radius)
 #		p = threshold_method.plot()
 #		print(p)
 #		print(im_name)
@@ -222,17 +233,17 @@ class Test_FitSlidingCircleThresholdMethod(unittest.TestCase):
 		assert_allclose(expected_threshold, test_threshold,
 			rtol = self.rel_tolerance)
 
-#	def test_t10xy0320(self):
-#		'''
-#		Here, threshold differs a lot from that calculated via gaussians
-#		because default lower bound is higher than optimal threshold
-#		'''
-#		# 7686.1
-#		# strangely only fails in python 3, where threshold is estimated as 22533...
-#		test_threshold = self._get_threshold('t10xy0320')
-#		expected_threshold = 7686
-#		assert_allclose(expected_threshold, test_threshold,
-#			rtol = self.rel_tolerance)
+	def test_t10xy0320(self):
+		'''
+		Here, threshold differs a lot from that calculated via gaussians
+		because default lower bound is higher than optimal threshold
+		'''
+		# 7686.1
+		# strangely only fails in python 3, where threshold is estimated as 22533...
+		test_threshold = self._get_threshold('t10xy0320')
+		expected_threshold = 7686
+		assert_allclose(expected_threshold, test_threshold,
+			rtol = self.rel_tolerance)
 
 	def test_xy01_14ms_3702(self):
 		# 12579
