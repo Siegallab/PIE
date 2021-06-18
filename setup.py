@@ -52,7 +52,7 @@ setup(
         'Colony recognition and growth measurement for microbial imaging'
         ),
     long_description=readme,
-    long_description_content_type='text/markdown',
+    long_description_content_type='text/x-rst',
     keywords='image-analysis microscopy',
     url='https://github.com/Siegallab/PIE',
     author=(
