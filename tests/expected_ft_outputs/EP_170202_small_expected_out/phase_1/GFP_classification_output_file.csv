@@ -1,0 +1,2 @@
+proportion_background,proportion_fluorescent,proportion_unidentified,background_threshold,fluor_threshold,background_prop_misID,fluor_prop_misID,lambda_back,location_back,scale_back,location_fl,scale_fl
+0.6470588235294118,0.35294117647058826,0.0,299.1955255436625,299.1955255436625,7.52854766129977e-05,4.621310415401558e-06,0.6666665474142194,228.82913691965274,5.421921646202294,380.39419997432583,9.226148735752167
