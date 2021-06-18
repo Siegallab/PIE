@@ -25,7 +25,6 @@ tests_require = [
 
 extras_require = {
     'tests': tests_require,
-    'docs': 
 }
 
 
