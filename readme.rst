@@ -7,7 +7,7 @@ To learn how to install and use PIE, see the `PIE documentation <https://pie-ima
 
 To learn how PIE works, see `our preprint <https://doi.org/10.1101/253724>`_.
 
-To test microcolony recognition and growth tracking on your images, try our `web application <pie.hpc.nyu.edu>`_.
+To test microcolony recognition and growth tracking on your images, try our `web application <http://pie.hpc.nyu.edu/>`_.
 
 PIE Quickstart
 ^^^^^^^^^^^^^^
