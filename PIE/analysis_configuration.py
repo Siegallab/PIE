@@ -1299,7 +1299,14 @@ class _SetupWizard(object):
 		'''
 		while True:
 			setup_file_path = \
-				input("\nEnter the full path to the setup file you want to create: ")
+				input(
+					"\n"
+					"Enter the full path to the setup file you want to create\n"
+					"Note: if your path contains backslash ('\\') characters "
+					"(e.g. on Windows) you will need to use a double backslash "
+					"instead ('\\\\') when specifying the path\n"
+					"Setup file path: "
+					)
 			setup_file_extension = os.path.splitext(setup_file_path)[1]
 			if setup_file_extension != '.csv':
 				print('\nSetup file must be a .csv file.')
