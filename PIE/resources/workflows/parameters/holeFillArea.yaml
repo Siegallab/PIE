@@ -1,0 +1,5 @@
+name: 'holeFillArea'
+label: 'Hole Fill Area'
+help: 'Size (in pixels) of the largest empty space between cells'
+dtype: 'int'
+defaultValue: 'inf'

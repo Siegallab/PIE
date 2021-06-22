@@ -35,35 +35,10 @@ parameters:
       label: 'Input Image File'
       dtype: 'file'
       target: 'data/IN/image.tif'
-    - name: 'imageType'
-      label: 'Image Type'
-      help: 'The type of micrscopy used to generate images'
-      dtype: 'select'
-      defaultValue: 'brightfield'
-      values:
-          - name: 'Brightfield'
-            value: 'brightfield'
-            isDefault: true
-          - name: 'Phasecontrast'
-            value: 'phasecontrast'
-            isDefault: false
-      isRequired: true
-    - name: 'holeFillArea'
-      label: 'Hole Fill Area'
-      help: 'Size (in pixels) of the largest empty space between cells'
-      dtype: 'int'
-      defaultValue: 'inf'
-    - name: 'cleanup'
-      label: 'Cleanup'
-      help: 'Perform cleanup of spurious pieces of background attached to colonies.'
-      dtype: 'bool'
-      defaultValue: true
-    - name: 'maxProportion'
-      label: 'Max. Proportion'
-      help: 'The max proportion of the edge of a detected colony "pie piece" that is allowed to not touch a neighboring "pie piece".'
-      dtype: 'float'
-      defaultValue: 0.75
-      range: '[0,1]'
+    - !include '../parameters/imageType.yaml'
+    - !include '../parameters/holeFillArea.yaml'
+    - !include '../parameters/cleanup.yaml'
+    - !include '../parameters/maxProp.yaml'
 outputs:
     - source: 'data/OUT/boundary_ims/image.jpg'
       key: 'boundary-image'

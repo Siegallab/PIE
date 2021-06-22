@@ -1,0 +1,5 @@
+name: 'cleanup'
+label: 'Cleanup'
+help: 'Perform cleanup of spurious pieces of background attached to colonies.'
+dtype: 'bool'
+defaultValue: true

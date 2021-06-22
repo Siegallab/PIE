@@ -1,0 +1,13 @@
+name: 'imageType'
+label: 'Image Type'
+help: 'The type of micrscopy used to generate images'
+dtype: 'select'
+defaultValue: 'brightfield'
+values:
+  - name: 'Brightfield'
+    value: 'brightfield'
+    isDefault: true
+  - name: 'Phasecontrast'
+    value: 'phasecontrast'
+    isDefault: false
+isRequired: true

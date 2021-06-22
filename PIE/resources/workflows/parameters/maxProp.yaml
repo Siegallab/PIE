@@ -1,0 +1,6 @@
+name: 'maxProportion'
+label: 'Max. Proportion'
+help: 'The max proportion of the edge of a detected colony "pie piece" that is allowed to not touch a neighboring "pie piece".'
+dtype: 'float'
+defaultValue: 0.75
+range: '[0,1]'
