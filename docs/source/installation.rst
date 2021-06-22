@@ -29,7 +29,7 @@ PIE can be installed using `pip <https://pip.pypa.io/en/stable/>`_, which should
 
         .. code-block:: bash
 
-            python -m pip install git+https://github.com/Siegallab/PIE@1.0.0
+            python -m pip install git+https://github.com/Siegallab/PIE@v1.0.1
 
         .. warning::
 
@@ -47,7 +47,7 @@ PIE can be installed using `pip <https://pip.pypa.io/en/stable/>`_, which should
 
         .. code-block:: bash
 
-            py -m pip install git+https://github.com/Siegallab/PIE@1.0.0
+            py -m pip install git+https://github.com/Siegallab/PIE@v1.0.1
 
         .. admonition:: Troubleshooting
             :class: dropdown, tip
