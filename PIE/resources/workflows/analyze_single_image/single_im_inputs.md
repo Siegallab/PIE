@@ -1,0 +1,7 @@
+* `Image Type`: The type of microscopy used to generate images.
+
+* `Hole Fill Area`: The area (in pixels) of the largest size hole to fill in colony masks after image analysis. For low-res yeast imaging, we recommend leaving this field empty (i.e. all the holes in the colonies get filled).
+
+* `Cleanup`: Whether or not to perform 'cleanup' of spurious pieces of background attached to colonies. We recommend trying PIE both with and without cleanup on a set of sample images. You can see the Li, Plavskin *et al.* paper for details.
+
+* `Max. Proportion`: Maximum proportion (0-1) of the perimeter of a PIE-detected gradient object ('PIE piece') that may be non-adjacent to another PIE piece to avoid being removed during 'cleanup' steps (only used if `cleanup` is *True*). The default value of 0.75 works well for 10x yeast images.
