@@ -1,0 +1,45 @@
+{
+    "description": "<p>PIE software version associated with <a href=\"https://www.biorxiv.org/content/10.1101/253724v3?versioned=true\">https://www.biorxiv.org/content/10.1101/253724v3?versioned=true</a></p>\n\n<p>Web Application: <a href=\"http://pie.hpc.nyu.edu\">pie.hpc.nyu.edu</a></p>\n\n<p>Documentation: <a href=\"http://pie-image.readthedocs.io\">pie-image.readthedocs.io</a></p>", 
+    "license": "other-open", 
+    "title": "PIE", 
+    "upload_type": "software", 
+    "creators": [
+        {
+            "orcid": "0000-0002-6911-3009", 
+            "affiliation": "@SiegalLab, NYU", 
+            "name": "Yevgeniy Plavskin"
+        }, 
+        {
+            "orcid": "0000-0003-4658-9765", 
+            "name": "Shuang Li"
+        }, 
+        {
+            "name": "Hyun Jung"
+        }, 
+        {
+            "name": "Federica M. O. Sartori"
+        }, 
+        {
+            "orcid": "0000-0003-2866-9526", 
+            "name": "Cassandra Buzby"
+        }, 
+        {
+            "orcid": "0000-0002-6158-2732", 
+            "name": "Heiko Mueller"
+        }, 
+        {
+            "orcid": "0000-0003-1299-5335", 
+            "name": "Naomi Ziv"
+        }, 
+        {
+            "orcid": "0000-0002-0923-1636", 
+            "name": "Sasha Levy"
+        }, 
+        {
+            "orcid": "0000-0001-6930-2988", 
+            "name": "Mark L. Siegal"
+        }
+    ], 
+    "access_right": "open"
+}
+
