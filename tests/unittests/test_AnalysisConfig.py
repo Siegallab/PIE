@@ -68,6 +68,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		self.min_foldX = 0.0
 		self.min_neighbor_dist = 100.0
 		self.max_colony_num = 1000.0
+		self.max_artifact_area = 0
 
 	def test_init(self):
 
@@ -97,6 +98,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		expected_analysis_config.min_foldX = self.min_foldX
 		expected_analysis_config.min_neighbor_dist = self.min_neighbor_dist
 		expected_analysis_config.max_colony_num = self.max_colony_num
+		expected_analysis_config.max_artifact_area = self.max_artifact_area
 		expected_analysis_config.input_path = self.input_path
 		expected_analysis_config.output_path = self.output_path
 		expected_analysis_config.im_file_extension = self.im_file_extension
@@ -149,7 +151,8 @@ class TestAnalysisConfigInit(unittest.TestCase):
 			self.growth_window_timepoints, self.max_area_pixel_decrease,
 			self.max_area_fold_decrease, self.max_area_fold_increase,
 			self.min_colony_area, self.max_colony_area, self.min_correlation,
-			self.min_foldX, self.min_neighbor_dist, self.max_colony_num
+			self.min_foldX, self.min_neighbor_dist, self.max_colony_num,
+			self.max_artifact_area
 			)
 		# create dicts to compare objects
 		test_attribute_dict = vars(test_analysis_config)

@@ -27,7 +27,7 @@ class TestProcessAnalysisConfigFile(unittest.TestCase):
 				['timepoint', 'position'], 1000, 1, 10, 3600, 't',
 				'xy', '','bright', pd.DataFrame(columns = ['fluor_channel_label',
 					'fluor_channel_column_name', 'fluor_threshold', 'fluor_timepoint']), 'individual',
-				[4, 11], range(1,1001), 4, 7, 500.0, 2.0, 6.0, 30, np.inf, 0.9, 0.0, 100.0, 1000)
+				[4, 11], range(1,1001), 4, 7, 500.0, 2.0, 6.0, 30, np.inf, 0.9, 0.0, 100.0, 1000, 0)
 		expected_analysis_config_obj_df = \
 			pd.DataFrame({'analysis_config': [expected_analysis_config],
 				'postphase_analysis_config': [None]}, index = [1])
