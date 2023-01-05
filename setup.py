@@ -11,7 +11,7 @@ install_requires = [
     'opencv-contrib-python>4.0.0.0',
     'pandas>=1.1.0',
     'Pillow>=7.2.0',
-    'scipy>=1.1.0',
+    'scipy>=1.8.0',
     'plotnine >= 0.7.1',
     'pyarrow',
     'Click>=7.0'

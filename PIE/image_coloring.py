@@ -4,6 +4,8 @@
 Colors images according to masks or keys
 '''
 
+import os
+os.environ["OPENCV_LOG_LEVEL"]="ERROR"
 import cv2
 import numpy as np
 import pandas as pd

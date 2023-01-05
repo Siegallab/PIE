@@ -4,6 +4,8 @@
 Tracks colonies through time in a single imaging field
 '''
 
+import os
+os.environ["OPENCV_LOG_LEVEL"]="ERROR"
 import cv2
 import itertools
 import numpy as np

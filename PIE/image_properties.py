@@ -4,10 +4,11 @@
 Analyzes single-image colony properties
 '''
 
+import os
+os.environ["OPENCV_LOG_LEVEL"]="ERROR"
 import csv
 import cv2
 import numpy as np
-import os
 import pandas as pd
 from PIE import adaptive_threshold, ported_matlab, colony_edge_detect
 from PIE.image_coloring import create_color_overlay
@@ -439,20 +440,20 @@ class _ColonyPropertyFinder(object):
 		'''
 		y_start = np.max(
 			[0,
-				np.int(np.ceil(bounding_box_series['bb_y_top']) -
+				int(np.ceil(bounding_box_series['bb_y_top']) -
 					expansion_pixels)])
 		x_start = np.max(
 			[0,
-				np.int(np.ceil(bounding_box_series['bb_x_left']) -
+				int(np.ceil(bounding_box_series['bb_x_left']) -
 					expansion_pixels)])
 		y_range_end = np.min(
 			[im_row_num,
-				np.int(np.ceil(bounding_box_series['bb_y_top'] + 
+				int(np.ceil(bounding_box_series['bb_y_top'] + 
 					bounding_box_series['bb_height']) +
 					expansion_pixels)])
 		x_range_end = np.min(
 			[im_col_num,
-				np.int(np.ceil(bounding_box_series['bb_x_left'] +
+				int(np.ceil(bounding_box_series['bb_x_left'] +
 					bounding_box_series['bb_width']) +
 					expansion_pixels)])
 		return(y_start, x_start, y_range_end, x_range_end)
@@ -621,7 +622,7 @@ class _ColonyPropertyFinder(object):
 				if pname not in self.property_df.columns:
 					self.property_df[pname] = np.nan
 			# add colony fluorescent properties to current row
-			self.property_df.at[idx, channel_fluor_prop_names] = \
+			self.property_df.loc[idx, channel_fluor_prop_names] = \
 				colony_fluor_prop_dict.values()
 
 def analyze_single_image(

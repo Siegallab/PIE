@@ -6,8 +6,9 @@ Performs colony edge detection
 
 # !!! TODO: ANALYSIS NOT WORKING ON JPEG?!
 
-import cv2
 import os
+os.environ["OPENCV_LOG_LEVEL"]="ERROR"
+import cv2
 import numpy as np
 import pandas as pd
 from PIE import ported_matlab, image_coloring

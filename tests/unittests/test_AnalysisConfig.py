@@ -15,6 +15,9 @@ class TestAnalysisConfigInit(unittest.TestCase):
 	'''
 
 	def setUp(self):
+		# see full difference between config dicts if there's a failure
+		self.maxDiff = None
+		# set default parameters for analysis config test
 		self.phase_num = 1
 		self.hole_fill_area = np.inf
 		self.cleanup = True
@@ -64,7 +67,7 @@ class TestAnalysisConfigInit(unittest.TestCase):
 		self.min_correlation = 0.9
 		self.min_foldX = 0.0
 		self.min_neighbor_dist = 100.0
-		self.max_colony_num = 1000
+		self.max_colony_num = 1000.0
 
 	def test_init(self):
 

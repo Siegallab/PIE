@@ -4,10 +4,11 @@
 Tracks colonies through time in a single imaging field
 '''
 
+import os
+os.environ["OPENCV_LOG_LEVEL"]="ERROR"
 import cv2
 import numpy as np
 import glob
-import os
 import warnings
 import pandas as pd
 from PIL import Image
@@ -128,7 +129,7 @@ def _separate_global_params(analysis_config_df_prelim):
 	new_global_param_ser_part, analysis_config_df_indiv = \
 		_get_global_params_from_phasewise_df(analysis_config_df_indiv)
 	global_param_ser_part = \
-		global_param_ser_part.append(new_global_param_ser_part)
+		pd.concat([global_param_ser_part, new_global_param_ser_part])
 	return(global_param_ser_part, analysis_config_df_indiv)
 
 def write_setup_file(
@@ -418,6 +419,8 @@ class MinimalAnalysisConfig(object):
 			if f.endswith(self.im_file_extension)
 			]
 		# open *some* input image
+		# sorting not important but simplifies testing
+		im_files.sort()
 		im_to_use = im_files[0]
 		self.size_ref_im = im_to_use
 		# NB: Pillow doesn't open jpegs saved through matlab with weird
@@ -979,7 +982,7 @@ class _AnalysisConfigFileProcessor(object):
 			))
 		self._global_param_ser = self._create_phase_conf_ser(
 			self._default_param_ser.drop(specified_indiv_phase_default_params),
-			global_param_ser_part.append(new_global_param_ser_part),
+			pd.concat([global_param_ser_part, new_global_param_ser_part]),
 			required_fields_general
 			)
 		self._global_param_ser = self._check_extra_params(
@@ -1196,7 +1199,7 @@ class _AnalysisConfigFileProcessor(object):
 				current_analysis_config
 		# in case any phase rows are empty (because those phases are
 		# child phases of other phases), remove rows with all None
-		analysis_config_obj_df.dropna(0, how = 'all', inplace = True)
+		analysis_config_obj_df.dropna(axis = 0, how = 'all', inplace = True)
 		return(analysis_config_obj_df)
 
 	def _check_file_existance(self, analysis_config_obj_df):
