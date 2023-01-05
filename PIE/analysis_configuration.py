@@ -613,7 +613,11 @@ class AnalysisConfig(MinimalAnalysisConfig):
 		self._find_first_timepoint()
 		# specify type of image ('bright' or 'dark') that is in
 		# the main channel
-		self.main_channel_imagetype = main_channel_imagetype
+		if main_channel_imagetype.lower() in ['bright','dark']:
+			self.main_channel_imagetype = main_channel_imagetype
+		else:
+			raise ValueError(
+				"main_channel_imagetype must be either 'bright' or 'dark'")
 		self._run_parameter_tests()
 
 	def _check_fluor_channel_label_spec(self):
