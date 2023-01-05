@@ -17,6 +17,8 @@ independent of each other
 
 import numpy as np
 import pandas as pd
+import warnings
+from math import isclose
 
 class _FilterBaseClass(object):
 	'''
@@ -526,12 +528,27 @@ class PostGrowthCombinedFilter(CombinedFilterBaseClass):
 		'''
 		### !!! NEEDS UNITTEST
 		# specify the two filration dictionaries that will be used
-		post_gr_filtration_dict = {
-			'min_foldX': _FilterByMinFoldX,
-			'min_correlation': _FilterByMinCorrelation,
-			'min_neighbor_dist': _FilterByMinNeighborDist,
-			'min_edge_dist': _FilterByMinEdgeDist
-			}
+		# only filter by min_correlation if it's above 0
+		if isclose(self.analysis_config.min_correlation, 0, abs_tol = 10**-9):
+			post_gr_filtration_dict = {
+				'min_foldX': _FilterByMinFoldX,
+				'min_neighbor_dist': _FilterByMinNeighborDist,
+				'min_edge_dist': _FilterByMinEdgeDist
+				}
+		else:
+			if (self.analysis_config.growth_window_timepoints < 3):
+				warnings.warn(
+					"If growth_window_timepoints is smaller than 3 and "
+					"min_correlation is not 0, no growth rates can be returned,"
+					" since the R^2 value across two points cannot be calculated",
+					UserWarning
+					)
+			post_gr_filtration_dict = {
+				'min_foldX': _FilterByMinFoldX,
+				'min_correlation': _FilterByMinCorrelation,
+				'min_neighbor_dist': _FilterByMinNeighborDist,
+				'min_edge_dist': _FilterByMinEdgeDist
+				}
 		# df_to_filter is unfilt_areas
 		unfilt_growth_rates = self.df_to_filter
 		# initialize bool of pre-gr colonies passing filter
@@ -554,9 +571,12 @@ class PostGrowthCombinedFilter(CombinedFilterBaseClass):
 		# change non-NA values in self.removed_colonies_df to make
 		# output more sensical
 		self.removed_colonies_df[self.removed_colonies_df.notnull()] = 'all'
-		self.removed_colonies_df.min_correlation[
-			self.removed_colonies_df.min_correlation.notnull()
-			] = 'some or all candidate windows'
+		try:
+			self.removed_colonies_df.min_correlation[
+				self.removed_colonies_df.min_correlation.notnull()
+				] = 'some or all candidate windows'
+		except AttributeError:
+			pass
 		return(self.filtered_growth_rates, self.removed_colonies_df)
 
 

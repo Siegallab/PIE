@@ -4,9 +4,10 @@
 Functions that are generally useful across testing code
 '''
 
+import os
+os.environ["OPENCV_LOG_LEVEL"]="ERROR"
 import cv2
 import numpy as np
-import os
 from PIE.image_properties import create_color_overlay
 from PIE.ported_matlab import bwperim
 

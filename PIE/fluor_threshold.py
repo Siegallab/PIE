@@ -434,7 +434,7 @@ class _FluorDensityFitter(DensityFitterMLE):
 			self.background_threshold=\
 				np.min([back_fit_result.x[0], self._midpoint])
 			self.fluor_threshold=\
-				np.max([fl_fit_result.x, self._midpoint])
+				np.max([fl_fit_result.x[0], self._midpoint])
 		else:
 			self.fit_result_dict = dict(zip(
 				self.param_idx_dict.keys(),

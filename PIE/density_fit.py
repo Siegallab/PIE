@@ -185,7 +185,7 @@ class DensityFitterMLE(_DensityFitter):
 					self._neg_ll_fun,
 					list(zip(self.lower_bounds, self.upper_bounds)),
 					x0 = self.starting_param_vals,
-					local_search_options = {
+					minimizer_kwargs = {
 						'method':opt_method,
 						'constraints':constraints
 						})

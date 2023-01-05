@@ -4,9 +4,10 @@
 Makes movies of colony growth
 '''
 
+import os
+os.environ["OPENCV_LOG_LEVEL"]="ERROR"
 import cv2
 import numpy as np
-import os
 import pandas as pd
 import plotnine as p9
 import random
@@ -449,7 +450,8 @@ class _PlotMovieMaker(_MovieMaker):
 				width=width/fake_dpi,
 				height=height/fake_dpi,
 				units='in', dpi=fake_dpi,
-				limitsize=False)
+				limitsize=False,
+				verbose=False)
 		buf.seek(0)
 		img_cv2 = cv2.imdecode(
 			np.frombuffer(buf.getvalue(), dtype=np.uint8), 1
@@ -1689,7 +1691,7 @@ class MovieGenerator(object):
 		# get ordered list of phases
 		phase_list = np.sort(self.analysis_config_obj_df.index)
 		# initialize global_timepoint column
-		comb_colony_prop_df['global_timepoint'] = None
+		comb_colony_prop_df['global_timepoint'] = np.nan
 		# initialize the number of timepoints to add to the next
 		# phase
 		prev_phases_tps = 0
@@ -1701,7 +1703,7 @@ class MovieGenerator(object):
 				] = \
 				comb_colony_prop_df.timepoint[
 					comb_colony_prop_df.phase_num == phase
-					] + \
+					].astype(float) + \
 				prev_phases_tps
 			# update the number of timepoints to add to the next phase
 			prev_phases_tps = prev_phases_tps + \

@@ -4,6 +4,8 @@
 Reproduces behavior of key matlab functions
 '''
 
+import os
+os.environ["OPENCV_LOG_LEVEL"]="ERROR"
 import cv2
 import numpy as np
 

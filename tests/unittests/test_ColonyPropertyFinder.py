@@ -190,7 +190,7 @@ class TestFindBoundingBox(unittest.TestCase):
 		self.col_prop_finder._find_bounding_box()
 		expected_property_df = \
 			pd.DataFrame({'bb_x_left': [], 'bb_y_top': [], 'bb_width': [],
-				'bb_height': []}).astype('int32')
+				'bb_height': []}, index = []).astype('int32')
 		assert_frame_equal(expected_property_df,
 			self.col_prop_finder.property_df, check_like = True)
 

@@ -19,7 +19,7 @@ def make_setup_filepath_standin(config_file_path, new_output_path):
 	analysis_config_file_standin = os.path.join(new_output_path, 'temp_setup.csv')
 	analysis_config_df = pd.read_csv(config_file_path)
 	# set output path
-	analysis_config_df.Value[analysis_config_df.Parameter == 'output_path'] = \
+	analysis_config_df.loc[analysis_config_df.Parameter == 'output_path','Value'] = \
 		new_output_path
 	analysis_config_df.to_csv(analysis_config_file_standin,
 		index = False)
@@ -82,13 +82,13 @@ class OutputChecker(unittest.TestCase):
 			self.analysis_config_obj_df.at[phase, 'threshold_info_df'] = \
 				threshold_info_df
 	
-	def _read_in_df(self, df_path):
+	def _read_in_df(self, df_path, index_col = None):
 		'''
 		Returns dataframe at df_path, which can be either parquet or csv
 		'''
 		_, ext = os.path.splitext(df_path)
 		if ext == '.csv':
-			df = pd.read_csv(df_path)
+			df = pd.read_csv(df_path, dtype={'area': 'int32'}, index_col = index_col)
 		elif ext == '.parquet':
 			df = pd.read_parquet(df_path)
 		else:
@@ -96,12 +96,14 @@ class OutputChecker(unittest.TestCase):
 				'Expecting parquet or csv file, got extension ' + ext)
 		return(df)
 
-	def _compare_dataframes(self, expected_df_path, test_df_path):
+	def _compare_dataframes(
+		self, expected_df_path, test_df_path, index_col = None
+		):
 		'''
 		Reads and compares dataframe in expected_df_path to test_df_path
 		'''
-		expected_df = self._read_in_df(expected_df_path)
-		test_df = self._read_in_df(test_df_path)
+		expected_df = self._read_in_df(expected_df_path, index_col = index_col)
+		test_df = self._read_in_df(test_df_path, index_col = index_col)
 		assert_frame_equal(expected_df, test_df, check_like = True)
 
 	def _check_directories(self):
@@ -259,6 +261,115 @@ class OutputChecker(unittest.TestCase):
 								)
 							)
 
+	def _check_comb_gr_df(self):
+		'''
+		Check equivalence of combined growth rate data frames
+		'''
+		self._compare_dataframes(
+				os.path.join(self.output_path, 'growth_rates_combined.csv'),
+				os.path.join(
+					self.expected_output_path, 'growth_rates_combined.csv'
+					)
+				)
+
+	def _check_col_props(self):
+		'''
+		Check equivalence of combined colony property data frames
+		'''
+		self._compare_dataframes(
+				os.path.join(self.output_path, 'colony_properties_combined.csv'),
+				os.path.join(
+					self.expected_output_path, 'colony_properties_combined.csv'
+					)
+				)
+
+	def _check_phase_gr_df(self, phase_base_dir):
+		'''
+		Check equivalence of single-phase growth rate data frames
+		'''
+		self._compare_dataframes(
+				os.path.join(self.output_path, phase_base_dir, 'growth_rates.csv'),
+				os.path.join(
+					self.expected_output_path, phase_base_dir, 'growth_rates.csv'
+					)
+				)
+
+	def _check_phase_filt_col_df(self, phase_base_dir):
+		'''
+		Check equivalence of single-phase filtered colony data frames
+		'''
+		self._compare_dataframes(
+				os.path.join(self.output_path, phase_base_dir, 'filtered_colonies.csv'),
+				os.path.join(
+					self.expected_output_path, phase_base_dir, 'filtered_colonies.csv'
+					)
+				)
+
+	def _check_phase_thresh_df(self, phase_base_dir):
+		'''
+		Check equivalence of single-phase combined threshold info data 
+		frames
+		'''
+		self._compare_dataframes(
+				os.path.join(
+					self.output_path,
+					phase_base_dir,
+					'threshold_plots',
+					'threshold_info_comb.csv'
+					),
+				os.path.join(
+					self.expected_output_path,
+					phase_base_dir,
+					'threshold_plots',
+					'threshold_info_comb.csv'
+					),
+				index_col = 0
+				)
+	def _check_positionwise_col_prop_mat_list(
+		self, expected_prop_list, phase_base_dir
+		):
+		'''
+		Check that files exist for full list of expected colony properties
+		'''
+		expected_positionwise_colony_property_matrix_files = \
+			{ x + '_property_mat.csv' for x in expected_prop_list }
+		test_positionwise_colony_property_matrix_files = \
+				set(os.listdir(os.path.join(
+					self.output_path,
+					phase_base_dir,
+					'positionwise_colony_property_matrices'
+					)))
+		self.assertEqual(
+			expected_positionwise_colony_property_matrix_files,
+			test_positionwise_colony_property_matrix_files
+			)
+
+	def _check_positionwise_col_prop_mat(
+		self, prop, phase_base_dir
+		):
+		'''
+		Check single-phase positionwise colony property matrix for 
+		property 'prop'
+		'''
+		expected_positionwise_colony_property_matrix_file = \
+			os.path.join(
+				self.expected_output_path,
+				phase_base_dir,
+				'positionwise_colony_property_matrices',
+				prop + '_property_mat.csv'
+				)
+		test_positionwise_colony_property_matrix_file = \
+			os.path.join(
+				self.output_path,
+				phase_base_dir,
+				'positionwise_colony_property_matrices',
+				prop + '_property_mat.csv'
+				)
+		self._compare_dataframes(
+			expected_positionwise_colony_property_matrix_file,
+			test_positionwise_colony_property_matrix_file
+			)
+
 	def check_combined_outputs(self):
 		'''
 		Check combined colony tracking outputs, growth rate analysis,
@@ -267,42 +378,38 @@ class OutputChecker(unittest.TestCase):
 		'''
 		# get list of files to check in parent directory
 		### CURRENTLY NOT CHECKING FOR EXTRA FILES
-		files_to_check = ['growth_rates_combined.csv',
-			'colony_properties_combined.csv']
+		self._check_comb_gr_df()
+		self._check_col_props()
+
 		for phase_dir in self.analysis_config_obj_df.phase_dir:
-			phase_base = os.path.basename(phase_dir)
-			files_to_check.append(
-				os.path.join(phase_base,'growth_rates.csv')
-				)
-			files_to_check.append(
-				os.path.join(phase_base,'filtered_colonies.csv')
-				)
-			files_to_check.append(
-				os.path.join(phase_base,'threshold_plots',
-					'threshold_info_comb.csv')
-				)
-			# check for all positionwise colony matrix files found in
-			# expected dir
-			positionwise_colony_property_matrix_files = \
-				os.listdir(os.path.join(self.expected_output_path,
-					phase_base,
-					'positionwise_colony_property_matrices'))
-			matrix_files_to_add = [
-				os.path.join(
-					phase_base,
-					'positionwise_colony_property_matrices',
-					f
+			phase_base_dir = os.path.basename(phase_dir)
+			self._check_phase_gr_df(phase_base_dir)
+			self._check_phase_filt_col_df(phase_base_dir)
+			self._check_phase_thresh_df(phase_base_dir)
+			# check for all positionwise colony matrix files based on 
+			# columns of colony_properties_combined.csv
+			# (no standard for what these will be due to diff possible 
+			# fluor channels, etc)
+			###
+			# colony properties for which to NOT make property matrices
+			# (should be same as list in 
+			# PIE.colony_prop_compilation.CompileColonyData)
+			cols_to_exclude = ['timepoint', 'phase_num', 'xy_pos_idx',
+				'time_tracking_id', 'main_image_name', 'bb_height', 'bb_width',
+				'bb_x_left', 'bb_y_top', 'cross_phase_tracking_id']
+			colony_data_tracked_df = \
+				self._read_in_df(
+					os.path.join(self.output_path, 'colony_properties_combined.csv')
 					)
-				for f in positionwise_colony_property_matrix_files
-				]
-			files_to_check.extend(matrix_files_to_add)
-		# check that files_to_check contain identical dataframes in
-		# output_path and expected_output_path
-		for f in files_to_check:
-			self._compare_dataframes(
-				os.path.join(self.output_path, f),
-				os.path.join(self.expected_output_path, f)
+			expected_prop_list = \
+				list(set(colony_data_tracked_df.columns.to_list()) -
+					set(cols_to_exclude))
+			self._check_positionwise_col_prop_mat_list(
+				expected_prop_list, phase_base_dir
 				)
+			# loop through expected properties and compare property dfs
+			for curr_prop in expected_prop_list:
+				self._check_positionwise_col_prop_mat(curr_prop, phase_base_dir)
 
 	def _check_movies(self):
 		'''

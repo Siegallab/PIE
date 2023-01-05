@@ -3,7 +3,8 @@
 '''
 Performs automatic thresholding on imaging to identify cell centers
 '''
-
+import os
+os.environ["OPENCV_LOG_LEVEL"]="ERROR"
 import cv2
 import numpy as np
 import warnings
