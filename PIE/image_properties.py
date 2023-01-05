@@ -23,7 +23,8 @@ class ImageAnalyzer(object):
 				save_extra_info = False, threshold_plot_width = 6,
 				threshold_plot_height = 4, threshold_plot_dpi = 200,
 				threshold_plot_filetype = 'png',
-				create_pie_overlay = False, write_col_props_file = True, max_col_num = 1000):
+				create_pie_overlay = False, write_col_props_file = True, max_col_num = 1000,
+				max_artifact_area = 0):
 		# TODO: Reorganize this section to make more sense; add more info about inputs
 		# parameter for saving jpegs (>95 not recommended by PIL)
 		self._jpeg_quality = 95
@@ -46,6 +47,7 @@ class ImageAnalyzer(object):
 		self.max_proportion_exposed_edge = max_proportion_exposed_edge
 		self.cell_intensity_num = cell_intensity_num
 		self.max_col_num = max_col_num
+		self._max_artifact_area = max_artifact_area
 		# get name of image file without path or extension
 		self.image_name = image_name
 		# set up folders
@@ -208,14 +210,14 @@ class ImageAnalyzer(object):
 		cv2.imwrite(colony_center_overlay_path, self.colony_center_overlay,
 			[cv2.IMWRITE_JPEG_QUALITY, self._jpeg_quality])
 
-	def _save_colony_properties(self):
+	def _get_and_save_colony_properties(self):
 		'''
 		Measures and, if needed, records area and centroid in every
 		detected colony
 		'''
 		# !!! NEEDS UNITTEST !!!
 		self.colony_property_finder = \
-			_ColonyPropertyFinder(self.colony_mask, self.max_col_num)
+			_ColonyPropertyFinder(self.colony_mask, self.max_col_num, self._max_artifact_area)
 		self.colony_property_finder.measure_and_record_colony_properties()
 		if self.write_col_props_file:
 			colony_property_path = \
@@ -233,7 +235,7 @@ class ImageAnalyzer(object):
 		# write input image as a jpeg
 		self._save_jpeg()
 		# measure and save colony properties
-		self._save_colony_properties()
+		self._get_and_save_colony_properties()
 		# write colony mask as 16-bit tif file
 		self._save_colony_mask()
 		# if self._save_extra_info is True, save additional files
@@ -287,10 +289,14 @@ class _ColonyPropertyFinder(object):
 	'''
 	Measures and holds properties of colonies based on a colony mask
 	'''
-	def __init__(self, colony_mask, max_col_num, fluor_measure_expansion_pixels = 5):
+	def __init__(self, colony_mask, max_col_num, max_artifact_area, fluor_measure_expansion_pixels = 5):
 		self.colony_mask = colony_mask
 		self.max_col_num = max_col_num
 		self.property_df = pd.DataFrame()
+		# set self._max_artifact_area, the size of the largest object 
+		# that gets removed from self.property_df (but is not removed
+		# from the colony mask!)
+		self._max_artifact_area = max_artifact_area
 		# set up erosion mask for removing bright saturated region
 		# around colony in fluorescence images
 		self._fluor_mask_erosion_kernel = np.uint8([
@@ -417,6 +423,14 @@ class _ColonyPropertyFinder(object):
 					self._find_contour_props(current_colony_mask)
 			self.property_df.at[colony-1, 'pixel_idx_list'] = \
 				self._find_flat_coordinates(current_colony_mask)
+
+	def _filter_small_colonies(self):
+		'''
+		Removes colonies smaller than or equal to self._max_artifact_area 
+		from self.property_df
+		'''
+		self.property_df = \
+			self.property_df[self.property_df.area > self._max_artifact_area]
 
 	def _pixel_idx_list_to_mask(self, pixel_idx_list, mask_shape):
 		'''
@@ -559,6 +573,7 @@ class _ColonyPropertyFinder(object):
 		self._find_centroids()
 		self._find_bounding_box()
 		self._find_colonywise_properties()
+		self._filter_small_colonies()
 
 	def set_up_fluor_measurements(self):
 		'''
@@ -641,10 +656,12 @@ def analyze_single_image(
 	'''
 	# analyzes all colonies in image
 	max_col_num = np.inf
+	max_artifact_area = 0
 	image = cv2.imread(input_im_path, cv2.IMREAD_ANYDEPTH)
 	image_name = os.path.splitext(os.path.basename(input_im_path))[0]
 	image_analyzer = ImageAnalyzer(image, image_name, output_path,
 		image_type, float(hole_fill_area), cleanup, max_proportion_exposed_edge,
-		cell_intensity_num, save_extra_info, max_col_num = max_col_num)
+		cell_intensity_num, save_extra_info, max_col_num = max_col_num,
+		max_artifact_area = max_artifact_area)
 	colony_mask, colony_property_df = image_analyzer.process_image()
 	return(colony_mask, colony_property_df)

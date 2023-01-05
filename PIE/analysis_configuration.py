@@ -209,7 +209,7 @@ required_fields_general = \
 	'max_area_fold_decrease', 'max_area_fold_increase',
 	'min_colony_area', 'max_colony_area', 'min_correlation',
 	'min_foldX', 'minimum_growth_time', 'growth_window_timepoints',
-	'min_neighbor_dist', 'max_colony_num']
+	'min_neighbor_dist', 'max_colony_num','max_artifact_area']
 
 required_fields_minimal = \
 	['fluor_channel_scope_labels', 'fluor_channel_names',
@@ -568,7 +568,8 @@ class AnalysisConfig(MinimalAnalysisConfig):
 		xy_position_vector, minimum_growth_time,
 		growth_window_timepoints, max_area_pixel_decrease,
 		max_area_fold_decrease, max_area_fold_increase, min_colony_area,
-		max_colony_area, min_correlation, min_foldX, min_neighbor_dist, max_colony_num):
+		max_colony_area, min_correlation, min_foldX, min_neighbor_dist, max_colony_num,
+		max_artifact_area):
 		'''
 		Reads setup_file and creates analysis configuration
 		'''
@@ -604,6 +605,7 @@ class AnalysisConfig(MinimalAnalysisConfig):
 		self.min_foldX = float(min_foldX)
 		self.min_neighbor_dist = float(min_neighbor_dist)
 		self.max_colony_num = float(max_colony_num)
+		self.max_artifact_area = float(max_artifact_area)
 		# set up dictionary of timepoint times
 		self._set_up_timevector(timepoint_spacing, first_timepoint)
 		# find time of first existing file
@@ -1096,7 +1098,8 @@ class _AnalysisConfigFileProcessor(object):
 			phase_conf_ser.min_correlation,
 			phase_conf_ser.min_foldX,
 			phase_conf_ser.min_neighbor_dist,
-			phase_conf_ser.max_colony_num)
+			phase_conf_ser.max_colony_num,
+			phase_conf_ser.max_artifact_area)
 		return(current_analysis_config)
 
 	def _create_postphase_analysis_config(self, phase_num, phase_conf_ser):

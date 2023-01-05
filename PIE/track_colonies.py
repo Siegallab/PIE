@@ -72,6 +72,7 @@ class SinglePhaseSinglePosCompiler(object):
 						self.analysis_config.cell_intensity_num,
 						self.analysis_config.save_extra_info,
 						max_col_num = self.analysis_config.max_colony_num,
+						max_artifact_area = self.analysis_config.max_artifact_area,
 						write_col_props_file = False)
 				image_analyzer.process_image()
 				# if there are fluorescent channels, loop through them and
